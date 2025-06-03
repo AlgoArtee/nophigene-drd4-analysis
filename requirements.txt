@@ -1,0 +1,9 @@
+pandas==1.5.3
+numpy==1.23.5
+scikit-allel==1.3.13    # for VCF parsing/analysis
+pysam==0.23.1           # fast VCF/BAM I/O
+matplotlib==3.6.2       # plotting (allele freq, methylation)
+biomart==0.9.0          # to fetch population‐level annotations
+methylprep==1.7.1       # epigenetic preprocessing/QC
+deepchem==2.8.0         # computational chemistry and bioinformatics workflows by providing a robust, specialized framework for data handling, modeling, and analysis
+requests==2.31.0        # for querying literature APIs

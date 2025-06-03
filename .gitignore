@@ -1,0 +1,11 @@
+# Python venv
+.venv/
+# VS Code settings
+.vscode/
+# Byte-compiled / cache
+__pycache__/
+*.pyc
+# Data and results
+data/
+results/
+
