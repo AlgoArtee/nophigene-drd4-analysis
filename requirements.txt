@@ -8,3 +8,9 @@ methylprep==1.7.1       # epigenetic preprocessing/QC
 deepchem==2.8.0         # computational chemistry and bioinformatics workflows by providing a robust, specialized framework for data handling, modeling, and analysis
 requests==2.31.0        # for querying literature APIs
 
+# To consider for later. if I'll plan to train or run pre-trained models in DeepChem (at least one backend (PyTorch or TensorFlow), and possibly JAX.)
+# New back-ends for DeepChem
+#torch==2.1.0+cpu
+#torchvision==0.15.1+cpu
+#tensorflow-cpu==2.12.0
+#jax[cpu]==0.4.14
