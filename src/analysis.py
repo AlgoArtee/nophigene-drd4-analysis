@@ -5,7 +5,7 @@ DRD4 Gene Analysis Pipeline
 Usage example:
     python src/analysis.py \
         --vcf data/GFXC926398.filtered.snp.vcf.gz \
-        --idat data/R01C01 \
+        --idat data/202277800037_R01C01 \
         --out results/drd4_report.html \
         --region 11:63671737-63677367
 """
@@ -63,50 +63,76 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
         'filter_pass': callset['variants/FILTER_PASS']
     })
 
+    if df.empty:
+        sys.exit(f"ERROR: No PASS variants found in {region} for {vcf_path}")
+
     print(f"Loaded {len(df)} variants from {vcf_path} in region {region}")
     print(df.head(), "\n")
+
     return df
 
 
 def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
     """
-    Parse Illumina IDATs (Green/Red), compute beta values, and return
-    a DataFrame of probes in the specified genomic region.
+    Parse Illumina IDATs, compute beta values, and return
+    a DataFrame of probes that map to the DRD4 region.
+    
+    Parameters
+    ----------
+    idat_base : str
+        Path prefix (without _Grn/_Red) to your IDATs, e.g. 'data/R01C01'
+    region : str
+        Genomic interval 'chr:start-end' or '11:start-end'
     """
-    grn = idat_base + "_Grn.idat"
-    red = idat_base + "_Red.idat"
+
+    # Build paths
+    data_dir   = os.path.dirname(idat_base)
+    print(data_dir)
+    sample_name = os.path.basename(idat_base)
+    print(sample_name)
+    grn = os.path.join(data_dir, sample_name + "_Grn.idat")
+    red = os.path.join(data_dir, sample_name + "_Red.idat")
+
+    # Sanity checks
     if not os.path.exists(grn) or not os.path.exists(red):
-        sys.exit(f"ERROR: IDAT files not found: {grn}, {red}")
+        sys.exit(f"ERROR: Missing IDAT files: {grn}, {red}")
+
 
     # run_pipeline will create a cache and export a <sample>_betas.csv
-    out_dir = run_pipeline(
-        idatdir=os.path.dirname(idat_base),
-        arrays=[os.path.basename(idat_base)],
-        outputdir=None,
+    containers = run_pipeline(
+        data_dir,
+        sample_names=[sample_name],
         export=True,
         export_format=['csv']
     )
-    sample = os.path.basename(idat_base)
-    csv_path = os.path.join(out_dir, f"{sample}_betas.csv")
-    betas = pd.read_csv(csv_path, index_col=0)
 
-    df = betas[['CHR', 'MAPINFO', 'Beta_value', 'Detection_Pval']].rename(
-        columns={'CHR': 'chrom',
-                 'MAPINFO': 'pos',
-                 'Beta_value': 'beta',
-                 'Detection_Pval': 'pval'}
-    ).reset_index().rename(columns={'index': 'probe_id'})
+    # run_pipeline returns a list of DataContainer; ours is containers[0]
+    # and it writes out a CSV named '<sample_name>_betas.csv' in its export folder.
+    out_dir     = containers[0].export_folder
+    csv_path    = os.path.join(out_dir, f"{sample_name}_betas.csv")
+    betas       = pd.read_csv(csv_path, index_col=0)
 
+    # Select & rename columns
+    df = betas[['CHR','MAPINFO','Beta_value','Detection_Pval']].rename(
+        columns={'CHR':'chrom','MAPINFO':'pos',
+                 'Beta_value':'beta','Detection_Pval':'pval'}
+    ).reset_index().rename(columns={'index':'probe_id'})
+
+    # Filter to the requested region
     chrom, coords = region.split(':')
-    start, end = map(int, coords.split('-'))
+    start, end    = map(int, coords.split('-'))
     df_region = df[
         (df['chrom'] == chrom) &
         (df['pos'] >= start) &
         (df['pos'] <= end)
     ].copy()
 
-    print(f"Loaded {len(df_region)} methylation probes in region {region}")
+    if df_region.empty:
+        sys.exit(f"ERROR: No methylation probes found in {region}")
+
+    print(f"Loaded {len(df_region)} probes in region {region}")
     print(df_region.head(), "\n")
+
     return df_region
 
 
@@ -135,6 +161,7 @@ def main():
 
 
 if __name__ == "__main__":
+    print(__doc__)
     main()
 
 
