@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import allel
+import pandas as pd
 import sys
 
 def parse_args():
@@ -38,10 +40,37 @@ def parse_args():
 
 def load_variants(vcf_path: str, region: str):
     """
-    Load and filter genetic variants from the VCF for the specified region.
-    To implement in Step 2.
+    Load SNP variants from a tabix‐indexed, filtered VCF into a pandas DataFrame.
+    We assume the VCF has already been filtered to PASS SNPs only.
     """
-    raise NotImplementedError
+    # Read only the DRD4 region
+    callset = allel.read_vcf(
+        vcf_path,
+        region=region,
+        fields=[
+            'variants/CHROM',
+            'variants/POS',
+            'variants/REF',
+            'variants/ALT',
+            'variants/QUAL',
+            'variants/FILTER_PASS'
+        ]
+    )
+    # Build a DataFrame
+    df = pd.DataFrame({
+        'chrom': callset['variants/CHROM'],
+        'pos': callset['variants/POS'],
+        'ref': callset['variants/REF'],
+        'alt': [alts[0] if len(alts) > 0 else None
+                for alts in callset['variants/ALT']],
+        'qual': callset['variants/QUAL'],
+        'filter_pass': callset['variants/FILTER_PASS']
+    })
+    # If your VCF uses a boolean PASS flag, you may already have only PASS records;
+    # otherwise, uncomment to enforce it here:
+    # df = df[df['filter_pass']]
+
+    return df
 
 
 def load_methylation(bed_path: str, region: str):
