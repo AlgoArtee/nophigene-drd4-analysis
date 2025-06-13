@@ -72,52 +72,112 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     return df
 
 
+import os
+import sys
+import pandas as pd
+from methylprep import run_pipeline
+
 def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
     """
-    Parse Illumina IDATs, compute beta values, and return
-    a DataFrame of probes that map to the DRD4 region.
-    
+    Parse Illumina IDATs (no sample sheet needed), compute beta values
+    in-memory, and return a DataFrame of probes that map to the specified region.
+
     Parameters
     ----------
     idat_base : str
-        Path prefix (without _Grn/_Red) to your IDATs, e.g. 'data/R01C01'
+        Path prefix (without _Grn/_Red) to your IDAT files, e.g. 'data/R01C01'.
+        Expects to find 'R01C01_Grn.idat' and 'R01C01_Red.idat' in the same folder.
     region : str
-        Genomic interval 'chr:start-end' or '11:start-end'
+        Genomic interval in 'chr:start-end' or '11:start-end' format, e.g. '11:63671737-63677367'.
+
+    Returns
+    -------
+    pd.DataFrame
+        Long-form DataFrame with columns:
+          - probe_id: Illumina probe identifier
+          - beta: methylation beta value (0–1)
+          - chrom: chromosome of the probe
+          - pos: genomic coordinate of the probe
+          - pval: detection p-value for the probe
     """
-
-    # Build paths
-    data_dir   = os.path.dirname(idat_base)
-    print(data_dir)
+    # 1. Determine data directory and sample name
+    data_dir    = os.path.dirname(idat_base)
     sample_name = os.path.basename(idat_base)
-    print(sample_name)
-    grn = os.path.join(data_dir, sample_name + "_Grn.idat")
-    red = os.path.join(data_dir, sample_name + "_Red.idat")
 
-    # Sanity checks
+    # 2. Confirm the IDAT files exist
+    grn = os.path.join(data_dir, f"{sample_name}_Grn.idat")
+    red = os.path.join(data_dir, f"{sample_name}_Red.idat")
     if not os.path.exists(grn) or not os.path.exists(red):
         sys.exit(f"ERROR: Missing IDAT files: {grn}, {red}")
 
+    # 3. Run methylprep pipeline in DataFrame (betas) mode, auto-generating sample sheet
+    betas_wide = run_pipeline(
+        data_dir,
+        export=False,          # no CSV export needed
+        betas=True,            # return beta-values as a DataFrame
+        make_sample_sheet=True # auto-generate a sample sheet from IDAT filenames
+    )
+    # betas_wide: rows = sample names; columns = probe IDs
 
-    # run_pipeline will create a cache and export a <sample>_betas.csv
+    # reset_index will turn the index into the first column, whatever its name was
+    betas_wide = betas_wide.reset_index()
+
+    # now rename that first column (position 0) to 'probe_id'
+    betas_wide = betas_wide.rename(columns={betas_wide.columns[0]: 'probe_id'})
+
+    print("Betas wide: ", betas_wide)
+
+    # 4. Melt to long form: one row per (sample, probe)
+    betas_long = betas_wide.melt(
+        id_vars=['probe_id'],       # probe_id first
+        var_name='sample',          # your sample name goes here
+        value_name='beta'           # methylation values
+    )
+
+    print("Betas long: ",betas_long)
+
+    # 5. Load probe annotation (CHR, MAPINFO, Detection_Pval) from the CSV export folder:
+    #    We still need these columns, so we run a quick export of metadata
+    containers = run_pipeline(
+        data_dir,
+        export=True,            # write out metadata CSVs
+        make_sample_sheet=True  # reuse the same auto sheet
+    )
+
+    # 6. Run export to disk so we can read annotation CSV
     containers = run_pipeline(
         data_dir,
         export=True,
-        export_format=['csv']
+        make_sample_sheet=True
+    )
+    container = containers[0]
+
+    # 7. Use get_export_filepath() to locate the CSV
+    #    This returns something like "/home/vscode/app/data/processed/beta_values.csv"
+    csv_path = container.get_export_filepath(extension='csv')
+    export_folder = os.path.dirname(csv_path)
+
+    # 8. Now read it
+    meta_df = pd.read_csv(csv_path, index_col=0)
+
+    # 9. Select & rename annotation columns
+    anno = (
+        meta_df[['CHR', 'MAPINFO', 'Detection_Pval']]
+        .rename(columns={
+            'CHR': 'chrom',
+            'MAPINFO': 'pos',
+            'Detection_Pval': 'pval'
+        })
+        .reset_index()
+        .rename(columns={'index': 'probe_id'})
     )
 
-    # run_pipeline returns a list of DataContainer; ours is containers[0]
-    # and it writes out a CSV named '<sample_name>_betas.csv' in its export folder.
-    out_dir     = containers[0].export_folder
-    csv_path    = os.path.join(out_dir, f"{sample_name}_betas.csv")
-    betas       = pd.read_csv(csv_path, index_col=0)
+    # 10. Join betas to annotation
+    df = betas_long.merge(anno, on='probe_id', how='left')
+    if df['chrom'].isnull().any():
+        sys.exit("ERROR: Some probes lack genomic annotation—check your manifest/IDAT pairing.")
 
-    # Select & rename columns
-    df = betas[['CHR','MAPINFO','Beta_value','Detection_Pval']].rename(
-        columns={'CHR':'chrom','MAPINFO':'pos',
-                 'Beta_value':'beta','Detection_Pval':'pval'}
-    ).reset_index().rename(columns={'index':'probe_id'})
-
-    # Filter to the requested region
+    # 11. Filter to the specified region
     chrom, coords = region.split(':')
     start, end    = map(int, coords.split('-'))
     df_region = df[
@@ -125,14 +185,15 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
         (df['pos'] >= start) &
         (df['pos'] <= end)
     ].copy()
-
     if df_region.empty:
-        sys.exit(f"ERROR: No methylation probes found in {region}")
+        sys.exit(f"ERROR: No methylation probes found in region {region}.")
 
+    # 12. Report first few rows
     print(f"Loaded {len(df_region)} probes in region {region}")
     print(df_region.head(), "\n")
 
     return df_region
+
 
 
 def fetch_population_stats(popstats_source, variants):
