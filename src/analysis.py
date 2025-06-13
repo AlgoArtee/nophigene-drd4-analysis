@@ -101,7 +101,6 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
     # run_pipeline will create a cache and export a <sample>_betas.csv
     containers = run_pipeline(
         data_dir,
-        sample_names=[sample_name],
         export=True,
         export_format=['csv']
     )
