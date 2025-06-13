@@ -72,11 +72,6 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     return df
 
 
-import os
-import sys
-import pandas as pd
-from methylprep import run_pipeline
-
 def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
     """
     Parse Illumina IDATs (no sample sheet needed), compute beta values
@@ -136,26 +131,32 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
 
     print("Betas long: ",betas_long)
 
+    # 4a. Ensure the processed/ export directory exists
+    #export_dir = os.path.join(data_dir, "processed")
+    #os.makedirs(export_dir, exist_ok=True)
+
     # 5. Load probe annotation (CHR, MAPINFO, Detection_Pval) from the CSV export folder:
     #    We still need these columns, so we run a quick export of metadata
     containers = run_pipeline(
         data_dir,
-        export=True,            # write out metadata CSVs
-        make_sample_sheet=True  # reuse the same auto sheet
+        export=True,                    # write out metadata CSVs
+        make_sample_sheet=True,         # reuse the same auto sheet
+        manifest_filepath=None,         # explicitly None (default)
+        array_type=None                 # explicitly None for autodetection
     )
 
-    # 6. Run export to disk so we can read annotation CSV
-    containers = run_pipeline(
-        data_dir,
-        export=True,
-        make_sample_sheet=True
-    )
+    # 6. Extract first container 
     container = containers[0]
+    print("container: ", container)
 
-    # 7. Use get_export_filepath() to locate the CSV
-    #    This returns something like "/home/vscode/app/data/processed/beta_values.csv"
-    csv_path = container.get_export_filepath(extension='csv')
-    export_folder = os.path.dirname(csv_path)
+    # 7.  Locate the metadata CSV for this sample
+    sample_export = os.path.join(data_dir, sample_name)
+    for fname in (f"{sample_name}_betas.csv", "beta_values.csv"):
+        csv_path = os.path.join(sample_export, fname)
+        if os.path.exists(csv_path):
+            break
+    else:
+        sys.exit(f"ERROR: Could not find methylation CSV in {sample_export}")
 
     # 8. Now read it
     meta_df = pd.read_csv(csv_path, index_col=0)
