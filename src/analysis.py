@@ -105,79 +105,44 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
     if not os.path.exists(grn) or not os.path.exists(red):
         sys.exit(f"ERROR: Missing IDAT files: {grn}, {red}")
 
-    # 3. Run methylprep pipeline in DataFrame (betas) mode, auto-generating sample sheet
-    betas_wide = run_pipeline(
-        data_dir,
-        export=False,          # no CSV export needed
-        betas=True,            # return beta-values as a DataFrame
-        make_sample_sheet=True # auto-generate a sample sheet from IDAT filenames
-    )
-    # betas_wide: rows = sample names; columns = probe IDs
-
-    # reset_index will turn the index into the first column, whatever its name was
-    betas_wide = betas_wide.reset_index()
-
-    # now rename that first column (position 0) to 'probe_id'
-    betas_wide = betas_wide.rename(columns={betas_wide.columns[0]: 'probe_id'})
-
-    print("Betas wide: ", betas_wide)
-
-    # 4. Melt to long form: one row per (sample, probe)
-    betas_long = betas_wide.melt(
-        id_vars=['probe_id'],       # probe_id first
-        var_name='sample',          # your sample name goes here
-        value_name='beta'           # methylation values
-    )
-
-    print("Betas long: ",betas_long)
-
-    # 4a. Ensure the processed/ export directory exists
-    #export_dir = os.path.join(data_dir, "processed")
-    #os.makedirs(export_dir, exist_ok=True)
-
-    # 5. Load probe annotation (CHR, MAPINFO, Detection_Pval) from the CSV export folder:
-    #    We still need these columns, so we run a quick export of metadata
+    # Single-sample pipeline run with automatic manifest download
     containers = run_pipeline(
         data_dir,
-        export=True,                    # write out metadata CSVs
-        make_sample_sheet=True,         # reuse the same auto sheet
-        manifest_filepath=None,         # explicitly None (default)
-        array_type=None                 # explicitly None for autodetection
+        export=False,            
+        betas=False,
+        make_sample_sheet=True
     )
 
-    # 6. Extract first container 
-    container = containers[0]
-    print("container: ", container)
+    container = containers[0]  # only one sample present
 
-    # 7.  Locate the metadata CSV for this sample
-    sample_export = os.path.join(data_dir, sample_name)
-    for fname in (f"{sample_name}_betas.csv", "beta_values.csv"):
-        csv_path = os.path.join(sample_export, fname)
-        if os.path.exists(csv_path):
-            break
-    else:
-        sys.exit(f"ERROR: Could not find methylation CSV in {sample_export}")
-
-    # 8. Now read it
-    meta_df = pd.read_csv(csv_path, index_col=0)
-
-    # 9. Select & rename annotation columns
-    anno = (
-        meta_df[['CHR', 'MAPINFO', 'Detection_Pval']]
-        .rename(columns={
-            'CHR': 'chrom',
-            'MAPINFO': 'pos',
-            'Detection_Pval': 'pval'
-        })
+    # Extract beta values
+    beta_df = (
+        container.beta_value
         .reset_index()
-        .rename(columns={'index': 'probe_id'})
+        .rename(columns={'index': 'probe_id', container.sample.name: 'beta'})
     )
 
-    # 10. Join betas to annotation
-    df = betas_long.merge(anno, on='probe_id', how='left')
-    if df['chrom'].isnull().any():
-        sys.exit("ERROR: Some probes lack genomic annotation—check your manifest/IDAT pairing.")
+    # Extract detection p-values
+    pval_df = (
+        container.pval
+        .reset_index()
+        .rename(columns={'index': 'probe_id', container.sample.name: 'pval'})
+    )
+    
+     # Annotation from auto-downloaded manifest
+    anno_df = (
+        container.manifest.data_frame[['IlmnID', 'CHR', 'MAPINFO']]
+        .rename(columns={'IlmnID': 'probe_id', 'CHR': 'chrom', 'MAPINFO': 'pos'})
+    )
 
+    # Merge dataframes
+    df = beta_df.merge(anno_df, on='probe_id').merge(pval_df, on='probe_id')
+
+    # Verify annotation completeness
+    if df['chrom'].isnull().any():
+        sys.exit("ERROR: Missing genomic annotations. Verify manifest-IDAT compatibility.")
+    
+   
     # 11. Filter to the specified region
     chrom, coords = region.split(':')
     start, end    = map(int, coords.split('-'))
@@ -186,6 +151,8 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
         (df['pos'] >= start) &
         (df['pos'] <= end)
     ].copy()
+
+
     if df_region.empty:
         sys.exit(f"ERROR: No methylation probes found in region {region}.")
 
