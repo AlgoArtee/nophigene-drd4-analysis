@@ -16,7 +16,8 @@ import sys
 import logging
 import allel
 import pandas as pd
-from methylprep import run_pipeline
+from methylprep import Manifest, run_pipeline
+from pathlib import Path
 
 # -------------------------------------------------
 # Configure root logger for stdout at DEBUG level
@@ -106,16 +107,20 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
           - pos: genomic coordinate of the probe
           - pval: detection p-value for the probe
     """
-    # 1. Determine data directory and sample name
-    logger.info("Starting load_methylation()")
+
+    # === 1. Setup paths and validate input ===
+    logger.info("Starting methylation loading for sample")
 
     data_dir    = os.path.dirname(idat_base)
     sample_name = os.path.basename(idat_base)
+    sample_id   = sample_name.split("_")[0]
 
-    logger.debug(f"Data directory: {data_dir}")
-    logger.debug(f"Sample name:    {sample_name}")
+    logger.debug(f"Data directory:  {data_dir}")
+    logger.debug(f"Sample name:     {sample_name}")
+    logger.debug(f"Sample id:       {sample_id}")
 
-    # 2a) Confirm the IDAT files exist
+
+    # 2a) === 2. Check presence of both Red and Green IDAT files ===
     for suffix in ("_Grn.idat", "_Red.idat"):
         path = os.path.join(data_dir, sample_name + suffix)
         logger.debug(f"Checking IDAT: {path}")
@@ -123,51 +128,30 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
             logger.error(f"Missing IDAT file: {path}")
             sys.exit(1)
 
-    # 2b) Inspect manifest cache before pipeline
-    manifest_cache = os.path.expanduser("~/.cache/methylprep/manifests")
-    logger.debug(f"Manifest cache directory: {manifest_cache}")
-    if os.path.isdir(manifest_cache):
-        logger.debug("Manifest cache contents BEFORE pipeline:")
-        for fname in os.listdir(manifest_cache):
-            logger.debug(f"  - {fname}")
-    else:
-        logger.warning("Manifest cache directory does not exist before pipeline")
+
+    # === 3. Define the directory for the processed csv file ===
+    export_dir = os.path.join(data_dir, sample_id)
+    #os.makedirs(export_dir, exist_ok=True)
+    #logger.debug(f"Using export_dir = {export_dir}")
 
 
-    # 2c) Ensure export directory
-    export_dir = os.path.join(data_dir, "processed")
-    os.makedirs(export_dir, exist_ok=True)
-    logger.debug(f"Using export_dir = {export_dir}")
-
-
-     # 3) Run methylprep pipeline with manifest auto-download
+    # === 4. Run methylprep pipeline ===
     try:
-        logger.info("Calling run_pipeline()")
+        logger.info("Running methylprep pipeline...")
         run_pipeline(
             data_dir,
-            export=True,            # write processed CSV
-            make_sample_sheet=True, # auto-generate a sample sheet
-            outputdir=export_dir    # known export location
-            # manifest_filepath=None by default → auto-download :contentReference[oaicite:0]{index=0}
+            export=True,
+            make_sample_sheet=True,
+            manifest_filepath=manifest_filepath  # None by default → auto-download
         )
-        logger.info("run_pipeline() completed")
+        logger.info("Pipeline completed successfully.")
     except Exception as e:
-        logger.exception("run_pipeline() failed")
+        logger.exception("run_pipeline() failed.")
         sys.exit(1)
+    
 
-
-    # 4) Inspect manifest cache after pipeline
-    if os.path.isdir(manifest_cache):
-        logger.debug("Manifest cache contents AFTER pipeline:")
-        for fname in os.listdir(manifest_cache):
-            logger.debug(f"  - {fname}")
-    else:
-        logger.error("Manifest cache directory still missing after pipeline")
-
-
-    # 5) Locate the processed CSV
-    sample_folder = os.path.join(export_dir, sample_name)
-    logger.debug(f"Looking for processed CSV in: {sample_folder}")
+    # === 5. Find the processed output CSV file ===
+    sample_folder = os.path.join(data_dir, sample_id)
     candidates = [
         f"{sample_name}_processed.csv",
         f"{sample_name}_betas.csv",
@@ -175,54 +159,109 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
     ]
     for fname in candidates:
         csv_path = os.path.join(sample_folder, fname)
-        logger.debug(f"Checking for CSV: {csv_path}")
         if os.path.isfile(csv_path):
-            logger.info(f"Found processed CSV: {fname}")
+            logger.info(f"Found processed CSV file: {csv_path}")
             break
     else:
-        logger.error(f"No processed CSV found in {sample_folder}")
+        logger.error("No valid processed CSV found.")
         sys.exit(1)
 
 
-    # 7) Load the CSV and rename columns
+    # === 6. Load methylation data into a DataFrame ===
     try:
         df = pd.read_csv(csv_path, index_col=0)
-        logger.debug(f"Loaded DataFrame with shape {df.shape}")
+        logger.debug(f"Loaded methylation DataFrame with shape {df.shape}")
     except Exception as e:
-        logger.exception(f"Failed to read CSV {csv_path}")
+        logger.exception("Failed to read processed CSV.")
         sys.exit(1)
 
-    # Only rename the columns you need
-    rename_map = {
-        'beta_value':    'beta',
-        'Detection_Pval':'pval',
-        'CHR':           'chrom',
-        'MAPINFO':       'pos'
-    }
-    df = df.rename(columns=rename_map)
-    df = df.reset_index().rename(columns={'index':'probe_id'})
-    logger.debug(f"Columns after rename: {list(df.columns)}")
 
-    print("DF Head: ",df.head)
+
+    # === 7. Rename columns to standardized schema ===
+    df.rename(columns={
+        'beta_value': 'beta',
+        'Detection_Pval': 'pval',
+        'CHR': 'chrom',
+        'MAPINFO': 'pos'
+    }, inplace=True)
+
+    # Move probe IDs from index to a column
+    df.reset_index(inplace=True)
+    df.rename(columns={'index': 'probe_id'}, inplace=True)
+
+    logger.debug(f"Data columns after rename: {list(df.columns)}")
+
+    # === 8. Platform inference (based on probe count) ===
+    n_probes = df.shape[0]
+    if n_probes > 900_000:
+        array_type = "epic"
+    elif n_probes > 400_000:
+        array_type = "450k"
+    elif n_probes < 30_000:
+        array_type = "27k"
+    else:
+        array_type = "custom"
+    logger.info(f"Inferred array type: {array_type}")
+
+
+    # === 9. Load manifest and annotate ===
+    try:
+        manifest = Manifest(array_type)
+        manifest_df = manifest.data_frame
+    except Exception as e:
+        logger.exception("Failed to load manifest using methylprep.")
+        sys.exit(1)
+
+    # Try to retrieve gene symbols from full manifest file if not in data_frame
+    if 'UCSC_RefGene_Name' not in manifest_df.columns:
+        cache_dir = Path.home() / ".methylprep_manifest_files"
+        manifest_files = list(cache_dir.glob(f"*{array_type}*manifest*csv*"))
+        if not manifest_files:
+            logger.error("No cached manifest file found.")
+            sys.exit(1)
+        full_manifest = pd.read_csv(manifest_files[0], comment='[', header=0, low_memory=False)
+        full_manifest.set_index('IlmnID', inplace=True)
+        manifest_df = manifest_df.join(full_manifest[['UCSC_RefGene_Name']], how='left')
 
     
-    # 7. Filter to the specified region
-    chrom, coords = region.replace('chr','').split(':')
-    start, end    = map(int, coords.split('-'))
-    logger.info(f"Filtering to region: chr{chrom}:{start}-{end}")
-    df_region = df[
-        (df['chrom'] == chrom) &
-        (df['pos'] >= start) &
-        (df['pos'] <= end)
-    ].copy()
-    logger.info(f"Probes in region: {len(df_region)}")
-    if df_region.empty:
-        logger.warning(f"No probes found in the specified region: {region}.")
-        sys.exit(f"ERROR: No methylation probes found in region {region}.")
+    # === 10. Standardize annotation columns ===
+    manifest_df = manifest_df.rename(columns={
+        'CHR': 'chrom',
+        'MAPINFO': 'pos',
+        'UCSC_RefGene_Name': 'gene'
+    })
+    annot = manifest_df[['chrom', 'pos', 'gene']]
+    
+    # === 11. Merge annotation with beta data ===
+    annotated_df = pd.merge(df, annot, left_on='probe_id', right_index=True, how='left')
 
-    # 8. Return the filtered DataFrame
-    print(f"Loaded {len(df_region)} probes in region {region}")
-    return df_region[['probe_id','beta','chrom','pos','pval']]
+    # === 12. Parse region string ===
+    try:
+        chrom_str, pos_str = region.replace("chr", "").split(":")
+        start, end = map(int, pos_str.split("-"))
+        chrom_str = str(chrom_str)
+    except Exception:
+        logger.error("Region format should be like 'chr11:123456-124000'")
+        sys.exit(1)
+    
+    
+    # === 13. Filter to region ===
+    annotated_df['chrom'] = annotated_df['chrom'].astype(str)
+    region_df = annotated_df[
+        (annotated_df['chrom'] == chrom_str) &
+        (annotated_df['pos'] >= start) &
+        (annotated_df['pos'] <= end)
+    ].copy()
+    
+    
+    logger.info(f"Filtered to region chr{chrom_str}:{start}-{end} — {len(region_df)} probes found")
+    if region_df.empty:
+        logger.warning("No probes found in region.")
+        sys.exit(1)
+
+    # Final output
+    return region_df[['probe_id', 'beta', 'chrom', 'pos', 'gene', 'pval']]
+    
 
 
 def fetch_population_stats(popstats_source, variants):
