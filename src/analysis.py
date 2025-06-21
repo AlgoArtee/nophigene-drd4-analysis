@@ -72,7 +72,7 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     return df
 
 
-def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
+def load_methylation(idat_base: str, region: str, manifest_filepath: str = None) -> pd.DataFrame:
     """
     Parse Illumina IDATs (no sample sheet needed), compute beta values
     in-memory, and return a DataFrame of probes that map to the specified region.
@@ -106,62 +106,47 @@ def load_methylation(idat_base: str, region: str) -> pd.DataFrame:
         sys.exit(f"ERROR: Missing IDAT files: {grn}, {red}")
 
     # Single-sample pipeline run with automatic manifest download
-    containers = run_pipeline(
+    betas_wide = run_pipeline(
         data_dir,
-        export=False,            
-        betas=False,
-        make_sample_sheet=True
+        export=True,            
+        betas=True,
+        make_sample_sheet=True,
+        
     )
 
-    container = containers[0]  # only one sample present
+    processed_dir_path = sample_name.split("_")[0]
+    print("Processed files folder: ", processed_dir_path)
+    csv_path = os.path.join(data_dir, processed_dir_path,  f"{sample_name}_processed.csv")
 
-    # Extract beta values
-    beta_df = (
-        container.beta_value
-        .reset_index()
-        .rename(columns={'index': 'probe_id', container.sample.name: 'beta'})
+    # 3) Read and rename
+    df = pd.read_csv(csv_path, index_col=0)
+    df = df.rename(
+        columns={
+            'beta_value':    'beta',
+            'Detection_Pval':'pval',
+            'CHR':           'chrom',
+            'MAPINFO':       'pos'
+        }
     )
+    df = df.reset_index().rename(columns={'index':'probe_id'})
 
-    # Extract detection p-values
-    pval_df = (
-        container.pval
-        .reset_index()
-        .rename(columns={'index': 'probe_id', container.sample.name: 'pval'})
-    )
+    print(df.head)
+
     
-     # Annotation from auto-downloaded manifest
-    anno_df = (
-        container.manifest.data_frame[['IlmnID', 'CHR', 'MAPINFO']]
-        .rename(columns={'IlmnID': 'probe_id', 'CHR': 'chrom', 'MAPINFO': 'pos'})
-    )
-
-    # Merge dataframes
-    df = beta_df.merge(anno_df, on='probe_id').merge(pval_df, on='probe_id')
-
-    # Verify annotation completeness
-    if df['chrom'].isnull().any():
-        sys.exit("ERROR: Missing genomic annotations. Verify manifest-IDAT compatibility.")
-    
-   
-    # 11. Filter to the specified region
-    chrom, coords = region.split(':')
+    # 7. Filter to the specified region
+    chrom, coords = region.replace('chr','').split(':')
     start, end    = map(int, coords.split('-'))
     df_region = df[
         (df['chrom'] == chrom) &
         (df['pos'] >= start) &
         (df['pos'] <= end)
     ].copy()
-
-
     if df_region.empty:
         sys.exit(f"ERROR: No methylation probes found in region {region}.")
 
-    # 12. Report first few rows
+    # 8. Return the filtered DataFrame
     print(f"Loaded {len(df_region)} probes in region {region}")
-    print(df_region.head(), "\n")
-
-    return df_region
-
+    return df_region[['probe_id','beta','chrom','pos','pval']]
 
 
 def fetch_population_stats(popstats_source, variants):
