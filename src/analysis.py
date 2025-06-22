@@ -7,7 +7,7 @@ Usage example:
         --vcf data/GFXC926398.filtered.snp.vcf.gz \
         --idat data/202277800037_R01C01 \
         --out results/drd4_report.html \
-        --region 11:63671737-63677367
+        --region 11:637269-640706 // source: https://genome-euro.ucsc.edu/cgi-bin/hgGene?db=hg19&hgg_gene=DRD4  old:11:63671737-63677367
 """
 
 import argparse
