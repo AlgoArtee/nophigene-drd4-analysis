@@ -111,8 +111,8 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
     # === 1. Setup paths and validate input ===
     logger.info("Starting methylation loading for sample")
 
-    data_dir    = os.path.dirname(idat_base)
-    sample_name = os.path.basename(idat_base)
+    data_dir    = os.path.dirname(idat_base) # directory containing the IDATs
+    sample_name = os.path.basename(idat_base) # ex: 202277800037_R01C01
     #sample_id   = sample_name.split("_")[0]
 
     logger.debug(f"Data directory:  {data_dir}")
@@ -120,7 +120,7 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
     #logger.debug(f"Sample id:       {sample_id}")
 
 
-    # 2a) === 2. Check presence of both Red and Green IDAT files ===
+    # 2a) === 2. Check presence of both Red and Green Channel IDAT files ===
     for suffix in ("_Grn.idat", "_Red.idat"):
         path = os.path.join(data_dir, sample_name + suffix)
         logger.debug(f"Checking IDAT: {path}")
@@ -187,6 +187,7 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
         sys.exit(1)
 
     # 5. Merge and filter
+    # Inner join keeps only probes present in both the sample and the manifest
     merged = pd.merge(beta_df, manifest_region, on='probe_id', how='inner')
     logger.info("After merging: %d probes remain", len(merged))
 

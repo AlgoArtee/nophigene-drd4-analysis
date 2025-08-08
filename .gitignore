@@ -15,6 +15,3 @@ results/
 # Docker dev files
 .devcontainer/
 
-# Helper Scripts
-src/helper_functions/
-
