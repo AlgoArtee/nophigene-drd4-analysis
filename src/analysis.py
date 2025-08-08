@@ -134,7 +134,7 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
         logger.info("Running methylprep pipeline with betas=True …")
         beta_values = run_pipeline(
             data_dir,
-            export=False,
+            export=True,
             betas=True,
             manifest_filepath=manifest_filepath
         )
@@ -193,6 +193,7 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
     # === Keep only desired columns ===
     keep_columns = [
         'probe_id',
+        'beta',
         'chrom',
         'pos',
         'GencodeBasicV12_NAME',
@@ -203,7 +204,6 @@ def load_methylation(idat_base: str, region: str, manifest_filepath: str = None)
         'Relation_to_UCSC_CpG_Island',
         'Phantom4_Enhancers',
         'Phantom5_Enhancers,DMR,450k_Enhancer,HMM_Island',
-        'beta',
         'DNase_Hypersensitivity_NAME',
         'DNase_Hypersensitivity_Evidence_Count'
     ]
