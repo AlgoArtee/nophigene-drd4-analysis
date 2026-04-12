@@ -549,6 +549,90 @@ def _summarize_population_extremes(
     }
 
 
+def _build_sample_variant_highlights(
+    *,
+    matched_records: list[dict[str, Any]],
+    promoter_analysis: dict[str, Any],
+    gene_analysis: dict[str, Any],
+) -> dict[str, Any]:
+    """Summarize the most visible sample-specific variant findings first."""
+    if matched_records:
+        summary = (
+            f"This sample matched {len(matched_records)} curated DRD4 research variant(s). "
+            "Those direct sample hits are shown first below."
+        )
+        items = [
+            {
+                "title": record["variant"],
+                "observed_variant": record["observed_variant"],
+                "category": record.get("interpretation_scope", "Research context"),
+                "description": record.get("clinical_interpretation", ""),
+                "conditions": record.get("associated_conditions", []),
+            }
+            for record in matched_records
+        ]
+        return {
+            "summary": summary,
+            "highlight_items": items,
+        }
+
+    found_items: list[dict[str, Any]] = []
+    for region_label, region_analysis in (
+        ("Promoter review", promoter_analysis),
+        ("Gene body review", gene_analysis),
+    ):
+        for record in region_analysis.get("found_variants", []):
+            found_items.append(
+                {
+                    "title": record["display"],
+                    "observed_variant": record["position"],
+                    "category": region_label,
+                    "description": record.get("summary", ""),
+                    "conditions": record.get("associated_conditions", []),
+                }
+            )
+
+    if found_items:
+        summary = (
+            "This sample did not hit one of the curated named DRD4 markers, but it did contain "
+            f"{len(found_items)} observed PASS variant(s) inside the reviewed promoter or gene intervals."
+        )
+    else:
+        summary = (
+            "This sample did not yield a visible DRD4 promoter or gene-body PASS variant in the current preview slice."
+        )
+
+    return {
+        "summary": summary,
+        "highlight_items": found_items,
+    }
+
+
+def _build_region_recommendations(
+    promoter_region_record: dict[str, Any],
+    gene_region_record: dict[str, Any],
+    combined_region: str,
+) -> list[dict[str, str]]:
+    """Return practical region-span recommendations for common DRD4 review goals."""
+    return [
+        {
+            "title": "Promoter only",
+            "region": promoter_region_record["display"],
+            "purpose": "Use this when you want to focus on the upstream promoter-review window and the classic DRD4 promoter polymorphism hotspot without loading the transcribed gene body.",
+        },
+        {
+            "title": "Gene body only",
+            "region": gene_region_record["display"],
+            "purpose": "Use this when you want the canonical DRD4 transcribed interval but do not need the upstream promoter review window.",
+        },
+        {
+            "title": "Promoter plus gene body",
+            "region": combined_region,
+            "purpose": "Use this when you want the full audit: upstream promoter context plus the canonical DRD4 gene interval in one search.",
+        },
+    ]
+
+
 def _categorize_beta(mean_beta: float | None) -> str:
     """Map average beta values to a coarse descriptive band for UI summaries."""
     if mean_beta is None or pd.isna(mean_beta):
@@ -666,6 +750,10 @@ def build_variant_interpretations(
 
     promoter_phrase = "overlaps" if promoter_analysis["included"] else "does not overlap"
     gene_phrase = "overlaps" if gene_analysis["included"] else "does not overlap"
+    combined_region = gene_context.get(
+        "recommended_promoter_plus_gene_region",
+        _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
+    )
     summary = (
         f"DRD4 is located at {gene_region_record['display']} on {gene_context.get('cytoband', '11p15.5')} "
         f"and spans {gene_region_record['length_bp']:,} bp on the {gene_context.get('assembly', 'GRCh37 / hg19')} assembly. "
@@ -685,16 +773,23 @@ def build_variant_interpretations(
         "clinical_context": gene_context.get("clinical_context", ""),
         "variant_effect_overview": gene_context.get("variant_effect_overview", []),
         "condition_research_overview": gene_context.get("condition_research_overview", []),
+        "sample_highlights": _build_sample_variant_highlights(
+            matched_records=matched_records,
+            promoter_analysis=promoter_analysis,
+            gene_analysis=gene_analysis,
+        ),
+        "region_recommendations": _build_region_recommendations(
+            promoter_region_record,
+            gene_region_record,
+            combined_region,
+        ),
         "gene_region": gene_region_record,
         "promoter_region": promoter_region_record,
         "promoter_hotspot_region": promoter_hotspot_record,
         "search_region": search_region_record,
         "promoter_analysis": promoter_analysis,
         "gene_analysis": gene_analysis,
-        "recommended_promoter_plus_gene_region": gene_context.get(
-            "recommended_promoter_plus_gene_region",
-            _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
-        ),
+        "recommended_promoter_plus_gene_region": combined_region,
     }
 
 

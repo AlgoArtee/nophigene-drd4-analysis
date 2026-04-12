@@ -634,6 +634,55 @@
       background: rgba(255, 255, 255, 0.84);
       border: 1px solid rgba(118, 19, 45, 0.10);
     }
+    .expandable-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .expandable-summary {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .expandable-summary::-webkit-details-marker {
+      display: none;
+    }
+    .expandable-summary::after {
+      content: "+";
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent-2);
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .expandable-card[open] .expandable-summary {
+      border-bottom: 1px solid rgba(118, 19, 45, 0.10);
+    }
+    .expandable-card[open] .expandable-summary::after {
+      content: "-";
+    }
+    .expandable-copy {
+      min-width: 0;
+    }
+    .expandable-copy h4 {
+      margin: 10px 0 6px;
+    }
+    .expandable-copy p {
+      margin: 0;
+    }
+    .expandable-body {
+      padding: 18px;
+    }
     .insight-kicker {
       display: inline-flex;
       align-items: center;
@@ -1117,196 +1166,250 @@
                     <section class="subtab-panel" data-detail-group-panel="variant" data-detail-panel="interpretation">
                       <div class="viewer-scroll">
                         <div class="insight-stack">
-                          <article class="insight-card">
-                            <span class="insight-kicker">Curated interpretation</span>
-                            <h4>{{ result.variant_interpretations.gene_name }} locus audit</h4>
-                            <p>{{ result.variant_interpretations.summary }}</p>
-                            {% if result.variant_interpretations.gene_summary %}
-                            <p>{{ result.variant_interpretations.gene_summary }}</p>
-                            {% endif %}
-                            <p>{{ result.variant_interpretations.clinical_context }}</p>
-                            {% if result.variant_interpretations.variant_effect_overview %}
-                            <h4>How DRD4 variation is usually interpreted</h4>
-                            <ul class="insight-list">
-                              {% for item in result.variant_interpretations.variant_effect_overview %}
-                              <li>{{ item }}</li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                            {% if result.variant_interpretations.condition_research_overview %}
-                            <h4>Conditions and research themes commonly studied</h4>
-                            <ul class="insight-list">
-                              {% for item in result.variant_interpretations.condition_research_overview %}
-                              <li>{{ item }}</li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                            <div class="stat-grid">
-                              <div class="stat-card">
-                                <span>Current search</span>
-                                <strong>{{ result.variant_interpretations.search_region.display }}</strong>
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Sample-first view</span>
+                                <h4>What this sample actually showed</h4>
+                                <p>{{ result.variant_interpretations.sample_highlights.summary }}</p>
                               </div>
-                              <div class="stat-card">
-                                <span>Gene interval</span>
-                                <strong>{{ result.variant_interpretations.gene_region.display }}</strong>
+                            </summary>
+                            <div class="expandable-body">
+                              {% if result.variant_interpretations.sample_highlights.highlight_items %}
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.sample_highlights.highlight_items %}
+                                <li>
+                                  <strong>{{ item.title }}</strong> {% if item.observed_variant %}({{ item.observed_variant }}){% endif %}.
+                                  {{ item.category }}. {{ item.description }}
+                                  {% if item.conditions %} Studied in {{ item.conditions | join(", ") }}.{% endif %}
+                                </li>
+                                {% endfor %}
+                              </ul>
+                              {% else %}
+                              <p>No direct sample-specific DRD4 finding is visible in the current preview slice.</p>
+                              {% endif %}
+                            </div>
+                          </details>
+
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Region recommendation</span>
+                                <h4>Which span to choose next</h4>
+                                <p>Quick presets for promoter-only, gene-body-only, or combined DRD4 review.</p>
                               </div>
-                              <div class="stat-card">
-                                <span>Promoter review</span>
-                                <strong>{{ result.variant_interpretations.promoter_region.display }}</strong>
-                              </div>
-                            </div>
-                            <div class="badge-row">
-                              <span class="muted-badge">Matched records: {{ result.variant_interpretations.matched_records | length }}</span>
-                              <span class="muted-badge">Unclassified PASS variants: {{ result.variant_interpretations.unclassified_variant_count }}</span>
-                              <span class="muted-badge">Promoter included: {{ "Yes" if result.variant_interpretations.promoter_analysis.included else "No" }}</span>
-                              <span class="muted-badge">Gene included: {{ "Yes" if result.variant_interpretations.gene_analysis.included else "No" }}</span>
-                            </div>
-                          </article>
-
-                          <div class="insight-grid">
-                            <article class="insight-card">
-                              <span class="insight-kicker">Promoter region</span>
-                              <h4>{{ result.variant_interpretations.promoter_analysis.label }}</h4>
-                              <p>{{ result.variant_interpretations.promoter_analysis.analysis_note }}</p>
-                              <ul class="insight-list">
-                                <li><strong>Review window:</strong> {{ result.variant_interpretations.promoter_analysis.window }}</li>
-                                <li><strong>Definition:</strong> {{ result.variant_interpretations.promoter_analysis.definition }}</li>
-                                <li><strong>Hotspot window:</strong> {{ result.variant_interpretations.promoter_hotspot_region.display }}</li>
-                              </ul>
-                              {% if result.variant_interpretations.promoter_analysis.found_variants %}
-                              <h4>Observed promoter-window variants</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.promoter_analysis.found_variants %}
-                                <li>
-                                  <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
-                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              <h4>Common promoter or upstream regulatory variants</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.promoter_analysis.known_variants %}
-                                <li>
-                                  <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
-                                  {{ item.clinical_significance }} {{ item.summary }}
-                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                            </article>
-
-                            <article class="insight-card">
-                              <span class="insight-kicker">Gene body</span>
-                              <h4>{{ result.variant_interpretations.gene_analysis.label }}</h4>
-                              <p>{{ result.variant_interpretations.gene_analysis.analysis_note }}</p>
-                              <ul class="insight-list">
-                                <li><strong>Gene interval:</strong> {{ result.variant_interpretations.gene_analysis.window }}</li>
-                                <li><strong>Definition:</strong> {{ result.variant_interpretations.gene_analysis.definition }}</li>
-                                <li><strong>Promoter-plus-gene recommendation:</strong> {{ result.variant_interpretations.recommended_promoter_plus_gene_region }}</li>
-                              </ul>
-                              {% if result.variant_interpretations.gene_analysis.found_variants %}
-                              <h4>Observed gene-interval variants</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.gene_analysis.found_variants %}
-                                <li>
-                                  <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
-                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              <h4>Common DRD4 gene variants</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.gene_analysis.known_variants %}
-                                <li>
-                                  <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
-                                  {{ item.clinical_significance }} {{ item.summary }}
-                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                            </article>
-                          </div>
-
-                          <article class="insight-card">
-                            <span class="insight-kicker">Population context</span>
-                            <h4>DRD4 population reference data by geography</h4>
-                            <p>{{ result.population_insights.summary }}</p>
-                            <div class="badge-row">
-                              {% for item in result.population_insights.location_groups %}
-                              <span class="muted-badge">{{ item }}</span>
-                              {% endfor %}
-                            </div>
-                            {% if result.population_insights.sources %}
-                            <ul class="source-list">
-                              {% for source in result.population_insights.sources %}
-                              <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                          </article>
-
-                          <div class="insight-grid">
-                            {% for item in result.population_insights.variant_population_records %}
-                            <article class="insight-card">
-                              <span class="insight-kicker">{{ "Observed variant with population data" if item.observed_in_run else "Reference population marker" }}</span>
-                              <h4>{{ item.display_name }}{% if item.common_name %} ({{ item.common_name }}){% endif %}</h4>
-                              <p>{{ item.effect_summary }}</p>
-                              {% if item.observed_variants %}
-                              <p><strong>Observed in this run:</strong> {{ item.observed_variants | join(", ") }}</p>
-                              {% endif %}
-                              {% if item.functional_effects %}
-                              <h4>Functional effects</h4>
-                              <ul class="insight-list">
-                                {% for effect in item.functional_effects %}
-                                <li>{{ effect }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if item.associated_conditions %}
-                              <h4>Associated conditions and research areas</h4>
-                              <ul class="insight-list">
-                                {% for condition in item.associated_conditions %}
-                                <li>{{ condition }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if item.population_extremes %}
-                              <p>{{ item.population_extremes.summary }}</p>
-                              {% endif %}
-                              <h4>Top-level location frequencies</h4>
+                            </summary>
+                            <div class="expandable-body">
                               <div class="population-grid">
-                                {% for population in item.top_level_location_frequencies %}
+                                {% for item in result.variant_interpretations.region_recommendations %}
                                 <div class="population-row">
-                                  <strong>{{ population.location_group }}</strong>
-                                  <span>{{ population.label }}</span>
-                                  <div class="badge-row">
-                                    {% for allele in population.allele_frequencies %}
-                                    <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
-                                    {% endfor %}
-                                  </div>
+                                  <strong>{{ item.title }}</strong>
+                                  <span><code>{{ item.region }}</code></span>
+                                  <span>{{ item.purpose }}</span>
                                 </div>
                                 {% endfor %}
                               </div>
-                              {% if item.detailed_population_groups %}
-                              <details class="population-details">
-                                <summary>View detailed subpopulation frequencies</summary>
-                                {% for group in item.detailed_population_groups %}
-                                <h4>{{ group.location_group }}</h4>
+                            </div>
+                          </details>
+
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Curated interpretation</span>
+                                <h4>{{ result.variant_interpretations.gene_name }} locus audit</h4>
+                                <p>{{ result.variant_interpretations.summary }}</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              {% if result.variant_interpretations.gene_summary %}
+                              <p>{{ result.variant_interpretations.gene_summary }}</p>
+                              {% endif %}
+                              <p>{{ result.variant_interpretations.clinical_context }}</p>
+                              {% if result.variant_interpretations.variant_effect_overview %}
+                              <h4>How DRD4 variation is usually interpreted</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.variant_effect_overview %}
+                                <li>{{ item }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if result.variant_interpretations.condition_research_overview %}
+                              <h4>Conditions and research themes commonly studied</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.condition_research_overview %}
+                                <li>{{ item }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              <div class="stat-grid">
+                                <div class="stat-card">
+                                  <span>Current search</span>
+                                  <strong>{{ result.variant_interpretations.search_region.display }}</strong>
+                                </div>
+                                <div class="stat-card">
+                                  <span>Gene interval</span>
+                                  <strong>{{ result.variant_interpretations.gene_region.display }}</strong>
+                                </div>
+                                <div class="stat-card">
+                                  <span>Promoter review</span>
+                                  <strong>{{ result.variant_interpretations.promoter_region.display }}</strong>
+                                </div>
+                              </div>
+                              <div class="badge-row">
+                                <span class="muted-badge">Matched records: {{ result.variant_interpretations.matched_records | length }}</span>
+                                <span class="muted-badge">Unclassified PASS variants: {{ result.variant_interpretations.unclassified_variant_count }}</span>
+                                <span class="muted-badge">Promoter included: {{ "Yes" if result.variant_interpretations.promoter_analysis.included else "No" }}</span>
+                                <span class="muted-badge">Gene included: {{ "Yes" if result.variant_interpretations.gene_analysis.included else "No" }}</span>
+                              </div>
+                            </div>
+                          </details>
+
+                          <div class="insight-grid">
+                            <details class="insight-card expandable-card">
+                              <summary class="expandable-summary">
+                                <div class="expandable-copy">
+                                  <span class="insight-kicker">Promoter region</span>
+                                  <h4>{{ result.variant_interpretations.promoter_analysis.label }}</h4>
+                                  <p>{{ result.variant_interpretations.promoter_analysis.analysis_note }}</p>
+                                </div>
+                              </summary>
+                              <div class="expandable-body">
+                                <ul class="insight-list">
+                                  <li><strong>Review window:</strong> {{ result.variant_interpretations.promoter_analysis.window }}</li>
+                                  <li><strong>Definition:</strong> {{ result.variant_interpretations.promoter_analysis.definition }}</li>
+                                  <li><strong>Hotspot window:</strong> {{ result.variant_interpretations.promoter_hotspot_region.display }}</li>
+                                </ul>
+                                {% if result.variant_interpretations.promoter_analysis.found_variants %}
+                                <h4>Observed promoter-window variants</h4>
+                                <ul class="insight-list">
+                                  {% for item in result.variant_interpretations.promoter_analysis.found_variants %}
+                                  <li>
+                                    <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
+                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                  </li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                <h4>Common promoter or upstream regulatory variants</h4>
+                                <ul class="insight-list">
+                                  {% for item in result.variant_interpretations.promoter_analysis.known_variants %}
+                                  <li>
+                                    <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
+                                    {{ item.clinical_significance }} {{ item.summary }}
+                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                  </li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                            </details>
+
+                            <details class="insight-card expandable-card">
+                              <summary class="expandable-summary">
+                                <div class="expandable-copy">
+                                  <span class="insight-kicker">Gene body</span>
+                                  <h4>{{ result.variant_interpretations.gene_analysis.label }}</h4>
+                                  <p>{{ result.variant_interpretations.gene_analysis.analysis_note }}</p>
+                                </div>
+                              </summary>
+                              <div class="expandable-body">
+                                <ul class="insight-list">
+                                  <li><strong>Gene interval:</strong> {{ result.variant_interpretations.gene_analysis.window }}</li>
+                                  <li><strong>Definition:</strong> {{ result.variant_interpretations.gene_analysis.definition }}</li>
+                                  <li><strong>Promoter-plus-gene recommendation:</strong> {{ result.variant_interpretations.recommended_promoter_plus_gene_region }}</li>
+                                </ul>
+                                {% if result.variant_interpretations.gene_analysis.found_variants %}
+                                <h4>Observed gene-interval variants</h4>
+                                <ul class="insight-list">
+                                  {% for item in result.variant_interpretations.gene_analysis.found_variants %}
+                                  <li>
+                                    <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
+                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                  </li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                <h4>Common DRD4 gene variants</h4>
+                                <ul class="insight-list">
+                                  {% for item in result.variant_interpretations.gene_analysis.known_variants %}
+                                  <li>
+                                    <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
+                                    {{ item.clinical_significance }} {{ item.summary }}
+                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                  </li>
+                                  {% endfor %}
+                                </ul>
+                              </div>
+                            </details>
+                          </div>
+
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Population context</span>
+                                <h4>DRD4 population reference data by geography</h4>
+                                <p>{{ result.population_insights.summary }}</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              <div class="badge-row">
+                                {% for item in result.population_insights.location_groups %}
+                                <span class="muted-badge">{{ item }}</span>
+                                {% endfor %}
+                              </div>
+                              {% if result.population_insights.sources %}
+                              <ul class="source-list">
+                                {% for source in result.population_insights.sources %}
+                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                            </div>
+                          </details>
+
+                          <div class="insight-grid">
+                            {% for item in result.population_insights.variant_population_records %}
+                            <details class="insight-card expandable-card">
+                              <summary class="expandable-summary">
+                                <div class="expandable-copy">
+                                  <span class="insight-kicker">{{ "Observed variant with population data" if item.observed_in_run else "Reference population marker" }}</span>
+                                  <h4>{{ item.display_name }}{% if item.common_name %} ({{ item.common_name }}){% endif %}</h4>
+                                  <p>{% if item.observed_variants %}Observed in this run: {{ item.observed_variants | join(", ") }}. {% endif %}{{ item.effect_summary }}</p>
+                                </div>
+                              </summary>
+                              <div class="expandable-body">
+                                {% if item.functional_effects %}
+                                <h4>Functional effects</h4>
+                                <ul class="insight-list">
+                                  {% for effect in item.functional_effects %}
+                                  <li>{{ effect }}</li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if item.associated_conditions %}
+                                <h4>Associated conditions and research areas</h4>
+                                <ul class="insight-list">
+                                  {% for condition in item.associated_conditions %}
+                                  <li>{{ condition }}</li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if item.population_extremes %}
+                                <p>{{ item.population_extremes.summary }}</p>
+                                {% endif %}
+                                <h4>Top-level location frequencies</h4>
                                 <div class="population-grid">
-                                  {% for population in group.entries %}
+                                  {% for population in item.top_level_location_frequencies %}
                                   <div class="population-row">
-                                    <strong>{{ population.label }}</strong>
-                                    <span>{{ population.population_code }}</span>
+                                    <strong>{{ population.location_group }}</strong>
+                                    <span>{{ population.label }}</span>
                                     <div class="badge-row">
                                       {% for allele in population.allele_frequencies %}
                                       <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
@@ -1315,74 +1418,105 @@
                                   </div>
                                   {% endfor %}
                                 </div>
-                                {% endfor %}
-                              </details>
-                              {% endif %}
-                            </article>
+                                {% if item.detailed_population_groups %}
+                                <details class="population-details">
+                                  <summary>View detailed subpopulation frequencies</summary>
+                                  {% for group in item.detailed_population_groups %}
+                                  <h4>{{ group.location_group }}</h4>
+                                  <div class="population-grid">
+                                    {% for population in group.entries %}
+                                    <div class="population-row">
+                                      <strong>{{ population.label }}</strong>
+                                      <span>{{ population.population_code }}</span>
+                                      <div class="badge-row">
+                                        {% for allele in population.allele_frequencies %}
+                                        <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
+                                        {% endfor %}
+                                      </div>
+                                    </div>
+                                    {% endfor %}
+                                  </div>
+                                  {% endfor %}
+                                </details>
+                                {% endif %}
+                              </div>
+                            </details>
                             {% endfor %}
                           </div>
 
                           {% if result.population_insights.gene_population_patterns %}
-                          <article class="insight-card">
-                            <span class="insight-kicker">Gene-wide population patterns</span>
-                            <h4>DRD4 population structure beyond the curated SNP set</h4>
-                            <ul class="insight-list">
-                              {% for item in result.population_insights.gene_population_patterns %}
-                              <li><strong>{{ item.variant }}</strong> in {{ item.location_group }}: {{ item.summary }}</li>
-                              {% endfor %}
-                            </ul>
-                          </article>
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Gene-wide population patterns</span>
+                                <h4>DRD4 population structure beyond the curated SNP set</h4>
+                                <p>Broader population patterns from the exon III VNTR literature.</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              <ul class="insight-list">
+                                {% for item in result.population_insights.gene_population_patterns %}
+                                <li><strong>{{ item.variant }}</strong> in {{ item.location_group }}: {{ item.summary }}</li>
+                                {% endfor %}
+                              </ul>
+                            </div>
+                          </details>
                           {% endif %}
 
                           {% if result.variant_interpretations.matched_records %}
                           <div class="insight-grid">
                             {% for item in result.variant_interpretations.matched_records %}
-                            <article class="insight-card">
-                              <span class="insight-kicker">{{ item.interpretation_scope }}</span>
-                              <h4>{{ item.variant }}</h4>
-                              <p><strong>Observed in run:</strong> {{ item.observed_variant }}</p>
-                              <p>{{ item.clinical_significance }}</p>
-                              <p>{{ item.clinical_interpretation }}</p>
-                              <p>{{ item.methylation_interpretation }}</p>
-                              {% if item.functional_effects %}
-                              <h4>Functional effects</h4>
-                              <ul class="insight-list">
-                                {% for effect in item.functional_effects %}
-                                <li>{{ effect }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if item.associated_conditions %}
-                              <h4>Associated conditions and research areas</h4>
-                              <ul class="insight-list">
-                                {% for condition in item.associated_conditions %}
-                                <li>{{ condition }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if item.research_context %}
-                              <h4>Research notes</h4>
-                              <ul class="insight-list">
-                                {% for note in item.research_context %}
-                                <li>{{ note }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if item.relevant_probe_ids %}
-                              <div class="badge-row">
-                                {% for probe_id in item.relevant_probe_ids %}
-                                <span class="probe-tag">{{ probe_id }}</span>
-                                {% endfor %}
+                            <details class="insight-card expandable-card">
+                              <summary class="expandable-summary">
+                                <div class="expandable-copy">
+                                  <span class="insight-kicker">{{ item.interpretation_scope }}</span>
+                                  <h4>{{ item.variant }}</h4>
+                                  <p>Observed in run: {{ item.observed_variant }}. {{ item.clinical_significance }}</p>
+                                </div>
+                              </summary>
+                              <div class="expandable-body">
+                                <p>{{ item.clinical_interpretation }}</p>
+                                <p>{{ item.methylation_interpretation }}</p>
+                                {% if item.functional_effects %}
+                                <h4>Functional effects</h4>
+                                <ul class="insight-list">
+                                  {% for effect in item.functional_effects %}
+                                  <li>{{ effect }}</li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if item.associated_conditions %}
+                                <h4>Associated conditions and research areas</h4>
+                                <ul class="insight-list">
+                                  {% for condition in item.associated_conditions %}
+                                  <li>{{ condition }}</li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if item.research_context %}
+                                <h4>Research notes</h4>
+                                <ul class="insight-list">
+                                  {% for note in item.research_context %}
+                                  <li>{{ note }}</li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
+                                {% if item.relevant_probe_ids %}
+                                <div class="badge-row">
+                                  {% for probe_id in item.relevant_probe_ids %}
+                                  <span class="probe-tag">{{ probe_id }}</span>
+                                  {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if item.evidence %}
+                                <ul class="source-list">
+                                  {% for source in item.evidence %}
+                                  <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
                               </div>
-                              {% endif %}
-                              {% if item.evidence %}
-                              <ul class="source-list">
-                                {% for source in item.evidence %}
-                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                            </article>
+                            </details>
                             {% endfor %}
                           </div>
                           {% endif %}
@@ -1410,70 +1544,83 @@
                     <section class="subtab-panel" data-detail-group-panel="methylation" data-detail-panel="interpretation">
                       <div class="viewer-scroll">
                         <div class="insight-stack">
-                          <article class="insight-card">
-                            <span class="insight-kicker">Gene-level methylation insight</span>
-                            <h4>{{ result.methylation_insights.gene_name }}</h4>
-                            <p>{{ result.methylation_insights.summary }}</p>
-                            <p>{{ result.methylation_insights.clinical_context }}</p>
-                            {% if result.methylation_insights.methylation_effects %}
-                            <h4>Likely biological effects of DRD4 methylation changes</h4>
-                            <ul class="insight-list">
-                              {% for item in result.methylation_insights.methylation_effects %}
-                              <li>{{ item }}</li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                            {% if result.methylation_insights.methylation_condition_research %}
-                            <h4>Conditions and research settings where DRD4 methylation has been studied</h4>
-                            <ul class="insight-list">
-                              {% for item in result.methylation_insights.methylation_condition_research %}
-                              <li>{{ item }}</li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                            <div class="stat-grid">
-                              <div class="stat-card">
-                                <span>Observed probes</span>
-                                <strong>{{ result.methylation_insights.observed_probe_count }}</strong>
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Gene-level methylation insight</span>
+                                <h4>{{ result.methylation_insights.gene_name }}</h4>
+                                <p>{{ result.methylation_insights.summary }}</p>
                               </div>
-                              <div class="stat-card">
-                                <span>Curated probe set</span>
-                                <strong>{{ result.methylation_insights.curated_probe_count }}</strong>
+                            </summary>
+                            <div class="expandable-body">
+                              <p>{{ result.methylation_insights.clinical_context }}</p>
+                              {% if result.methylation_insights.methylation_effects %}
+                              <h4>Likely biological effects of DRD4 methylation changes</h4>
+                              <ul class="insight-list">
+                                {% for item in result.methylation_insights.methylation_effects %}
+                                <li>{{ item }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if result.methylation_insights.methylation_condition_research %}
+                              <h4>Conditions and research settings where DRD4 methylation has been studied</h4>
+                              <ul class="insight-list">
+                                {% for item in result.methylation_insights.methylation_condition_research %}
+                                <li>{{ item }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              <div class="stat-grid">
+                                <div class="stat-card">
+                                  <span>Observed probes</span>
+                                  <strong>{{ result.methylation_insights.observed_probe_count }}</strong>
+                                </div>
+                                <div class="stat-card">
+                                  <span>Curated probe set</span>
+                                  <strong>{{ result.methylation_insights.curated_probe_count }}</strong>
+                                </div>
+                                <div class="stat-card">
+                                  <span>Mean beta band</span>
+                                  <strong>{{ result.methylation_insights.beta_band }}</strong>
+                                </div>
                               </div>
-                              <div class="stat-card">
-                                <span>Mean beta band</span>
-                                <strong>{{ result.methylation_insights.beta_band }}</strong>
+                              {% if result.methylation_insights.mean_beta is not none %}
+                              <div class="badge-row">
+                                <span class="muted-badge">Average beta: {{ result.methylation_insights.mean_beta }}</span>
                               </div>
+                              {% endif %}
+                              {% if result.methylation_insights.probe_ids %}
+                              <div class="badge-row">
+                                {% for probe_id in result.methylation_insights.probe_ids %}
+                                <span class="probe-tag">{{ probe_id }}</span>
+                                {% endfor %}
+                              </div>
+                              {% endif %}
+                              {% if result.methylation_insights.evidence %}
+                              <ul class="source-list">
+                                {% for source in result.methylation_insights.evidence %}
+                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
                             </div>
-                            {% if result.methylation_insights.mean_beta is not none %}
-                            <div class="badge-row">
-                              <span class="muted-badge">Average beta: {{ result.methylation_insights.mean_beta }}</span>
-                            </div>
-                            {% endif %}
-                            {% if result.methylation_insights.probe_ids %}
-                            <div class="badge-row">
-                              {% for probe_id in result.methylation_insights.probe_ids %}
-                              <span class="probe-tag">{{ probe_id }}</span>
-                              {% endfor %}
-                            </div>
-                            {% endif %}
-                            {% if result.methylation_insights.evidence %}
-                            <ul class="source-list">
-                              {% for source in result.methylation_insights.evidence %}
-                              <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                              {% endfor %}
-                            </ul>
-                            {% endif %}
-                          </article>
+                          </details>
 
                           {% if result.methylation_insights.probe_preview %}
-                          <article class="insight-card">
-                            <span class="insight-kicker">Relevant DRD4 probe subset</span>
-                            <h4>Curated probes used for interpretation</h4>
-                            <div class="table-shell">
-                              {{ result.methylation_insights.probe_preview | safe }}
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Relevant DRD4 probe subset</span>
+                                <h4>Curated probes used for interpretation</h4>
+                                <p>Probe-level subset from the current sample used to build the methylation summary.</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              <div class="table-shell">
+                                {{ result.methylation_insights.probe_preview | safe }}
+                              </div>
                             </div>
-                          </article>
+                          </details>
                           {% endif %}
                         </div>
                       </div>

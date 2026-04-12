@@ -51,6 +51,8 @@ def test_coordinate_alias_can_match_curated_variant_record() -> None:
     assert interpretation["promoter_analysis"]["included"] is True
     assert interpretation["matched_records"][0]["functional_effects"]
     assert interpretation["matched_records"][0]["associated_conditions"]
+    assert interpretation["sample_highlights"]["highlight_items"]
+    assert len(interpretation["region_recommendations"]) == 3
 
 
 def test_gene_interval_without_promoter_is_reported_cleanly() -> None:
@@ -77,6 +79,7 @@ def test_gene_interval_without_promoter_is_reported_cleanly() -> None:
     assert interpretation["gene_analysis"]["included"] is True
     assert interpretation["promoter_analysis"]["included"] is False
     assert interpretation["gene_analysis"]["found_variant_count"] == 1
+    assert interpretation["sample_highlights"]["summary"]
 
 
 def test_methylation_insights_use_curated_probe_subset() -> None:
