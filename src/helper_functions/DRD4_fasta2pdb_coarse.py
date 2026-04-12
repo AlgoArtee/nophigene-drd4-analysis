@@ -1,0 +1,206 @@
+"""Generate coarse-grained single- and double-stranded PDBs from a DRD4 FASTA."""
+
+import math
+from pathlib import Path
+from textwrap import dedent
+
+# The source FASTA was copied from the visible range in the NCBI Genome Data
+# Viewer for DRD4. Keeping it in the script makes the helper self-contained and
+# reproducible for quick visualization work.
+FASTA = dedent(
+    """>
+ref|NC_000011.10|:636924-641049 Homo sapiens chromosome 11, GRCh38.p14 Primary Assembly
+GCACGCACGGGCCGGGTAGGATGGCGCTGGCGTCGATGCCCGCGCGCTTCAGGGCCTGGTCTGGCCGCCC
+CTCCATCCTTGTCGGTTTCTCGGGTCGCGGACCCCGCGCGGCGCCGGGCGATGCTGGCCTGCCCGTGGCC
+ACCACCTCGCTTCATTCCCGTCTCTTTGGGCCGCCGCATTCGTCCACGTGCCCGTCTCTCCCTGCGCAAA
+ATTCCAAGATGAGCAAATACTGGGCTCACGGTGGAGCGCCGCGGGGGCCCCCCTGAGCCGGGGCGGGTCG
+GGGGCGGGACCAGGGTCCGGCCGGGGCGTGCCCGAGGGGAGGGACTCCCCGGCTTGCGACCCGGCGTTGT
+CCGCGGTGCTCAGCGCCCGCCCGGGCGCGCCATGGGGAACCGCAGCACCGCGGACGCGGACGGGCTGCTG
+GCTGGGCGCGGGCCGGCCGCGGGGGCATCTGCGGGGGCATCTGCGGGGCTGGCTGGGCAGGGCGCGGCGG
+CGCTGGTGGGGGGCGTGCTGCTCATCGGCGCGGTGCTCGCGGGGAACTCGCTCGTGTGCGTGAGCGTGGC
+CACCGAGCGCGCCCTGCAGACGCCCACCAACTCCTTCATCGTGAGCCTGGCGGCCGCCGACCTCCTCCTC
+GCTCTCCTGGTGCTGCCGCTCTTCGTCTACTCCGAGGTGAGCCGCGTCCGGCCGCACGAGCATCCTCACC
+TGCTCCTCGGTTCCCCGTCCCTGTCCCTACGGAGGACCCGGCGCGACCCGGCCCCTTTCTGGTGCGGAGC
+TTCCAGCTGGGGCGGCGGCAGGGGCGCTGCGCCTTGTCCCTCGGCGATACACCCACCGCCGCCACCTCGC
+GACCTTCCACCCGCTGCGCTGTCTGTCCCCCGACCCTCGTTCCTCTTCTCCTTCCCCGTCTGTCTTGGCG
+TCTGTTATCCAGGAGATGCCCGTCCTTCTATCCAGGGACCCCGGAAACAGGCGACTTTGTCAAGCCCAGT
+CCCCTCCGTAGCTGGATTTCACCTCCAGGGCAGCCAGCTGGACAGACAGGCAGATGCAGGCTCAGCCCCC
+TGGCTGCCGTGGGACACACACACACACACACTGCCACAGCCACTGCCCACCACACACACCTAGTGCAGAT
+GCTGGCACACCCCCAGAAGGAGGCTCACAGCTCGCAGGGGAGACCTGGGCTGGACAAAACCCAGGGGAGG
+GGAGGGTGTGTGGGGACCAGGCCCCTGCTGAGAACCCTGGGGGGAAGCCTGAGGGGGAATTGGGGGATGG
+AGCCCACACTCCACACCAGGTCTGGCCCTCGAGTGGGTCGGCCTTGGTGCCAGCCCCTCTGCGGCCAGAG
+AAAAGCAGCTTAGGGCTGAGCTGGAGACGCGGTGTCCCCGACTGTGGGGGAGGGGGACTCGAGGTTTCCC
+CTTGATGGACACAGTGAATCCAGGCGGCTGGGGCAGAGACCAGCAGCACGGGACACGCGTGACCTGTGCT
+CCTTTCGAGCCGCAGACGTCACAGTGACGACGTTTAAGCTCCTAATCTCCCCAAATCGGCGGGAAGGATT
+AGAGGGGCTGCCTGCTCCTTTGCCCTTGGAGAGAGTCACTCCACGTGGAGTCCTACGCTGGGCACTGGGC
+ACGGTCTTCATATTTTTAATTATAATTTATCTTCAAGACAATTATGATGTGGATACTATCATCACCCTTG
+TCTTACAGATGAAGAAACAGAAATGAATTAACGTGCCCGAGTCTCCCACAGAGAACTTAGCCAACAGAGC
+AGCCAGCTTCGCTTCTAGGCCCAGCGGGGACCCTGCCTACCCCAGGCTGGGGAGGGGCTCCCTTTGAGCC
+CGATGATATCAGGCCCGCCCCCAGGGAATTCCCCAGGCCGTTCTCATGTTTGTAACAAAAGGGAGACCAA
+GGCCAGAAGCCGTGATTCACGCCTGTAATCCCAGGACTTTGGGAGGCAAAGGCAGGAGGATAGTTTGAGA
+CCAGCCTGGGAAACATACCAGGCCTGGTCTCTACAAAAAATTTTAAAATATCAGCCGGGGGTGGTGGCTG
+CGGCTGTTGTCCCAGCTATTCGGGGGAGCTGAGGCGGCAGAATCGCTTAAACCTGGGAGGCGGAGGTTGC
+AGTGAGTTGAGATCTCACCACTGCACTCCAGCCTGGGCAACAAGAGCGAAACTCCGTCTCAAAAAACAAA
+AAGAAAAACAAATCAGCCGGGGGTGGTGGCGCGCGGCTGTAATCCCAGCTACTCTGGAGACTGAGGTGGG
+AGGATCGCTTGAGCTCAGGAATTCCAGGCTACAGTGAGCCATGATGGAGCCACAGCACTCCAGCCGCGGT
+GACACAGCGAGACCCTAACTCAAAACAAAGGGAGATCTGCGTGGGGAAGGGGTGTTTCCCTGCCCGGTCC
+TCTGGCCTCTGGCTCACAGCCGGGCCCCCTTCTCCGTATTCAGCCCTGGAACTACCCATAAGAGTGGGGG
+CGGGTCACAAGGGCCCGCGGTGGCTGGGAAACCTCAGGGCCTGTGGTGTCGCCGCGCAGGTCCAGGGTGG
+CGCGTGGCTGCTGAGCCCCCGCCTGTGCGACGCCCTCATGGCCATGGACGTCATGCTGTGCACCGCCTCC
+ATCTTCAACCTGTGCGCCATCAGCGTGGACAGGTGCGCCGCCCTCCCCGCCCGCGCCCCGGCGCCCCCGC
+GCCCCGCCCGCCGCCCTCACCGCGGCCTGTGCGCTGTCCGGCGCCCCCTCGGCGCTCCCCGCAGGTTCGT
+GGCCGTGGCCGTGCCGCTGCGCTACAACCGGCAGGGTGGGAGCCGCCGGCAGCTGCTGCTCATCGGCGCC
+ACGTGGCTGCTGTCCGCGGCGGTGGCGGCGCCCGTACTGTGCGGCCTCAACGACGTGCGCGGCCGCGACC
+CCGCCGTGTGCCGCCTGGAGGACCGCGACTACGTGGTCTACTCGTCCGTGTGCTCCTTCTTCCTACCCTG
+CCCGCTCATGCTGCTGCTCTACTGGGCCACGTTCCGCGGCCTGCAGCGCTGGGAGGTGGCACGTCGCGCC
+AAGCTGCACGGCCGCGCGCCCCGCCGACCCAGCGGCCCTGGCCCGCCTTCCCCCACGCCACCCGCGCCCC
+GCCTCCCCCAGGACCCCTGCGGCCCCGACTGTGCGCCCCCCGCGCCCGGCCTTCCCCGGGGTCCCTGCGG
+CCCCGACTGTGCGCCCGCCGCGCCCAGCCTCCCCCAGGACCCCTGCGGCCCCGACTGTGCGCCCCCCGCG
+CCCGGCCTCCCCCCGGACCCCTGCGGCTCCAACTGTGCTCCCCCCGACGCCGTCAGAGCCGCCGCGCTCC
+CACCCCAGACTCCACCGCAGACCCGCAGGAGGCGGCGTGCCAAGATCACCGGCCGGGAGCGCAAGGCCAT
+GAGGGTCCTGCCGGTGGTGGTCGGTGGGTTCCTGTCCTGAGGGGCGGGGAGGAGAGGAGGGGGGGGGTAC
+GAGGCCGGCTGGGCGGGGGGCGCTAACGCGGCTCTCGGCGCCCCCAGGGGCCTTCCTGCTGTGCTGGACG
+CCCTTCTTCGTGGTGCACATCACGCAGGCGCTGTGTCCTGCCTGCTCCGTGCCCCCGCGGCTGGTCAGCG
+CCGTCACCTGGCTGGGCTACGTCAACAGCGCCCTCAACCCCGTCATCTACACTGTCTTCAACGCCGAGTT
+CCGCAACGTCTTCCGCAAGGCCCTGCGTGCCTGCTGCTGAGCCGGGCACCCCCGGACGCCCCCCGGCCTG
+ATGGCCAGGCCTCAGGGACCAAGGAGATGGGGAGGGCGCTTTTGTACGTTAATTAAACAAATTCCTTCCC
+AAACTCAGCTGTGAAGGCTCCTGGGGGCTGATGGGGAGTGGGGAAGAGGGGTTTCTGCCTCAGTGGCCCC
+AGGCCCCCCAGCCAGTTAACCTCTTTCTCCCCGCCAAGGAAGCCCACAGAGCAGACCCCACCAAGCCGGC
+CGCCTGCTCAGGGTGAGGGGGGAAGGGGCCCCCGAGAGCCACTCAGTTCCGCAGCGCTGGGGCCCAGCTT
+CCCCTCTCTGCAGGGGAGAGGAAGCAGCACCCAGCAGGGCAAGGTGTCTCCTGGGGAAGCCCAGTTCCGA
+TGGGAAGAAACAAATGGGGAGAGGCGGGGTGGGGGGCTGTCAGCCGCCAGGCCCTGCCCGGGCCAA
+"""
+).strip()
+
+# Parse the embedded FASTA by dropping the header line and keeping only canonical
+# DNA bases so the generated beads stay compatible with the simple residue model.
+lines = [line.strip() for line in FASTA.splitlines() if line.strip()]
+if lines[0].startswith(">"):
+    sequence = "".join(lines[1:]).upper()
+else:
+    sequence = "".join(lines).upper()
+
+valid_bases = set("ACGT")
+sequence = "".join(base for base in sequence if base in valid_bases)
+
+# Idealized coarse-grained helix geometry. These values are intentionally simple
+# because the output is meant for visualization, not for simulation or docking.
+RISE = 3.4
+TWIST_DEGREES = 36.0
+TWIST_RADIANS = math.radians(TWIST_DEGREES)
+RADIUS = 10.0
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "gene_data"
+
+
+def revcomp(sequence_text: str) -> str:
+    """Return the reverse complement of a DNA sequence.
+
+    Parameters
+    ----------
+    sequence_text : str
+        DNA sequence composed of the canonical bases A, C, G, and T.
+
+    Returns
+    -------
+    str
+        Reverse-complemented DNA sequence, preserving uppercase residue labels
+        expected by the PDB writer below.
+    """
+    complement_map = str.maketrans("ACGT", "TGCA")
+    return sequence_text.translate(complement_map)[::-1]
+
+
+def pdb_atom_line(
+    serial: int,
+    name: str,
+    resname: str,
+    chain: str,
+    resseq: int,
+    x: float,
+    y: float,
+    z: float,
+    element: str = "P",
+    occupancy: float = 1.0,
+    bfactor: float = 0.0,
+) -> str:
+    """Format a single ATOM record using fixed-width PDB columns.
+
+    Parameters
+    ----------
+    serial : int
+        Atom serial number written into columns 7-11.
+    name : str
+        Atom name field. The coarse-grained model uses ``" P  "`` to represent
+        a phosphate-like pseudo-atom.
+    resname : str
+        Residue name written as the nucleotide base identity.
+    chain : str
+        Chain identifier, such as ``"A"`` or ``"B"``.
+    resseq : int
+        Residue sequence number within the chain.
+    x, y, z : float
+        Cartesian coordinates for the pseudo-atom.
+    element : str, optional
+        Element symbol written in the final PDB columns.
+    occupancy : float, optional
+        Occupancy value stored in the ATOM record.
+    bfactor : float, optional
+        B-factor value stored in the ATOM record.
+
+    Returns
+    -------
+    str
+        One newline-free PDB ATOM record.
+    """
+    return (
+        f"ATOM  {serial:5d} {name:^4s}{resname:>3s} {chain}{resseq:4d}    "
+        f"{x:8.3f}{y:8.3f}{z:8.3f}{occupancy:6.2f}{bfactor:6.2f}          {element:>2s}"
+    )
+
+
+def main() -> None:
+    """Generate and write the single- and double-stranded coarse PDB files."""
+    reverse_complement = revcomp(sequence)
+
+    # Build a single strand by placing one pseudo-atom per nucleotide around a
+    # helical path with constant radius, twist, and rise.
+    ss_lines: list[str] = []
+    serial = 1
+    for index, base in enumerate(sequence):
+        theta = index * TWIST_RADIANS
+        x = RADIUS * math.cos(theta)
+        y = RADIUS * math.sin(theta)
+        z = index * RISE
+        ss_lines.append(pdb_atom_line(serial, " P  ", base, "A", index + 1, x, y, z, element="P"))
+        serial += 1
+    ss_lines.extend(["TER", "END"])
+
+    # Build a second antiparallel strand by reusing the same z positions but
+    # rotating the coordinates by pi radians and using the reverse complement.
+    ds_lines: list[str] = []
+    serial = 1
+    for index, base in enumerate(sequence):
+        theta = index * TWIST_RADIANS
+        x = RADIUS * math.cos(theta)
+        y = RADIUS * math.sin(theta)
+        z = index * RISE
+        ds_lines.append(pdb_atom_line(serial, " P  ", base, "A", index + 1, x, y, z, element="P"))
+        serial += 1
+    ds_lines.append("TER")
+
+    for index, base in enumerate(reverse_complement):
+        theta = index * TWIST_RADIANS + math.pi
+        x = RADIUS * math.cos(theta)
+        y = RADIUS * math.sin(theta)
+        z = index * RISE
+        ds_lines.append(pdb_atom_line(serial, " P  ", base, "B", index + 1, x, y, z, element="P"))
+        serial += 1
+    ds_lines.extend(["TER", "END"])
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    (OUTPUT_DIR / "drd4_ss_beads.pdb").write_text("\n".join(ss_lines), encoding="utf-8")
+    (OUTPUT_DIR / "drd4_ds_beads.pdb").write_text("\n".join(ds_lines), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
