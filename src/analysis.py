@@ -2,7 +2,7 @@
 """
 DRD4 Gene Analysis Pipeline
 
-Usage example:
+Usage examples:
     python src/analysis.py \
         --vcf data/GFXC926398.filtered.snp.vcf.gz \
         --idat data/202277800037_R01C01 \
@@ -10,10 +10,15 @@ Usage example:
         --region 11:637269-640706
 """
 
+from __future__ import annotations
+
 import argparse
+import html
+import json
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +26,10 @@ import allel
 import pandas as pd
 from methylprep import run_pipeline
 
-# Configure the root logger once so CLI runs stream progress to stdout.
+DEFAULT_REGION = "11:63671737-63677367"
+DEFAULT_REPORT_NAME = "drd4_report.html"
+
+# Configure the root logger once so both CLI and web runs stream progress.
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -30,18 +38,60 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def parse_args() -> argparse.Namespace:
+class AnalysisError(RuntimeError):
+    """Raised when the DRD4 workflow cannot complete successfully."""
+
+
+@dataclass
+class AnalysisResult:
+    """Structured result returned by :func:`run_analysis`.
+
+    Attributes
+    ----------
+    variants : pd.DataFrame
+        Regional PASS variants loaded from the source VCF.
+    methylation : pd.DataFrame
+        Probe-level methylation table after joining with the curated DRD4
+        manifest subset.
+    popstats : Any | None
+        Optional population statistics payload loaded from a user-supplied CSV
+        or JSON file.
+    report_path : Path
+        Path to the generated output report.
+    methylation_output_path : Path
+        Path to the exported methylation CSV companion file.
+    region : str
+        Genomic interval used for the run.
+    vcf_path : Path
+        Input VCF path used during execution.
+    idat_base : Path
+        Input IDAT prefix used during execution.
+    """
+
+    variants: pd.DataFrame
+    methylation: pd.DataFrame
+    popstats: Any | None
+    report_path: Path
+    methylation_output_path: Path
+    region: str
+    vcf_path: Path
+    idat_base: Path
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments for the DRD4 analysis workflow.
 
-    The CLI is intentionally small: it expects a regional VCF, a paired set of
-    Illumina IDAT files expressed as a shared path prefix, and an output path
-    for the final report. Optional population statistics can be provided for
-    later enrichment once that stage is implemented.
+    Parameters
+    ----------
+    argv : list[str] | None, optional
+        Argument list to parse. When omitted, argparse reads directly from
+        ``sys.argv``. Accepting an explicit list lets the Docker launcher reuse
+        the CLI parser without shelling out to a subprocess.
 
     Returns
     -------
     argparse.Namespace
-        Parsed arguments ready to be consumed by ``main()``.
+        Parsed arguments ready to be consumed by :func:`main`.
     """
     parser = argparse.ArgumentParser(
         description="DRD4 gene analysis: variants, methylation, population stats, and report generation."
@@ -63,7 +113,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--region",
-        default="11:63671737-63677367",
+        default=DEFAULT_REGION,
         help="Genomic region in chr:start-end format. Defaults to the DRD4 GRCh37 interval.",
     )
     parser.add_argument(
@@ -71,8 +121,29 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional JSON or CSV with population-frequency data.",
     )
+    parser.add_argument(
+        "--manifest-file",
+        default=None,
+        help="Optional manifest file passed through to methylprep.",
+    )
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def _serialize_popstats(popstats: Any | None) -> Any:
+    """Convert population statistics to a JSON-friendly representation."""
+    if popstats is None:
+        return None
+    if isinstance(popstats, pd.DataFrame):
+        return popstats.to_dict(orient="records")
+    return popstats
+
+
+def _derive_methylation_output_path(output_path: str | Path) -> Path:
+    """Derive the companion methylation CSV path from the requested report path."""
+    report_path = Path(output_path)
+    stem = report_path.stem if report_path.suffix else report_path.name
+    return report_path.with_name(f"{stem}_methylation.csv")
 
 
 def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
@@ -83,8 +154,7 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     vcf_path : str
         Filesystem path to a bgzip-compressed and tabix-indexed VCF.
     region : str
-        Region string understood by ``scikit-allel`` (for example,
-        ``11:63671737-63677367``).
+        Region string understood by ``scikit-allel``.
 
     Returns
     -------
@@ -92,29 +162,33 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
         Variant table with one row per PASS site and the columns ``chrom``,
         ``pos``, ``ref``, ``alt``, ``qual``, and ``filter_pass``.
 
-    Notes
-    -----
-    ``variants/ALT`` is modeled as an array in the VCF reader. The pipeline
-    currently keeps only the first alternate allele so downstream tables stay
-    scalar and easy to serialize.
+    Raises
+    ------
+    AnalysisError
+        Raised when the VCF cannot be found, parsed, or filtered to any PASS
+        variants in the requested region.
     """
     if not os.path.exists(vcf_path):
-        sys.exit(f"ERROR: VCF not found: {vcf_path}")
+        raise AnalysisError(f"VCF not found: {vcf_path}")
 
-    callset = allel.read_vcf(
-        vcf_path,
-        region=region,
-        fields=[
-            "variants/CHROM",
-            "variants/POS",
-            "variants/REF",
-            "variants/ALT",
-            "variants/QUAL",
-            "variants/FILTER_PASS",
-        ],
-    )
-    if not callset:
-        sys.exit(f"ERROR: No variants could be read from {vcf_path} in region {region}")
+    try:
+        callset = allel.read_vcf(
+            vcf_path,
+            region=region,
+            fields=[
+                "variants/CHROM",
+                "variants/POS",
+                "variants/REF",
+                "variants/ALT",
+                "variants/QUAL",
+                "variants/FILTER_PASS",
+            ],
+        )
+    except Exception as exc:
+        raise AnalysisError(f"Failed to read VCF '{vcf_path}' for region '{region}': {exc}") from exc
+
+    if not callset or "variants/CHROM" not in callset:
+        raise AnalysisError(f"No variants could be read from {vcf_path} in region {region}")
 
     df = pd.DataFrame(
         {
@@ -127,15 +201,13 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
         }
     )
 
-    # Keep only variants that passed upstream filtering so the status column and
-    # the error message below are consistent with the actual output table.
+    # Keep only PASS variants so downstream summaries and the visible output
+    # consistently reflect the analysis-ready subset.
     df = df[df["filter_pass"].fillna(False)].reset_index(drop=True)
-
     if df.empty:
-        sys.exit(f"ERROR: No PASS variants found in {region} for {vcf_path}")
+        raise AnalysisError(f"No PASS variants found in {region} for {vcf_path}")
 
-    print(f"Loaded {len(df)} PASS variants from {vcf_path} in region {region}")
-    print(df.head(), "\n")
+    logger.info("Loaded %d PASS variants from %s in region %s", len(df), vcf_path, region)
     return df
 
 
@@ -150,42 +222,34 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
         ``data/R01C01``.
     manifest_filepath : str | None, optional
         Optional path to a custom manifest file consumed directly by
-        ``methylprep.run_pipeline``. When omitted, methylprep chooses its
-        default manifest behavior.
+        ``methylprep.run_pipeline``.
 
     Returns
     -------
     pd.DataFrame
         Probe-level methylation table limited to probes present in the curated
-        DRD4 region manifest. The returned DataFrame keeps the beta values plus
-        the most useful annotation columns that already exist in the local CSV.
+        DRD4 region manifest.
 
-    Notes
-    -----
-    This function intentionally joins against
-    ``src/gene_data/drd4_epigenetics_hg19.csv`` instead of filtering a whole
-    manifest on the fly. That keeps the runtime path deterministic and makes the
-    output consistent with the repository's curated DRD4 probe selection.
+    Raises
+    ------
+    AnalysisError
+        Raised when the IDAT pair is incomplete, methylprep fails, or the local
+        DRD4 manifest subset cannot be loaded.
     """
     logger.info("Starting methylation loading for sample")
 
-    # ``idat_base`` is a prefix, not a literal file. Split it once so we can
-    # validate the paired files and later match the sample column produced by
-    # methylprep.
     data_dir = os.path.dirname(idat_base) or "."
     sample_name = os.path.basename(idat_base)
 
     logger.debug("Data directory: %s", data_dir)
     logger.debug("Sample name: %s", sample_name)
 
-    # The assay is only valid when both channels are present. Failing early here
-    # produces a clearer message than letting methylprep error deeper inside.
+    # Validate both channels first so failures are short and obvious.
     for suffix in ("_Grn.idat", "_Red.idat"):
         path = os.path.join(data_dir, sample_name + suffix)
         logger.debug("Checking IDAT: %s", path)
         if not os.path.isfile(path):
-            logger.error("Missing IDAT file: %s", path)
-            sys.exit(1)
+            raise AnalysisError(f"Missing IDAT file: {path}")
 
     try:
         logger.info("Running methylprep pipeline with betas=True")
@@ -196,31 +260,25 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
             manifest_filepath=manifest_filepath,
         )
         logger.debug("Beta-values DataFrame loaded, shape = %s", beta_values.shape)
-        logger.debug("First 5 rows of wide beta-values DataFrame:\n%s", beta_values.head(5))
-    except Exception:
+    except Exception as exc:
         logger.exception("run_pipeline failed")
-        sys.exit(1)
+        raise AnalysisError(f"methylprep failed for sample '{sample_name}': {exc}") from exc
 
     if sample_name not in beta_values.columns:
-        logger.error("No beta column named '%s' in output", sample_name)
-        sys.exit(1)
+        raise AnalysisError(f"No beta column named '{sample_name}' in methylprep output")
 
-    # The pipeline returns one column per sample. Reset the index so probe IDs
-    # become an explicit merge key instead of staying hidden in the index.
+    # Reset the index so probe IDs become a merge key instead of staying hidden
+    # in the wide matrix index produced by methylprep.
     beta_df = beta_values[sample_name].rename("beta").reset_index()
-    probe_column = beta_df.columns[0]
-    beta_df = beta_df.rename(columns={probe_column: "probe_id"})
+    beta_df = beta_df.rename(columns={beta_df.columns[0]: "probe_id"})
     logger.debug("First 5 rows of beta-values DataFrame after renaming:\n%s", beta_df.head(5))
 
     region_manifest_file = Path(__file__).resolve().parent / "gene_data" / "drd4_epigenetics_hg19.csv"
     try:
         manifest_region = pd.read_csv(region_manifest_file)
-    except Exception:
-        logger.exception("Failed to read region manifest file: %s", region_manifest_file)
-        sys.exit(1)
+    except Exception as exc:
+        raise AnalysisError(f"Failed to read region manifest file '{region_manifest_file}': {exc}") from exc
 
-    # Normalize the key columns so the join below can stay simple and the output
-    # schema is easier to reason about in notebooks or reports.
     rename_cols = {
         "IlmnID": "probe_id",
         "CHR": "chrom",
@@ -228,16 +286,14 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
         "UCSC_RefGene_Name": "gene",
     }
     manifest_region = manifest_region.rename(columns=rename_cols)
-    logger.debug("First 5 rows of renamed filtered manifest:\n%s", manifest_region.head(5))
 
     required = {"probe_id", "chrom", "pos", "gene"}
     missing = required - set(manifest_region.columns)
     if missing:
-        logger.error("Region manifest is missing required columns: %s", missing)
-        sys.exit(1)
+        raise AnalysisError(f"Region manifest is missing required columns: {sorted(missing)}")
 
     # An inner join keeps only probes observed in both the sample output and the
-    # curated DRD4 manifest, which is the narrow result set expected downstream.
+    # curated DRD4 manifest subset.
     merged = pd.merge(beta_df, manifest_region, on="probe_id", how="inner")
     logger.info("After merging, %d probes remain", len(merged))
 
@@ -259,36 +315,57 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
     ]
 
     available = set(merged.columns)
-    missing = [column for column in keep_columns if column not in available]
-    if missing:
-        logger.warning("Some expected columns are missing: %s", missing)
+    missing_columns = [column for column in keep_columns if column not in available]
+    if missing_columns:
+        logger.warning("Some expected columns are missing: %s", missing_columns)
 
     final_df = merged[[column for column in keep_columns if column in available]]
-    logger.debug("First 5 rows of renamed filtered epigenetic data table:\n%s", final_df.head(5))
+    logger.debug("First 5 rows of filtered epigenetic data table:\n%s", final_df.head(5))
     return final_df
 
 
 def fetch_population_stats(popstats_source: str, variants: pd.DataFrame) -> Any:
-    """Load or derive population statistics for the supplied variants.
+    """Load optional population statistics from a CSV or JSON sidecar file.
 
     Parameters
     ----------
     popstats_source : str
-        Path or identifier for the external population statistics source.
+        Path to a CSV or JSON file containing population-level annotations.
     variants : pd.DataFrame
-        Variant table returned by :func:`load_variants`.
+        Variant table returned by :func:`load_variants`. The current
+        implementation does not merge by variant yet, but the argument is kept so
+        the function signature already matches the future enrichment step.
 
     Returns
     -------
     Any
-        Placeholder return type until this stage is implemented.
+        Parsed CSV as a DataFrame or JSON as a Python object.
 
-    Notes
-    -----
-    The function is kept as an explicit stub so the pipeline shape is visible
-    while the population enrichment step is still under development.
+    Raises
+    ------
+    AnalysisError
+        Raised when the file does not exist or uses an unsupported extension.
     """
-    raise NotImplementedError("fetch_population_stats() not yet implemented")
+    _ = variants
+    popstats_path = Path(popstats_source)
+    if not popstats_path.exists():
+        raise AnalysisError(f"Population statistics file not found: {popstats_source}")
+
+    suffix = popstats_path.suffix.lower()
+    if suffix == ".csv":
+        return pd.read_csv(popstats_path)
+    if suffix == ".json":
+        return json.loads(popstats_path.read_text(encoding="utf-8"))
+
+    raise AnalysisError(
+        f"Unsupported population statistics format '{popstats_path.suffix}'. Use CSV or JSON."
+    )
+
+
+def _render_section_table(df: pd.DataFrame, title: str, rows: int = 20) -> str:
+    """Render a DataFrame preview section for the HTML report."""
+    preview = df.head(rows).to_html(index=False, classes="data-table", border=0)
+    return f"<section><h2>{html.escape(title)}</h2>{preview}</section>"
 
 
 def generate_report(
@@ -296,8 +373,11 @@ def generate_report(
     methylation: pd.DataFrame,
     popstats: Any,
     output_path: str,
-) -> None:
-    """Generate the final analysis report from the assembled data tables.
+    *,
+    region: str,
+    methylation_output_path: Path | None = None,
+) -> Path:
+    """Generate a report artifact from the assembled analysis tables.
 
     Parameters
     ----------
@@ -307,53 +387,310 @@ def generate_report(
         Annotated probe-level beta-value table returned by
         :func:`load_methylation`.
     popstats : Any
-        Optional population statistics payload. The current pipeline leaves this
-        as ``None`` unless the enrichment step is implemented.
+        Optional population statistics payload loaded from CSV or JSON.
     output_path : str
         Destination path for the final report artifact.
+    region : str
+        Genomic interval used during the run. It is surfaced in the report
+        summary so the output remains self-describing.
+    methylation_output_path : Path | None, optional
+        Path to the exported methylation CSV, shown in the report when provided.
 
-    Notes
-    -----
-    The implementation is intentionally still a placeholder. Keeping the
-    function boundary documented now makes it easier to replace the print with a
-    real templating layer later.
+    Returns
+    -------
+    Path
+        Final report path written to disk.
+
+    Raises
+    ------
+    AnalysisError
+        Raised when the requested report extension is unsupported.
     """
-    _ = (variants, methylation, popstats)
-    print(f"Report would be written to {output_path}")
+    report_path = Path(output_path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    suffix = report_path.suffix.lower() or ".html"
+
+    popstats_section = ""
+    if isinstance(popstats, pd.DataFrame):
+        popstats_section = _render_section_table(popstats, "Population Statistics Preview")
+    elif popstats is not None:
+        payload = html.escape(json.dumps(popstats, indent=2))
+        popstats_section = f"<section><h2>Population Statistics Preview</h2><pre>{payload}</pre></section>"
+
+    if suffix == ".html":
+        methylation_path_markup = ""
+        if methylation_output_path is not None:
+            methylation_path_markup = (
+                "<p><strong>Methylation CSV:</strong> "
+                f"{html.escape(str(methylation_output_path))}</p>"
+            )
+
+        report_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DRD4 Analysis Report</title>
+  <style>
+    :root {{
+      --bg: #f6efe3;
+      --panel: rgba(255, 252, 245, 0.92);
+      --ink: #1f2a2e;
+      --muted: #51666a;
+      --accent: #0f766e;
+      --accent-2: #c26a3d;
+      --line: rgba(31, 42, 46, 0.14);
+      --shadow: 0 24px 70px rgba(31, 42, 46, 0.12);
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(194, 106, 61, 0.20), transparent 30rem),
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.20), transparent 28rem),
+        linear-gradient(180deg, #fbf6ee 0%, var(--bg) 100%);
+    }}
+    main {{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 48px 20px 64px;
+    }}
+    .hero {{
+      padding: 28px 30px;
+      border-radius: 28px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }}
+    .hero h1 {{
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 5vw, 3.6rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }}
+    .hero p {{
+      margin: 8px 0;
+      color: var(--muted);
+      max-width: 52rem;
+    }}
+    .metrics {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }}
+    .metric {{
+      padding: 18px 20px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--line);
+    }}
+    .metric span {{
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }}
+    .metric strong {{
+      display: block;
+      margin-top: 8px;
+      font-size: 1.8rem;
+    }}
+    section {{
+      margin-top: 24px;
+      padding: 24px;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }}
+    h2 {{
+      margin-top: 0;
+      font-size: 1.3rem;
+      letter-spacing: -0.02em;
+    }}
+    .data-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }}
+    .data-table th,
+    .data-table td {{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }}
+    .data-table th {{
+      background: rgba(15, 118, 110, 0.08);
+    }}
+    pre {{
+      padding: 16px;
+      overflow-x: auto;
+      border-radius: 16px;
+      background: #172023;
+      color: #f4f0e8;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>DRD4 Analysis Report</h1>
+      <p>This report summarizes the current DRD4 variant and methylation analysis run.</p>
+      <p><strong>Region:</strong> {html.escape(region)}</p>
+      <p><strong>Report path:</strong> {html.escape(str(report_path))}</p>
+      {methylation_path_markup}
+      <div class="metrics">
+        <article class="metric">
+          <span>PASS variants</span>
+          <strong>{len(variants)}</strong>
+        </article>
+        <article class="metric">
+          <span>Methylation probes</span>
+          <strong>{len(methylation)}</strong>
+        </article>
+        <article class="metric">
+          <span>Population stats</span>
+          <strong>{"Yes" if popstats is not None else "No"}</strong>
+        </article>
+      </div>
+    </section>
+    {_render_section_table(variants, "Variant Preview")}
+    {_render_section_table(methylation, "Methylation Preview")}
+    {popstats_section}
+  </main>
+</body>
+</html>
+"""
+        report_path.write_text(report_html, encoding="utf-8")
+        return report_path
+
+    if suffix == ".json":
+        payload = {
+            "region": region,
+            "variants": variants.to_dict(orient="records"),
+            "methylation": methylation.to_dict(orient="records"),
+            "population_statistics": _serialize_popstats(popstats),
+            "methylation_output_path": str(methylation_output_path) if methylation_output_path else None,
+        }
+        report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return report_path
+
+    if suffix == ".csv":
+        summary = pd.DataFrame(
+            [
+                {"metric": "region", "value": region},
+                {"metric": "variant_count", "value": len(variants)},
+                {"metric": "methylation_probe_count", "value": len(methylation)},
+                {"metric": "has_population_stats", "value": popstats is not None},
+                {
+                    "metric": "methylation_output_path",
+                    "value": str(methylation_output_path) if methylation_output_path else "",
+                },
+            ]
+        )
+        summary.to_csv(report_path, index=False)
+        return report_path
+
+    raise AnalysisError(
+        f"Unsupported output format '{report_path.suffix}'. Use .html, .json, or .csv."
+    )
 
 
-def main() -> None:
-    """Run the end-to-end DRD4 analysis workflow from the command line.
+def run_analysis(
+    *,
+    vcf_path: str,
+    idat_base: str,
+    output_path: str,
+    region: str = DEFAULT_REGION,
+    popstats_source: str | None = None,
+    manifest_filepath: str | None = None,
+) -> AnalysisResult:
+    """Run the end-to-end DRD4 analysis workflow.
 
-    The current pipeline performs three visible steps:
+    Parameters
+    ----------
+    vcf_path : str
+        Input VCF path containing DRD4-region variants.
+    idat_base : str
+        Input IDAT prefix without the color suffix.
+    output_path : str
+        Output report path.
+    region : str, optional
+        Genomic region to inspect.
+    popstats_source : str | None, optional
+        Optional population statistics sidecar file path.
+    manifest_filepath : str | None, optional
+        Optional manifest file path passed through to methylprep.
 
-    1. load regional variants from the VCF,
-    2. process methylation IDATs and save the annotated probe table to CSV,
-    3. call the report generator placeholder.
-
-    Population statistics are wired in as an optional future step and therefore
-    only execute when the corresponding flag is provided.
+    Returns
+    -------
+    AnalysisResult
+        Structured result containing the in-memory tables plus the generated
+        output paths.
     """
-    args = parse_args()
+    variants = load_variants(vcf_path, region)
+    methylation = load_methylation(idat_base, manifest_filepath=manifest_filepath)
 
-    variants = load_variants(args.vcf, args.region)
-    meth = load_methylation(args.idat)
+    report_path = Path(output_path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Persist the intermediate methylation table so notebooks and manual review
-    # can inspect the processed probe-level output independently of report
-    # generation.
-    output_path = Path("results/methylation_output.csv")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    meth.to_csv(output_path, index=False)
-    print(f"Saved methylation data to {output_path}")
+    methylation_output_path = _derive_methylation_output_path(report_path)
+    methylation_output_path.parent.mkdir(parents=True, exist_ok=True)
+    methylation.to_csv(methylation_output_path, index=False)
+    logger.info("Saved methylation data to %s", methylation_output_path)
 
     popstats = None
-    if args.popstats:
-        popstats = fetch_population_stats(args.popstats, variants)
+    if popstats_source:
+        popstats = fetch_population_stats(popstats_source, variants)
 
-    generate_report(variants, meth, popstats, args.out)
+    final_report_path = generate_report(
+        variants,
+        methylation,
+        popstats,
+        str(report_path),
+        region=region,
+        methylation_output_path=methylation_output_path,
+    )
+
+    return AnalysisResult(
+        variants=variants,
+        methylation=methylation,
+        popstats=popstats,
+        report_path=final_report_path,
+        methylation_output_path=methylation_output_path,
+        region=region,
+        vcf_path=Path(vcf_path),
+        idat_base=Path(idat_base),
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the DRD4 workflow from the command line and return an exit code."""
+    try:
+        args = parse_args(argv)
+        result = run_analysis(
+            vcf_path=args.vcf,
+            idat_base=args.idat,
+            output_path=args.out,
+            region=args.region,
+            popstats_source=args.popstats,
+            manifest_filepath=args.manifest_file,
+        )
+    except AnalysisError as exc:
+        logger.error("%s", exc)
+        return 1
+
+    print(f"Saved report to {result.report_path}")
+    print(f"Saved methylation CSV to {result.methylation_output_path}")
+    return 0
 
 
 if __name__ == "__main__":
     print(__doc__)
-    main()
+    raise SystemExit(main())
