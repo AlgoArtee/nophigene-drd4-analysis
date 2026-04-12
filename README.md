@@ -83,6 +83,29 @@ From the project root:
 docker build -t nophigene-drd4-analysis:latest .
 ```
 
+## One-click launcher on Windows
+
+If you want a clickable starter icon in File Explorer, use the new root-level launcher files:
+
+- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
+- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
+
+What the start launcher does:
+
+- starts Docker Desktop if the engine is not already ready
+- creates local `data/` and `results/` folders if they are missing
+- builds the Docker image from the current repo state
+- replaces any old UI container with a fresh one
+- starts the web UI container on port `8000`
+- opens the browser automatically
+
+What the stop launcher does:
+
+- stops and removes the UI container
+- exits cleanly if Docker is not running or nothing needs stopping
+
+You can simply double-click `Start NophiGene UI.cmd` to launch the project.
+
 ## Run the web UI with Docker
 
 This is the main way to use the app now.

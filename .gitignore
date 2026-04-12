@@ -1,12 +1,16 @@
 # Python venv
 .venv/
 
+# Local Docker CLI config used by project launch scripts
+.docker-local/
+
 # VS Code settings
 .vscode/
 
 # Byte-compiled / cache
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Data and results
 data/
