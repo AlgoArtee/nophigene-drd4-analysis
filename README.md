@@ -1,126 +1,216 @@
 # nophigene-drd4-analysis
 
-Containerized DRD4 analysis with a browser-based workbench and a CLI fallback.
+Local-first DRD4 analysis workbench with an optional Docker path.
 
-The project now supports two ways to run the same Python pipeline:
+The project now has two supported run modes:
 
-- `web` mode: a lightweight browser UI for selecting mounted input files and running the analysis visually
-- `cli` mode: the original command-line workflow for scripted or batch-style execution
+- local mode: the default and recommended workflow, launched from the repaired `.venv`
+- Docker mode: a slimmer secondary option for reproducible container runs
 
-The Docker image starts in `web` mode by default.
+## Why the workflow changed
 
-## Implementation approach
+This app is currently a single-process Python web app plus a CLI pipeline:
 
-The UI was added as a thin layer on top of the existing project structure instead of replacing the pipeline:
+- [src/webapp.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/webapp.py:1) provides the Flask UI
+- [src/analysis.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/analysis.py:1) contains the reusable analysis workflow
+- [src/app.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/app.py:1) dispatches to either web or CLI mode
 
-- [src/analysis.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/analysis.py:1) now contains reusable analysis functions plus `run_analysis()` so both the browser and CLI call the same code path
-- [src/webapp.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/webapp.py:1) provides the Flask UI and scans the mounted `data/` directory for likely inputs
-- [src/templates/index.html](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/templates/index.html:1) holds the browser UI template
-- [src/app.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/app.py:1) is the Docker entrypoint and dispatches to either `web` or `cli`
-- [Dockerfile](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Dockerfile:1) now exposes port `8000` and starts the browser app by default
+Because the current app does not need multiple services, a database, or orchestration, Docker was adding more local overhead than value. The biggest pain points were:
 
-This keeps the analysis logic centralized and makes Docker usage straightforward:
+- large build context
+- long image build times
+- heavy scientific dependencies getting pulled into every app build
+- Docker Desktop startup latency for simple local runs
 
-- the container still reads inputs from mounted folders
-- the UI only orchestrates file selection and execution
-- outputs are still written back to the mounted `results/` folder on the host
+The repo is now structured so:
 
-## What the web UI does
+- local launch is the default
+- Docker is still available, but slimmer
+- app runtime dependencies are separated from optional research extras
 
-The browser workbench is designed for the current repo shape and mounted-volume workflow.
+## Dependency layout
 
-It:
+The dependency files are now split by purpose:
 
-- discovers `*.vcf` and `*.vcf.gz` files under `data/`
-- discovers IDAT pairs by looking for matching `_Grn.idat` and `_Red.idat` files
-- optionally discovers CSV and JSON files that can be used as population statistics sidecars
-- runs the same Python analysis pipeline as the CLI
-- writes a report artifact plus a companion methylation CSV to `results/`
-- shows a preview of the variant and methylation tables after each run
+- [requirements-app.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-app.txt:1)
+  - minimal runtime set for the UI, CLI, and tests
+- [requirements-research.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-research.txt:1)
+  - optional heavier packages for exploratory or future workflows
+- [requirements.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements.txt:1)
+  - convenience alias to the app requirements
 
-## Prerequisites
+At the moment, the app runtime uses:
 
-You need:
+- `Flask`
+- `pandas`
+- `numpy`
+- `scikit-allel`
+- `methylprep`
+- `requests`
 
-- Docker Engine 20.10 or newer
-- a host-side `data/` directory containing your input files
-- a host-side `results/` directory for generated outputs
+Moved out of the default app runtime:
 
-Create those folders from the project root if they do not exist yet:
+- `deepchem`
+- `biomart`
+- `matplotlib`
+- `pysam`
+
+Important note:
+
+- `pysam` remains listed as an optional research dependency, but it still does not install cleanly on this Windows setup
+
+## Launchers
+
+### Default local launchers
+
+These are the main “starter icon” files for day-to-day use on Windows:
+
+- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
+- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
+
+They call:
+
+- [scripts/start_nophigene_ui_local.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/start_nophigene_ui_local.ps1:1)
+- [scripts/stop_nophigene_ui_local.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/stop_nophigene_ui_local.ps1:1)
+
+What the local start launcher does:
+
+- checks that `.venv\Scripts\python.exe` exists
+- checks that key app dependencies can be imported
+- creates `data/` and `results/` if needed
+- starts the UI from the local environment
+- waits for the server to respond on `http://127.0.0.1:8000`
+- opens the browser automatically
+- tracks the running process in a local PID file
+
+What the local stop launcher does:
+
+- stops the tracked local UI process
+- removes the PID file
+- exits cleanly if nothing is running
+
+### Secondary Docker launchers
+
+These are still available if you want a containerized run:
+
+- [Start NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI%20%28Docker%29.cmd)
+- [Stop NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI%20%28Docker%29.cmd)
+
+They call:
+
+- [scripts/start_nophigene_ui.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/start_nophigene_ui.ps1:1)
+- [scripts/stop_nophigene_ui.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/stop_nophigene_ui.ps1:1)
+
+## Local setup
+
+### Recommended Python version
+
+Use Python `3.10`.
+
+The current project `.venv` has already been repaired to point to Python `3.10.11`.
+
+### Install app dependencies
+
+If you need to recreate the local environment from scratch:
 
 ```powershell
-New-Item -ItemType Directory -Force data, results
+py -3.10 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements-app.txt
 ```
 
-Or on macOS/Linux:
+### Install optional research extras
 
-```bash
-mkdir -p data results
+Only do this if you need the non-runtime stack:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-research.txt
 ```
 
-## Expected input files
+## Local-first usage
 
-The current UI and CLI expect:
+### Fastest path
 
-- a VCF or bgzipped VCF for the DRD4 region, for example `data/drd4.vcf.gz`
-- an IDAT sample prefix, which means the actual files should exist as:
-  - `data/202277800037_R01C01_Grn.idat`
-  - `data/202277800037_R01C01_Red.idat`
-- optionally, a population statistics sidecar file such as:
-  - `data/gnomad.csv`
-  - `data/gnomad.json`
+Double-click:
+
+- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
+
+Then open:
+
+- [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+When finished, double-click:
+
+- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
+
+### Manual local launch
+
+You can also run the UI directly:
+
+```powershell
+.\.venv\Scripts\python.exe src\app.py web --host 127.0.0.1 --port 8000
+```
+
+Or run the CLI path:
+
+```powershell
+.\.venv\Scripts\python.exe src\app.py cli --vcf data/drd4.vcf.gz --idat data/202277800037_R01C01 --out results/drd4_report.html
+```
+
+## Expected input layout
+
+The UI and CLI both assume a local project structure like this:
+
+```text
+data/
+  drd4.vcf.gz
+  202277800037_R01C01_Grn.idat
+  202277800037_R01C01_Red.idat
+results/
+```
 
 Important:
 
-- in the UI, the IDAT input is the shared prefix only, for example `data/202277800037_R01C01`
-- the workflow currently uses the curated DRD4 methylation manifest already checked into the repo
+- the IDAT argument or form field uses the shared prefix only
+- example: `data/202277800037_R01C01`
 
-## Build the Docker image
+## What the UI writes
 
-From the project root:
+Each run creates:
+
+- a report file at the path you choose
+- a companion methylation CSV beside the report
+
+Example:
+
+- requested report: `results/drd4_report.html`
+- generated methylation file: `results/drd4_report_methylation.csv`
+
+## Docker is now secondary
+
+Docker still works, but it is no longer the recommended local default.
+
+### What changed to make Docker lighter
+
+- the image now installs from [requirements-app.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-app.txt:1) instead of the full research stack
+- [Dockerfile](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Dockerfile:1) now copies only `src/` and the app requirements into the image
+- [.dockerignore](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.dockerignore:1) now excludes:
+  - `data/`
+  - `results/`
+  - `.venv/`
+  - `.docker-local/`
+  - `.pytest_cache/`
+  - notebooks, tests, and launcher scripts
+
+That should materially reduce Docker build context size and image churn.
+
+### Build the Docker image manually
 
 ```bash
 docker build -t nophigene-drd4-analysis:latest .
 ```
 
-## One-click launcher on Windows
-
-If you want a clickable starter icon in File Explorer, use the new root-level launcher files:
-
-- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
-- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
-
-What the start launcher does:
-
-- starts Docker Desktop if the engine is not already ready
-- creates local `data/` and `results/` folders if they are missing
-- builds the Docker image from the current repo state
-- replaces any old UI container with a fresh one
-- starts the web UI container on port `8000`
-- opens the browser automatically
-
-What the stop launcher does:
-
-- stops and removes the UI container
-- exits cleanly if Docker is not running or nothing needs stopping
-
-You can simply double-click `Start NophiGene UI.cmd` to launch the project.
-
-## Run the web UI with Docker
-
-This is the main way to use the app now.
-
-### Windows PowerShell
-
-```powershell
-docker run --rm -it `
-  -p 8000:8000 `
-  -v "${PWD}\data:/home/appuser/app/data" `
-  -v "${PWD}\results:/home/appuser/app/results" `
-  nophigene-drd4-analysis:latest
-```
-
-### macOS/Linux
+### Run Docker manually
 
 ```bash
 docker run --rm -it \
@@ -132,161 +222,64 @@ docker run --rm -it \
 
 Then open:
 
-- [http://localhost:8000](http://localhost:8000)
+- [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-### What this command does
+### Use the Docker launcher
 
-- `--rm` removes the container after you stop it
-- `-it` keeps logs visible in the terminal
-- `-p 8000:8000` publishes the UI to your host machine
-- the `data/` mount makes your input files visible inside the container
-- the `results/` mount makes generated files persist on your host
+If you still want the automated Docker flow, double-click:
 
-## Using the web UI
+- [Start NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI%20%28Docker%29.cmd)
 
-After opening the browser interface:
+When done, use:
 
-1. Pick or enter the VCF path.
-2. Pick or enter the IDAT base path.
-3. Choose the report output path, usually something like `results/drd4_report.html`.
-4. Optionally set a different genomic region.
-5. Optionally add a population statistics CSV or JSON file.
-6. Click `Run DRD4 analysis`.
+- [Stop NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI%20%28Docker%29.cmd)
 
-When the run finishes, the page will show:
+## VS Code
 
-- PASS variant count
-- methylation probe count
-- the generated report path
-- the generated methylation CSV path
-- a table preview of both outputs
+VS Code is now aligned with the local-first setup:
 
-## Output files
-
-The pipeline writes:
-
-- the main report file at the path you choose in the UI or CLI
-- a companion methylation CSV next to that report
-
-Example:
-
-- requested report: `results/drd4_report.html`
-- generated methylation file: `results/drd4_report_methylation.csv`
-
-If you use an HTML report, you can open it directly in your browser from the host `results/` folder.
-
-## CLI mode inside Docker
-
-The browser UI is the default container behavior, but the original CLI flow is still available.
-
-Use `cli` after the image name to override the default startup mode.
-
-### Windows PowerShell
-
-```powershell
-docker run --rm -it `
-  -v "${PWD}\data:/home/appuser/app/data" `
-  -v "${PWD}\results:/home/appuser/app/results" `
-  nophigene-drd4-analysis:latest `
-  cli `
-  --vcf /home/appuser/app/data/drd4.vcf.gz `
-  --idat /home/appuser/app/data/202277800037_R01C01 `
-  --out /home/appuser/app/results/drd4_report.html `
-  --region 11:63671737-63677367
-```
-
-### macOS/Linux
-
-```bash
-docker run --rm -it \
-  -v "${PWD}/data":/home/appuser/app/data \
-  -v "${PWD}/results":/home/appuser/app/results \
-  nophigene-drd4-analysis:latest \
-  cli \
-  --vcf /home/appuser/app/data/drd4.vcf.gz \
-  --idat /home/appuser/app/data/202277800037_R01C01 \
-  --out /home/appuser/app/results/drd4_report.html \
-  --region 11:63671737-63677367
-```
-
-You can also pass:
-
-- `--popstats /home/appuser/app/data/gnomad.json`
-- `--manifest-file /home/appuser/app/data/custom_manifest.csv.gz`
-
-## Run the web UI on a different port
-
-If port `8000` is already taken, change both the Docker port mapping and the launcher port:
-
-```bash
-docker run --rm -it \
-  -p 8050:8050 \
-  -v "${PWD}/data":/home/appuser/app/data \
-  -v "${PWD}/results":/home/appuser/app/results \
-  nophigene-drd4-analysis:latest \
-  web --host 0.0.0.0 --port 8050
-```
-
-Then open:
-
-- [http://localhost:8050](http://localhost:8050)
-
-## Run locally without Docker
-
-Docker is the intended workflow, but for local development you can also run the UI directly once your Python environment is healthy.
-
-```bash
-python src/app.py web --host 0.0.0.0 --port 8000
-```
-
-Or the CLI:
-
-```bash
-python src/app.py cli --vcf data/drd4.vcf.gz --idat data/202277800037_R01C01 --out results/drd4_report.html
-```
-
-## Development notes
-
-The UI is intentionally lightweight.
-
-That means:
-
-- the browser does not upload large genomics files into the container
-- instead, you mount `data/` and `results/` and point the form at files that already exist there
-- this keeps the Docker workflow simple and avoids building a separate file-upload backend before the pipeline itself is more mature
+- [settings.json](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.vscode/settings.json:1) points to `.venv\Scripts\python.exe`
+- [launch.json](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.vscode/launch.json:1) includes:
+  - a local UI launch config
+  - a CLI launch config
 
 ## Troubleshooting
 
-### The browser opens but the suggestion lists are empty
+### Double-clicking the local launcher says dependencies are missing
 
-Check that:
+Reinstall the app runtime:
 
-- you mounted the host `data/` directory into `/home/appuser/app/data`
-- your files are actually inside that folder on the host
-- the IDAT sample has both `_Grn.idat` and `_Red.idat`
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-app.txt
+```
 
-### The page says a VCF or IDAT file is missing
+### The browser does not open automatically
 
-The UI validates the exact paths you submit. Double-check the path text in the form and make sure the mounted file exists inside the container path space.
+Open:
 
-### The report file was created but I expected more analysis content
+- [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-The report generator is intentionally lightweight right now. It produces a working HTML, JSON, or CSV summary with table previews rather than a fully designed biological interpretation report.
+### The local server failed to start
 
-### `pytest` does not run locally
+Check the local launcher logs in the repo root:
 
-The repository currently contains a broken local virtual environment reference on this machine. Recreate the environment before relying on local test commands outside Docker.
+- `.nophigene-ui.log`
+- `.nophigene-ui.err.log`
 
-## Current limitations
+### Docker is still slow
 
-- the pipeline is still DRD4-specific
-- the methylation workflow still relies on the checked-in DRD4 region manifest
-- population statistics are loaded but not yet deeply merged into the variant table
-- the generated report is currently a structured summary, not a full scientific narrative
+That is now expected to be less severe than before, but local `.venv` launch is still the recommended path for iterative work.
 
-## Suggested next steps
+### `pysam` still fails on Windows
 
-- add asynchronous job execution so long-running runs do not block a single web request
-- add richer report sections with figures and domain-specific interpretation
-- add stronger validation around VCF indexing and IDAT naming
-- add real integration tests that exercise both `cli` and `web` flows in Docker
+That package remains optional and is not required for the current UI or CLI path.
+
+## Recommended workflow now
+
+For daily use:
+
+1. Put your input files in `data/`.
+2. Double-click [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd).
+3. Run the analysis from the browser.
+4. Open outputs from `results/`.
+5. Double-click [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd) when finished.

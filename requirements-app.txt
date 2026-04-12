@@ -1,0 +1,10 @@
+# Core runtime dependencies for the local UI, CLI, and Docker app image.
+pandas==1.5.3
+numpy==1.23.5
+scikit-allel==1.3.13
+methylprep==1.7.1
+requests==2.31.0
+Flask==3.0.3
+
+# Developer smoke-test dependency.
+pytest==9.0.3

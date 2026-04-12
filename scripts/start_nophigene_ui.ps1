@@ -179,4 +179,4 @@ if (-not $NoOpenBrowser) {
 Write-Host ""
 Write-Host "UI is ready." -ForegroundColor Green
 Write-Host "Open http://127.0.0.1:$Port if the browser did not appear automatically."
-Write-Host "Use 'Stop NophiGene UI.cmd' to stop the container later."
+Write-Host "Use 'Stop NophiGene UI (Docker).cmd' to stop the container later."

@@ -4,6 +4,11 @@
 # Local Docker CLI config used by project launch scripts
 .docker-local/
 
+# Local launcher state
+.nophigene-ui.pid
+.nophigene-ui.log
+.nophigene-ui.err.log
+
 # VS Code settings
 .vscode/
 

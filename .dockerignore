@@ -1,7 +1,19 @@
 .git
+.docker-local/
+.pytest_cache/
+.venv/
+.vscode/
+.devcontainer/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+data/
+results/
 notebooks/
 tests/
+scripts/
+Start NophiGene UI.cmd
+Stop NophiGene UI.cmd
+Start NophiGene UI (Docker).cmd
+Stop NophiGene UI (Docker).cmd

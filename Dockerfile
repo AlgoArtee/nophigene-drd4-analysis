@@ -14,10 +14,10 @@ RUN apt-get update && \
         liblzma-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements-app.txt .
 
 RUN python -m pip install --upgrade pip && \
-    python -m pip wheel --wheel-dir /wheels -r requirements.txt
+    python -m pip wheel --wheel-dir /wheels -r requirements-app.txt
 
 
 FROM python:3.10-slim
@@ -43,12 +43,12 @@ RUN groupadd --gid "${USER_GID}" "${USERNAME}" && \
 WORKDIR /home/${USERNAME}/app
 
 COPY --from=builder /wheels /wheels
-COPY requirements.txt .
+COPY requirements-app.txt .
 
 RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-index --find-links=/wheels -r requirements.txt
+    python -m pip install --no-index --find-links=/wheels -r requirements-app.txt
 
-COPY --chown=${USERNAME}:${USERNAME} . .
+COPY --chown=${USERNAME}:${USERNAME} src ./src
 
 RUN mkdir -p data results && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/app
