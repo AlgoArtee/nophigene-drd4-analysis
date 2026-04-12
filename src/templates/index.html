@@ -773,6 +773,16 @@
     .insight-list li {
       line-height: 1.55;
     }
+    .literature-list {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .literature-list li {
+      line-height: 1.6;
+    }
     .population-grid {
       display: grid;
       gap: 12px;
@@ -1182,6 +1192,18 @@
                                   <strong>{{ item.title }}</strong> {% if item.observed_variant %}({{ item.observed_variant }}){% endif %}.
                                   {{ item.category }}. {{ item.description }}
                                   {% if item.conditions %} Studied in {{ item.conditions | join(", ") }}.{% endif %}
+                                  {% if item.literature_findings %}
+                                  <ul class="literature-list">
+                                    {% for finding in item.literature_findings %}
+                                    <li>
+                                      {% if finding.url %}<a href="{{ finding.url }}" target="_blank" rel="noreferrer">{{ finding.paper }}</a>{% else %}<strong>{{ finding.paper }}</strong>{% endif %}
+                                      {% if finding.genotypes %} ({{ finding.genotypes }}){% endif %}.
+                                      {% if finding.phenotype %} {{ finding.phenotype }}.{% endif %}
+                                      {{ finding.finding }}
+                                    </li>
+                                    {% endfor %}
+                                  </ul>
+                                  {% endif %}
                                 </li>
                                 {% endfor %}
                               </ul>
@@ -1476,6 +1498,19 @@
                               </summary>
                               <div class="expandable-body">
                                 <p>{{ item.clinical_interpretation }}</p>
+                                {% if item.literature_findings %}
+                                <h4>Paper-by-paper findings</h4>
+                                <ul class="literature-list">
+                                  {% for finding in item.literature_findings %}
+                                  <li>
+                                    {% if finding.url %}<a href="{{ finding.url }}" target="_blank" rel="noreferrer">{{ finding.paper }}</a>{% else %}<strong>{{ finding.paper }}</strong>{% endif %}
+                                    {% if finding.genotypes %} ({{ finding.genotypes }}){% endif %}.
+                                    {% if finding.phenotype %} {{ finding.phenotype }}.{% endif %}
+                                    {{ finding.finding }}
+                                  </li>
+                                  {% endfor %}
+                                </ul>
+                                {% endif %}
                                 <p>{{ item.methylation_interpretation }}</p>
                                 {% if item.functional_effects %}
                                 <h4>Functional effects</h4>

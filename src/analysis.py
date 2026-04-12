@@ -350,6 +350,7 @@ def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
         "functional_effects": record.get("functional_effects", []),
         "associated_conditions": record.get("associated_conditions", []),
         "research_context": record.get("research_context", []),
+        "literature_findings": _build_literature_findings(record),
         "assay_note": assay_note,
         "evidence": record.get("evidence", []),
     }
@@ -376,6 +377,7 @@ def _build_observed_variant_summary(
             "functional_effects": [],
             "associated_conditions": [],
             "research_context": [],
+            "literature_findings": [],
             "evidence": [],
         }
 
@@ -391,8 +393,30 @@ def _build_observed_variant_summary(
         "functional_effects": matched_record.get("functional_effects", []),
         "associated_conditions": matched_record.get("associated_conditions", []),
         "research_context": matched_record.get("research_context", []),
+        "literature_findings": _build_literature_findings(matched_record),
         "evidence": matched_record.get("evidence", []),
     }
+
+
+def _build_literature_findings(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalize literature findings so the UI can render paper-level bullets consistently."""
+    findings: list[dict[str, Any]] = []
+    for finding in record.get("literature_findings", []):
+        paper = str(finding.get("paper", "")).strip()
+        phenotype = str(finding.get("phenotype", "")).strip()
+        finding_text = str(finding.get("finding", "")).strip()
+        if not paper or not finding_text:
+            continue
+        findings.append(
+            {
+                "paper": paper,
+                "genotypes": str(finding.get("genotypes", "")).strip(),
+                "phenotype": phenotype,
+                "finding": finding_text,
+                "url": str(finding.get("url", "")).strip(),
+            }
+        )
+    return findings
 
 
 def _summarize_observed_region_variants(
@@ -568,6 +592,7 @@ def _build_sample_variant_highlights(
                 "category": record.get("interpretation_scope", "Research context"),
                 "description": record.get("clinical_interpretation", ""),
                 "conditions": record.get("associated_conditions", []),
+                "literature_findings": record.get("literature_findings", []),
             }
             for record in matched_records
         ]
@@ -589,6 +614,7 @@ def _build_sample_variant_highlights(
                     "category": region_label,
                     "description": record.get("summary", ""),
                     "conditions": record.get("associated_conditions", []),
+                    "literature_findings": record.get("literature_findings", []),
                 }
             )
 
@@ -723,6 +749,7 @@ def build_variant_interpretations(
                 "functional_effects": matched_record.get("functional_effects", []),
                 "associated_conditions": matched_record.get("associated_conditions", []),
                 "research_context": matched_record.get("research_context", []),
+                "literature_findings": _build_literature_findings(matched_record),
                 "relevant_probe_ids": matched_record.get("relevant_methylation_probe_ids", []),
                 "evidence": matched_record.get("evidence", []),
             }

@@ -23,6 +23,11 @@ def test_interpretation_database_loads_expected_gene_context() -> None:
     assert knowledge_base["gene_context"]["relevant_methylation_probe_ids"]
     assert knowledge_base["gene_context"]["variant_effect_overview"]
     assert knowledge_base["gene_context"]["methylation_effects"]
+    rs1800955_record = next(
+        item for item in knowledge_base["variant_records"] if item["variant"] == "rs1800955"
+    )
+    assert rs1800955_record["literature_findings"]
+    assert rs1800955_record["literature_findings"][0]["genotypes"]
 
 
 def test_coordinate_alias_can_match_curated_variant_record() -> None:
@@ -51,7 +56,9 @@ def test_coordinate_alias_can_match_curated_variant_record() -> None:
     assert interpretation["promoter_analysis"]["included"] is True
     assert interpretation["matched_records"][0]["functional_effects"]
     assert interpretation["matched_records"][0]["associated_conditions"]
+    assert interpretation["matched_records"][0]["literature_findings"]
     assert interpretation["sample_highlights"]["highlight_items"]
+    assert interpretation["sample_highlights"]["highlight_items"][0]["literature_findings"]
     assert len(interpretation["region_recommendations"]) == 3
 
 

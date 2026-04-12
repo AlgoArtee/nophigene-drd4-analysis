@@ -142,11 +142,41 @@
           "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3538530/"
         },
         {
-          "label": "PubMed 26037358: rs3758653 and executive-time differences in adults",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/26037358/"
+          "label": "PMC1705471 / PubMed 17089069: Japanese schizophrenia promoter-variant study",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
         },
         {
           "label": "PMC4833125: promoter polymorphism reporter dataset including rs3758653",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4833125/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Zhang et al., 2022 (PMID 34864042)",
+          "genotypes": "TT, TC, and CC",
+          "phenotype": "Heroin addiction latency and DRD4 promoter methylation in Chinese heroin-use cohorts",
+          "finding": "TT carriers took the longest mean time from first heroin exposure to addiction (2.91 months), TC carriers were intermediate (2.57 months), and CC carriers were shortest (1.80 months); rs3758653 was also linked to several SNP-CpG correlations that were unique to the heroin-addiction group.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34864042/"
+        },
+        {
+          "paper": "Kang et al., 2012 (PMCID PMC3538530)",
+          "genotypes": "CC, CT, and TT",
+          "phenotype": "Average DRD4 promoter methylation in lymphoblastoid cell lines with replication in postmortem brain tissue",
+          "finding": "Mean methylation increased across genotype groups from CC (0.49) to CT (0.57) to TT (0.65) in the discovery sample, and the direction of effect was nominally replicated in superior frontal gyrus brain tissue, supporting rs3758653 as a local methylation-QTL.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3538530/"
+        },
+        {
+          "paper": "Mitsuyasu et al., 2007 (PMCID PMC1705471)",
+          "genotypes": "TT, TC, and CC",
+          "phenotype": "Schizophrenia case-control frequencies in a Japanese cohort",
+          "finding": "Genotype frequencies were similar between schizophrenia cases (0.66/0.31/0.03) and controls (0.62/0.34/0.05), so this cohort did not support a strong standalone schizophrenia association for rs3758653.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
+        },
+        {
+          "paper": "Tei et al., 2016 (PMCID PMC4833125)",
+          "genotypes": "engineered -906T/C promoter constructs",
+          "phenotype": "Luciferase-based DRD4 promoter activity in a neural cell line",
+          "finding": "Reporter assays that introduced the rs3758653-linked -906T/C state into one-repeat and two-repeat promoter haplotypes did not show reproducible promoter-activity differences, suggesting that any functional effect is subtle or depends on broader haplotype context.",
           "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4833125/"
         }
       ]
@@ -197,6 +227,10 @@
       "is_assayable_in_snp_vcf": true,
       "evidence": [
         {
+          "label": "PMC1705471 / PubMed 17089069: Japanese schizophrenia promoter-variant study",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
+        },
+        {
           "label": "PubMed 20468066: post-mortem mRNA study including rs747302",
           "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
         },
@@ -210,6 +244,43 @@
         },
         {
           "label": "PMC4833125: promoter polymorphism reporter dataset including rs747302",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4833125/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Mitsuyasu et al., 2007 (PMCID PMC1705471)",
+          "genotypes": "CC, CG, and GG",
+          "phenotype": "Schizophrenia case-control frequencies in a Japanese cohort",
+          "finding": "Genotype frequencies were similar between schizophrenia cases (0.09/0.44/0.47) and controls (0.10/0.39/0.50), so this cohort did not support a strong standalone rs747302 effect.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
+        },
+        {
+          "paper": "Xu et al., 2018 (PMCID PMC5757990; PMID 29379288)",
+          "genotypes": "C/G promoter genotypes pooled across 1,735 cases and 1,724 controls",
+          "phenotype": "Schizophrenia risk meta-analysis",
+          "finding": "The pooled analysis did not detect a significant association between the -616 C>G polymorphism and schizophrenia, arguing against a robust population-wide effect at this site.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
+        },
+        {
+          "paper": "Simpson et al., 2010 (PMID 20468066)",
+          "genotypes": "rs747302 genotype groups",
+          "phenotype": "DRD4 mRNA abundance in 28 human postmortem brain samples",
+          "finding": "DRD4 mRNA levels did not differ significantly by rs747302 genotype, so the study did not find evidence for a large constitutive brain-expression effect.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
+        },
+        {
+          "paper": "Tu et al., 2017 (PMCID PMC5430843; PMID 28450726)",
+          "genotypes": "CC/CG versus GG",
+          "phenotype": "Primary nocturnal enuresis, arousal from sleep, and resting-state neuroimaging in children",
+          "finding": "C-allele carriers had higher arousal-from-sleep scores and, within the primary nocturnal enuresis group, lower thalamic gray-matter volume and lower thalamic functional connectivity density than GG children.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5430843/"
+        },
+        {
+          "paper": "Tei et al., 2016 (PMCID PMC4833125)",
+          "genotypes": "engineered -616G/C promoter constructs",
+          "phenotype": "Luciferase-based DRD4 promoter activity in a neural cell line",
+          "finding": "Reporter assays that inserted the -616G/C state into multiple promoter haplotypes did not show reproducible activity differences, suggesting that any direct regulatory effect is modest or highly context dependent.",
           "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4833125/"
         }
       ]
@@ -264,6 +335,10 @@
           "url": "https://pubmed.ncbi.nlm.nih.gov/10329380/"
         },
         {
+          "label": "PMC1705471 / PubMed 17089069: Japanese schizophrenia promoter-variant study",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
+        },
+        {
           "label": "PubMed 20468066: post-mortem brain mRNA study of rs1800955 and rs747302",
           "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
         },
@@ -273,6 +348,43 @@
         },
         {
           "label": "PMC9321090 / PubMed 35574658: rs1800955 and emotion-processing phenotype",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9321090/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Okuyama et al., 1999 (PMID 10329380)",
+          "genotypes": "C allele versus T allele",
+          "phenotype": "DRD4 promoter transcription and schizophrenia allele frequency in Japanese adults",
+          "finding": "Transient reporter assays showed that the T allele reduced transcriptional efficiency by about 40% relative to the C allele, while the C allele was more frequent in schizophrenia cases (0.48) than in controls (0.41), so the authors proposed a tentative risk signal that required replication.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10329380/"
+        },
+        {
+          "paper": "Mitsuyasu et al., 2007 (PMCID PMC1705471)",
+          "genotypes": "TT, TC, and CC",
+          "phenotype": "Schizophrenia case-control frequencies in a Japanese cohort",
+          "finding": "Genotype frequencies were very similar in schizophrenia cases (0.34/0.48/0.19) and controls (0.34/0.50/0.16), so this cohort did not support a strong standalone rs1800955 effect.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1705471/"
+        },
+        {
+          "paper": "Xu et al., 2018 (PMCID PMC5757990; PMID 29379288)",
+          "genotypes": "CC versus CT/TT",
+          "phenotype": "Schizophrenia risk meta-analysis",
+          "finding": "Across 10 case-control datasets, the CC genotype showed a modest but statistically significant increase in schizophrenia risk (OR 1.218, 95% CI 1.050-1.413), while the locus still behaved like a small-effect susceptibility marker rather than a diagnostic variant.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
+        },
+        {
+          "paper": "Simpson et al., 2010 (PMID 20468066)",
+          "genotypes": "rs1800955 genotype groups",
+          "phenotype": "DRD4 mRNA abundance in 28 human postmortem brain samples",
+          "finding": "DRD4 mRNA levels did not show a statistically significant relationship with rs1800955 genotype, so the in vivo brain-expression data did not reproduce a large constitutive expression effect.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
+        },
+        {
+          "paper": "Peciña et al., 2022 (PMCID PMC9321090; PMID 35574658)",
+          "genotypes": "CC versus CT/TT",
+          "phenotype": "Positive affect during negative or neutral social stimuli in two nonclinical emotion-processing cohorts",
+          "finding": "Across film-clip and Cyberball tasks, CC individuals reported higher positive affect than T-carrier individuals when the social context was neutral or negative, supporting a context-dependent effect on social-emotional processing.",
           "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9321090/"
         }
       ]
