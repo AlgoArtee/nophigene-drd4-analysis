@@ -243,6 +243,92 @@
     .analysis-panel {
       padding: 18px;
     }
+    .architecture-panel {
+      padding: 34px;
+    }
+    .architecture-title {
+      margin: 16px 0 10px;
+      font-family: "Aptos Display", "Segoe UI Variable Display", "Franklin Gothic Medium", sans-serif;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+    }
+    .diagram-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 22px;
+    }
+    .diagram-card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+    }
+    .diagram-card p {
+      margin-bottom: 0;
+    }
+    .diagram-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent);
+      font-size: 0.77rem;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .diagram-flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .diagram-node {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at top right, rgba(209, 31, 79, 0.08), transparent 12rem),
+        rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+    .diagram-node strong,
+    .diagram-node span {
+      display: block;
+    }
+    .diagram-node strong {
+      color: var(--accent-3);
+      letter-spacing: -0.02em;
+    }
+    .diagram-node span {
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.93rem;
+    }
+    .diagram-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 18px;
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 900;
+    }
+    .diagram-node-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+    }
+    .diagram-note {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(161, 20, 61, 0.05);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+    }
     .analysis-shell {
       display: grid;
       grid-template-columns: minmax(370px, 0.9fr) minmax(0, 1.45fr);
@@ -890,7 +976,8 @@
     }
     @media (max-width: 1180px) {
       .analysis-shell,
-      .overview-grid {
+      .overview-grid,
+      .diagram-grid {
         grid-template-columns: 1fr;
       }
       .analysis-panel-inner {
@@ -926,11 +1013,15 @@
         justify-content: space-between;
       }
       .overview-panel,
-      .analysis-panel {
+      .analysis-panel,
+      .architecture-panel {
         padding: 16px;
       }
       .overview-title {
         font-size: clamp(2.2rem, 12vw, 3.5rem);
+      }
+      .architecture-title {
+        font-size: clamp(2rem, 10vw, 3rem);
       }
     }
   </style>
@@ -948,6 +1039,7 @@
       <nav class="tab-nav" aria-label="Primary navigation">
         <button type="button" class="tab-button" data-tab-target="overview" aria-selected="false">Overview</button>
         <button type="button" class="tab-button" data-tab-target="analysis" aria-selected="false">Run Analysis</button>
+        <button type="button" class="tab-button" data-tab-target="structure" aria-selected="false">App Structure</button>
       </nav>
     </header>
 
@@ -986,6 +1078,109 @@
             <div class="overview-actions">
               <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
               <span class="cta-note">Designed to keep the active work surface compact and high-density.</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="frame tab-panel architecture-panel" data-tab-panel="structure">
+        <span class="overview-badge">Runtime map</span>
+        <h2 class="architecture-title">How NophiGene Is Wired</h2>
+        <p class="overview-copy">
+          Both launch modes use the same DRD4 analysis core. The local path runs directly from the project virtualenv,
+          while the Docker path wraps the same Flask UI and Python pipeline inside a container with mounted input and
+          output folders.
+        </p>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <span class="diagram-kicker">Local runtime flow</span>
+            <h3>Direct Windows launch</h3>
+            <p>Use this path for the fastest startup and the most convenient day-to-day work on the same machine.</p>
+
+            <div class="diagram-flow" aria-label="Local architecture diagram">
+              <div class="diagram-node">
+                <strong>User browser</strong>
+                <span>Open <code>http://127.0.0.1:8000</code> after the local starter script launches the UI.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node">
+                <strong>Starter icon and local Python</strong>
+                <span><code>Start NophiGene UI.cmd</code> calls the PowerShell launcher, which starts <code>.venv\Scripts\python.exe</code>.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node">
+                <strong>Web layer</strong>
+                <span><code>src/app.py</code> boots the Flask app in <code>src/webapp.py</code> and renders the red-biotech workspace.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node">
+                <strong>Analysis core</strong>
+                <span><code>src/analysis.py</code> loads PASS variants, processes IDAT methylation data, joins the custom DRD4 databases, and builds the previews.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node-row">
+                <div class="diagram-node">
+                  <strong>Inputs</strong>
+                  <span><code>data/</code> stores the VCF, IDATs, sample sheet, and related run artifacts.</span>
+                </div>
+                <div class="diagram-node">
+                  <strong>Bundled knowledge</strong>
+                  <span><code>src/gene_data/</code> provides the curated DRD4 interpretation and population databases.</span>
+                </div>
+                <div class="diagram-node">
+                  <strong>Outputs</strong>
+                  <span><code>results/</code> receives the report HTML and methylation CSV exported by the pipeline.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="diagram-note">
+              <strong>Best when:</strong>
+              <span>You want the shortest startup time, easy access to local files, and no container rebuild while iterating on the app.</span>
+            </div>
+          </article>
+
+          <article class="diagram-card">
+            <span class="diagram-kicker">Docker runtime flow</span>
+            <h3>Containerized launch</h3>
+            <p>Use this path when you want a more reproducible environment or need to share a controlled runtime setup.</p>
+
+            <div class="diagram-flow" aria-label="Docker architecture diagram">
+              <div class="diagram-node">
+                <strong>User browser</strong>
+                <span>Connect to the same UI endpoint on <code>http://127.0.0.1:8000</code>, but served from the container.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node">
+                <strong>Docker starter path</strong>
+                <span><code>Start NophiGene UI (Docker).cmd</code> starts Docker Desktop if needed, builds the image, and runs the NophiGene container.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node">
+                <strong>Container runtime</strong>
+                <span>The image starts the same Flask layer and Python pipeline, with port <code>8000</code> published back to the host machine.</span>
+              </div>
+              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-node-row">
+                <div class="diagram-node">
+                  <strong>Mounted inputs</strong>
+                  <span>The host <code>data/</code> folder is mounted into the container so local VCF and IDAT files stay outside the image.</span>
+                </div>
+                <div class="diagram-node">
+                  <strong>Bundled app code</strong>
+                  <span><code>src/</code> and <code>src/gene_data/</code> are copied into the image so the app and DRD4 databases travel together.</span>
+                </div>
+                <div class="diagram-node">
+                  <strong>Mounted outputs</strong>
+                  <span>The host <code>results/</code> folder is mounted back out so generated reports persist after the container stops.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="diagram-note">
+              <strong>Best when:</strong>
+              <span>You want a cleaner, reproducible runtime boundary and are comfortable with the extra startup cost of Docker builds.</span>
             </div>
           </article>
         </div>
