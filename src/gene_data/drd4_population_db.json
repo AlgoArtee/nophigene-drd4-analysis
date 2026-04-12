@@ -1,0 +1,559 @@
+{
+  "database_name": "NophiGene DRD4 Population Database",
+  "version": "2026-04-12",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This population database keeps the broad regional panels and a representative-country layer that are most useful in the UI. Source URLs point to the underlying reference datasets used for curation.",
+  "population_categories": [
+    {
+      "key": "Global reference",
+      "label": "Global reference panels"
+    },
+    {
+      "key": "Africa",
+      "label": "Africa"
+    },
+    {
+      "key": "Americas",
+      "label": "Americas"
+    },
+    {
+      "key": "East Asia",
+      "label": "East Asia"
+    },
+    {
+      "key": "Europe",
+      "label": "Europe"
+    },
+    {
+      "key": "South Asia",
+      "label": "South Asia"
+    },
+    {
+      "key": "Japan",
+      "label": "Japan"
+    }
+  ],
+  "sources": [
+    {
+      "label": "Ensembl GRCh37 Variation REST API (population frequencies)",
+      "url": "https://grch37.rest.ensembl.org/documentation/info/variation_id"
+    },
+    {
+      "label": "PMC3653059: DRD4 exon III VNTR review with population context",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3653059/"
+    },
+    {
+      "label": "PubMed 21909391: DRD4 7R population genetics and selection analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21909391/"
+    }
+  ],
+  "variant_population_records": [
+    {
+      "variant": "rs1800955",
+      "display_name": "rs1800955",
+      "common_name": "-521C>T promoter SNP",
+      "effect_allele": "T",
+      "focus_alleles": [
+        "C",
+        "T"
+      ],
+      "effect_summary": "Common promoter SNP with early reporter evidence for lower transcription with the T allele and mixed psychiatric association findings.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs1800955?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.405751,
+            "T": 0.594249
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "C": 0.416163,
+            "T": 0.583837
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.407716,
+            "T": 0.592284
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.373199,
+            "T": 0.626801
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.405754,
+            "T": 0.594246
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.411531,
+            "T": 0.588469
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.420245,
+            "T": 0.579755
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "C": 0.4187,
+            "T": 0.5813
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:YRI",
+          "location_group": "Africa",
+          "label": "Yoruba in Ibadan, Nigeria",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.388889,
+            "T": 0.611111
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:MXL",
+          "location_group": "Americas",
+          "label": "Mexican ancestry in Los Angeles, USA",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.335938,
+            "T": 0.664062
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CHB",
+          "location_group": "East Asia",
+          "label": "Han Chinese in Beijing, China",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.417476,
+            "T": 0.582524
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.424242,
+            "T": 0.575758
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PJL",
+          "location_group": "South Asia",
+          "label": "Punjabi in Lahore, Pakistan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.411458,
+            "T": 0.588542
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:JPT",
+          "location_group": "Japan",
+          "label": "Japanese in Tokyo, Japan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.427885,
+            "T": 0.572115
+          }
+        }
+      ]
+    },
+    {
+      "variant": "rs747302",
+      "display_name": "rs747302",
+      "common_name": "-616C>G promoter SNP",
+      "effect_allele": "G",
+      "focus_alleles": [
+        "C",
+        "G"
+      ],
+      "effect_summary": "Promoter-region polymorphism mainly used as a regulatory marker in candidate-gene and imaging studies.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs747302?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.457268,
+            "G": 0.542732
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "C": 0.479909,
+            "G": 0.520091
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.399395,
+            "G": 0.600605
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.414986,
+            "G": 0.585014
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.382937,
+            "G": 0.617063
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.559642,
+            "G": 0.440358
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.53681,
+            "G": 0.46319
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "C": 0.4757,
+            "G": 0.5243
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:YRI",
+          "location_group": "Africa",
+          "label": "Yoruba in Ibadan, Nigeria",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.375,
+            "G": 0.625
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PEL",
+          "location_group": "Americas",
+          "label": "Peruvian in Lima, Peru",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.335294,
+            "G": 0.664706
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CHB",
+          "location_group": "East Asia",
+          "label": "Han Chinese in Beijing, China",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.315534,
+            "G": 0.684466
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.570707,
+            "G": 0.429293
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PJL",
+          "location_group": "South Asia",
+          "label": "Punjabi in Lahore, Pakistan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.520833,
+            "G": 0.479167
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:JPT",
+          "location_group": "Japan",
+          "label": "Japanese in Tokyo, Japan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.278846,
+            "G": 0.721154
+          }
+        }
+      ]
+    },
+    {
+      "variant": "rs3758653",
+      "display_name": "rs3758653",
+      "common_name": "-906T>C upstream regulatory SNP",
+      "effect_allele": "C",
+      "focus_alleles": [
+        "C",
+        "T"
+      ],
+      "effect_summary": "Upstream regulatory and methylation-QTL marker with addiction and cognitive phenotype literature.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs3758653?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.247604,
+            "T": 0.752396
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "C": 0.185384,
+            "T": 0.814616
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.183812,
+            "T": 0.816188
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.256484,
+            "T": 0.743516
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.259921,
+            "T": 0.740079
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.198807,
+            "T": 0.801193
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.365031,
+            "T": 0.634969
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "C": 0.1966,
+            "T": 0.8034
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:YRI",
+          "location_group": "Africa",
+          "label": "Yoruba in Ibadan, Nigeria",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.203704,
+            "T": 0.796296
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PEL",
+          "location_group": "Americas",
+          "label": "Peruvian in Lima, Peru",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.311765,
+            "T": 0.688235
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CHB",
+          "location_group": "East Asia",
+          "label": "Han Chinese in Beijing, China",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.271845,
+            "T": 0.728155
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.186869,
+            "T": 0.813131
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PJL",
+          "location_group": "South Asia",
+          "label": "Punjabi in Lahore, Pakistan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.328125,
+            "T": 0.671875
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:JPT",
+          "location_group": "Japan",
+          "label": "Japanese in Tokyo, Japan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "C": 0.177885,
+            "T": 0.822115
+          }
+        }
+      ]
+    }
+  ],
+  "gene_population_patterns": [
+    {
+      "variant": "Exon III 48-bp VNTR",
+      "location_group": "Global pattern",
+      "summary": "The 4-repeat allele is the modal DRD4 VNTR allele across human populations and serves as the common reference background in most association studies.",
+      "evidence": [
+        {
+          "label": "PMC3653059",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3653059/"
+        }
+      ]
+    },
+    {
+      "variant": "Exon III 48-bp VNTR",
+      "location_group": "Europe and the Americas",
+      "summary": "The 7-repeat allele is comparatively more common in many European-ancestry and admixed American cohorts than in East Asian cohorts, which is why many ADHD and novelty-seeking studies in these groups focus on 7R carriage.",
+      "evidence": [
+        {
+          "label": "PMC3653059",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3653059/"
+        },
+        {
+          "label": "PubMed 21909391",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21909391/"
+        }
+      ]
+    },
+    {
+      "variant": "Exon III 48-bp VNTR",
+      "location_group": "East Asia",
+      "summary": "East Asian cohorts are often described as having relatively more 2-repeat alleles and comparatively fewer 7-repeat alleles, so some studies treat 2R as the functionally analogous risk-focused allele in these populations.",
+      "evidence": [
+        {
+          "label": "PMC3653059",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3653059/"
+        }
+      ]
+    }
+  ]
+}

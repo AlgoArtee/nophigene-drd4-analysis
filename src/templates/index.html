@@ -724,6 +724,49 @@
     .insight-list li {
       line-height: 1.55;
     }
+    .population-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .population-row {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(161, 20, 61, 0.05);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+    }
+    .population-row strong {
+      display: block;
+      color: var(--accent-3);
+      letter-spacing: -0.02em;
+    }
+    .population-row span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .population-details {
+      margin-top: 14px;
+      border-top: 1px dashed rgba(118, 19, 45, 0.14);
+      padding-top: 12px;
+    }
+    .population-details summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--accent);
+      list-style: none;
+    }
+    .population-details summary::-webkit-details-marker {
+      display: none;
+    }
+    .population-details summary::after {
+      content: " +";
+      color: var(--accent-2);
+    }
+    .population-details[open] summary::after {
+      content: " -";
+    }
     .muted-badge {
       display: inline-flex;
       align-items: center;
@@ -1054,6 +1097,7 @@
                   <div class="path-chip"><strong>Report</strong> <code>{{ result.report_path }}</code></div>
                   <div class="path-chip"><strong>Methylation CSV</strong> <code>{{ result.methylation_output_path }}</code></div>
                   <div class="path-chip"><strong>Knowledge base</strong> <code>{{ result.knowledge_base_name }} ({{ result.knowledge_base_version }})</code></div>
+                  <div class="path-chip"><strong>Population DB</strong> <code>{{ result.population_database_name }} ({{ result.population_database_version }})</code></div>
                 </div>
 
                 <div class="results-viewer loading-hideable">
@@ -1081,6 +1125,22 @@
                             <p>{{ result.variant_interpretations.gene_summary }}</p>
                             {% endif %}
                             <p>{{ result.variant_interpretations.clinical_context }}</p>
+                            {% if result.variant_interpretations.variant_effect_overview %}
+                            <h4>How DRD4 variation is usually interpreted</h4>
+                            <ul class="insight-list">
+                              {% for item in result.variant_interpretations.variant_effect_overview %}
+                              <li>{{ item }}</li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
+                            {% if result.variant_interpretations.condition_research_overview %}
+                            <h4>Conditions and research themes commonly studied</h4>
+                            <ul class="insight-list">
+                              {% for item in result.variant_interpretations.condition_research_overview %}
+                              <li>{{ item }}</li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
                             <div class="stat-grid">
                               <div class="stat-card">
                                 <span>Current search</span>
@@ -1117,14 +1177,25 @@
                               <h4>Observed promoter-window variants</h4>
                               <ul class="insight-list">
                                 {% for item in result.variant_interpretations.promoter_analysis.found_variants %}
-                                <li><strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}</li>
+                                <li>
+                                  <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
+                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                </li>
                                 {% endfor %}
                               </ul>
                               {% endif %}
                               <h4>Common promoter or upstream regulatory variants</h4>
                               <ul class="insight-list">
                                 {% for item in result.variant_interpretations.promoter_analysis.known_variants %}
-                                <li><strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}. {{ item.clinical_significance }}</li>
+                                <li>
+                                  <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
+                                  {{ item.clinical_significance }} {{ item.summary }}
+                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                </li>
                                 {% endfor %}
                               </ul>
                             </article>
@@ -1142,18 +1213,126 @@
                               <h4>Observed gene-interval variants</h4>
                               <ul class="insight-list">
                                 {% for item in result.variant_interpretations.gene_analysis.found_variants %}
-                                <li><strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}</li>
+                                <li>
+                                  <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
+                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                </li>
                                 {% endfor %}
                               </ul>
                               {% endif %}
                               <h4>Common DRD4 gene variants</h4>
                               <ul class="insight-list">
                                 {% for item in result.variant_interpretations.gene_analysis.known_variants %}
-                                <li><strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}. {{ item.clinical_significance }}</li>
+                                <li>
+                                  <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
+                                  {{ item.clinical_significance }} {{ item.summary }}
+                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                </li>
                                 {% endfor %}
                               </ul>
                             </article>
                           </div>
+
+                          <article class="insight-card">
+                            <span class="insight-kicker">Population context</span>
+                            <h4>DRD4 population reference data by geography</h4>
+                            <p>{{ result.population_insights.summary }}</p>
+                            <div class="badge-row">
+                              {% for item in result.population_insights.location_groups %}
+                              <span class="muted-badge">{{ item }}</span>
+                              {% endfor %}
+                            </div>
+                            {% if result.population_insights.sources %}
+                            <ul class="source-list">
+                              {% for source in result.population_insights.sources %}
+                              <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
+                          </article>
+
+                          <div class="insight-grid">
+                            {% for item in result.population_insights.variant_population_records %}
+                            <article class="insight-card">
+                              <span class="insight-kicker">{{ "Observed variant with population data" if item.observed_in_run else "Reference population marker" }}</span>
+                              <h4>{{ item.display_name }}{% if item.common_name %} ({{ item.common_name }}){% endif %}</h4>
+                              <p>{{ item.effect_summary }}</p>
+                              {% if item.observed_variants %}
+                              <p><strong>Observed in this run:</strong> {{ item.observed_variants | join(", ") }}</p>
+                              {% endif %}
+                              {% if item.functional_effects %}
+                              <h4>Functional effects</h4>
+                              <ul class="insight-list">
+                                {% for effect in item.functional_effects %}
+                                <li>{{ effect }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if item.associated_conditions %}
+                              <h4>Associated conditions and research areas</h4>
+                              <ul class="insight-list">
+                                {% for condition in item.associated_conditions %}
+                                <li>{{ condition }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if item.population_extremes %}
+                              <p>{{ item.population_extremes.summary }}</p>
+                              {% endif %}
+                              <h4>Top-level location frequencies</h4>
+                              <div class="population-grid">
+                                {% for population in item.top_level_location_frequencies %}
+                                <div class="population-row">
+                                  <strong>{{ population.location_group }}</strong>
+                                  <span>{{ population.label }}</span>
+                                  <div class="badge-row">
+                                    {% for allele in population.allele_frequencies %}
+                                    <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
+                                    {% endfor %}
+                                  </div>
+                                </div>
+                                {% endfor %}
+                              </div>
+                              {% if item.detailed_population_groups %}
+                              <details class="population-details">
+                                <summary>View detailed subpopulation frequencies</summary>
+                                {% for group in item.detailed_population_groups %}
+                                <h4>{{ group.location_group }}</h4>
+                                <div class="population-grid">
+                                  {% for population in group.entries %}
+                                  <div class="population-row">
+                                    <strong>{{ population.label }}</strong>
+                                    <span>{{ population.population_code }}</span>
+                                    <div class="badge-row">
+                                      {% for allele in population.allele_frequencies %}
+                                      <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
+                                      {% endfor %}
+                                    </div>
+                                  </div>
+                                  {% endfor %}
+                                </div>
+                                {% endfor %}
+                              </details>
+                              {% endif %}
+                            </article>
+                            {% endfor %}
+                          </div>
+
+                          {% if result.population_insights.gene_population_patterns %}
+                          <article class="insight-card">
+                            <span class="insight-kicker">Gene-wide population patterns</span>
+                            <h4>DRD4 population structure beyond the curated SNP set</h4>
+                            <ul class="insight-list">
+                              {% for item in result.population_insights.gene_population_patterns %}
+                              <li><strong>{{ item.variant }}</strong> in {{ item.location_group }}: {{ item.summary }}</li>
+                              {% endfor %}
+                            </ul>
+                          </article>
+                          {% endif %}
 
                           {% if result.variant_interpretations.matched_records %}
                           <div class="insight-grid">
@@ -1165,6 +1344,30 @@
                               <p>{{ item.clinical_significance }}</p>
                               <p>{{ item.clinical_interpretation }}</p>
                               <p>{{ item.methylation_interpretation }}</p>
+                              {% if item.functional_effects %}
+                              <h4>Functional effects</h4>
+                              <ul class="insight-list">
+                                {% for effect in item.functional_effects %}
+                                <li>{{ effect }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if item.associated_conditions %}
+                              <h4>Associated conditions and research areas</h4>
+                              <ul class="insight-list">
+                                {% for condition in item.associated_conditions %}
+                                <li>{{ condition }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              {% if item.research_context %}
+                              <h4>Research notes</h4>
+                              <ul class="insight-list">
+                                {% for note in item.research_context %}
+                                <li>{{ note }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
                               {% if item.relevant_probe_ids %}
                               <div class="badge-row">
                                 {% for probe_id in item.relevant_probe_ids %}
@@ -1212,6 +1415,22 @@
                             <h4>{{ result.methylation_insights.gene_name }}</h4>
                             <p>{{ result.methylation_insights.summary }}</p>
                             <p>{{ result.methylation_insights.clinical_context }}</p>
+                            {% if result.methylation_insights.methylation_effects %}
+                            <h4>Likely biological effects of DRD4 methylation changes</h4>
+                            <ul class="insight-list">
+                              {% for item in result.methylation_insights.methylation_effects %}
+                              <li>{{ item }}</li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
+                            {% if result.methylation_insights.methylation_condition_research %}
+                            <h4>Conditions and research settings where DRD4 methylation has been studied</h4>
+                            <ul class="insight-list">
+                              {% for item in result.methylation_insights.methylation_condition_research %}
+                              <li>{{ item }}</li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
                             <div class="stat-grid">
                               <div class="stat-card">
                                 <span>Observed probes</span>

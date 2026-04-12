@@ -198,6 +198,7 @@ def index() -> str:
                 "methylation_preview": _render_table(analysis_result.methylation),
                 "popstats_present": analysis_result.popstats is not None,
                 "variant_interpretations": analysis_result.variant_interpretations,
+                "population_insights": analysis_result.population_insights,
                 "methylation_insights": {
                     **analysis_result.methylation_insights,
                     "probe_preview": (
@@ -211,6 +212,12 @@ def index() -> str:
                     "database_name", "Local DRD4 interpretation database"
                 ),
                 "knowledge_base_version": analysis_result.knowledge_base.get("version", "curated"),
+                "population_database_name": analysis_result.population_database.get(
+                    "database_name", "Local DRD4 population database"
+                ),
+                "population_database_version": analysis_result.population_database.get(
+                    "version", "curated"
+                ),
             }
         except AnalysisError as exc:
             error = str(exc)

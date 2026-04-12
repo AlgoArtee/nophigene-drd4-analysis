@@ -30,6 +30,7 @@ from methylprep import run_pipeline
 DEFAULT_REGION = "11:637269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
+POPULATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_population_db.json"
 
 # Configure the root logger once so both CLI and web runs stream progress.
 logging.basicConfig(
@@ -77,6 +78,12 @@ class AnalysisResult:
     knowledge_base : dict[str, Any]
         Parsed local interpretation database used to build the biological and
         clinical insights shown in the UI.
+    population_insights : dict[str, Any]
+        Population-frequency and geography summaries assembled from the local
+        DRD4 population database.
+    population_database : dict[str, Any]
+        Parsed local population database used to add location-based frequency
+        context for common DRD4 variants.
     """
 
     variants: pd.DataFrame
@@ -90,6 +97,8 @@ class AnalysisResult:
     variant_interpretations: dict[str, Any]
     methylation_insights: dict[str, Any]
     knowledge_base: dict[str, Any]
+    population_insights: dict[str, Any]
+    population_database: dict[str, Any]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -190,6 +199,18 @@ def load_interpretation_database(database_path: str | Path = INTERPRETATION_DB_P
         raise AnalysisError(f"Interpretation database is not valid JSON: {payload_path}") from exc
 
 
+def load_population_database(database_path: str | Path = POPULATION_DB_PATH) -> dict[str, Any]:
+    """Load the curated local DRD4 population database."""
+    payload_path = Path(database_path)
+    if not payload_path.exists():
+        raise AnalysisError(f"Population database not found: {payload_path}")
+
+    try:
+        return json.loads(payload_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise AnalysisError(f"Population database is not valid JSON: {payload_path}") from exc
+
+
 def _decode_scalar(value: Any) -> Any:
     """Decode byte-valued VCF fields into plain Python strings when needed."""
     if isinstance(value, (bytes, bytearray)):
@@ -234,6 +255,13 @@ def _format_interval(chrom: str, start: int, end: int) -> str:
 def _format_point(chrom: str, position: int) -> str:
     """Format a single genomic coordinate for human-readable summaries."""
     return f"chr{chrom}:{position:,}"
+
+
+def _format_frequency(value: float | None) -> str:
+    """Render an allele frequency as a percentage string for the UI."""
+    if value is None:
+        return "n/a"
+    return f"{value * 100:.1f}%"
 
 
 def _intervals_overlap(first: dict[str, Any], second: dict[str, Any]) -> bool:
@@ -319,6 +347,9 @@ def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
         "clinical_significance": record.get("clinical_significance", "Clinical significance not specified."),
         "summary": record.get("clinical_interpretation", ""),
         "interpretation_scope": record.get("interpretation_scope", "Research context"),
+        "functional_effects": record.get("functional_effects", []),
+        "associated_conditions": record.get("associated_conditions", []),
+        "research_context": record.get("research_context", []),
         "assay_note": assay_note,
         "evidence": record.get("evidence", []),
     }
@@ -342,6 +373,9 @@ def _build_observed_variant_summary(
             "matched_variant": None,
             "clinical_significance": "No curated clinical significance available in the local DRD4 database for this observed site.",
             "summary": "Observed inside the selected DRD4 search window, but not one of the seeded common DRD4 promoter or gene variants.",
+            "functional_effects": [],
+            "associated_conditions": [],
+            "research_context": [],
             "evidence": [],
         }
 
@@ -354,6 +388,9 @@ def _build_observed_variant_summary(
             "clinical_significance", "Clinical significance not specified."
         ),
         "summary": matched_record.get("clinical_interpretation", ""),
+        "functional_effects": matched_record.get("functional_effects", []),
+        "associated_conditions": matched_record.get("associated_conditions", []),
+        "research_context": matched_record.get("research_context", []),
         "evidence": matched_record.get("evidence", []),
     }
 
@@ -428,6 +465,87 @@ def _build_region_variant_analysis(
         "found_variant_count": len(found_variants),
         "found_variants": found_variants,
         "known_variants": [_build_known_variant_summary(record) for record in curated_records],
+    }
+
+
+def _build_population_frequency_rows(
+    entries: list[dict[str, Any]],
+    *,
+    focus_alleles: list[str],
+    effect_allele: str | None,
+) -> list[dict[str, Any]]:
+    """Normalize allele-frequency rows so the template can render them directly."""
+    normalized_rows: list[dict[str, Any]] = []
+    for entry in entries:
+        allele_frequencies = entry.get("allele_frequencies", {})
+        normalized_rows.append(
+            {
+                "population_code": entry.get("population_code"),
+                "location_group": entry.get("location_group", "Unspecified"),
+                "label": entry.get("label", entry.get("population_code", "Population")),
+                "granularity": entry.get("granularity", "reference"),
+                "effect_allele": effect_allele,
+                "effect_allele_frequency": allele_frequencies.get(effect_allele) if effect_allele else None,
+                "effect_allele_display": (
+                    _format_frequency(allele_frequencies.get(effect_allele))
+                    if effect_allele
+                    else "n/a"
+                ),
+                "allele_frequencies": [
+                    {
+                        "allele": allele,
+                        "frequency": allele_frequencies.get(allele),
+                        "display": _format_frequency(allele_frequencies.get(allele)),
+                    }
+                    for allele in focus_alleles
+                    if allele in allele_frequencies
+                ],
+            }
+        )
+    return normalized_rows
+
+
+def _group_population_rows_by_location(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Group population rows by geography for collapsible UI sections."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(row["location_group"], []).append(row)
+
+    return [
+        {
+            "location_group": location_group,
+            "entries": sorted(entries, key=lambda item: item["label"]),
+        }
+        for location_group, entries in sorted(grouped.items(), key=lambda item: item[0])
+    ]
+
+
+def _summarize_population_extremes(
+    rows: list[dict[str, Any]], effect_allele: str | None
+) -> dict[str, Any] | None:
+    """Find the highest and lowest superpopulation frequencies for a focal allele."""
+    if not effect_allele:
+        return None
+
+    comparable_rows = [
+        row
+        for row in rows
+        if row.get("granularity") == "superpopulation" and row.get("effect_allele_frequency") is not None
+    ]
+    if not comparable_rows:
+        return None
+
+    highest = max(comparable_rows, key=lambda item: item["effect_allele_frequency"])
+    lowest = min(comparable_rows, key=lambda item: item["effect_allele_frequency"])
+    return {
+        "effect_allele": effect_allele,
+        "highest": highest,
+        "lowest": lowest,
+        "summary": (
+            f"The {effect_allele} allele is most frequent in {highest['location_group']} "
+            f"({highest['effect_allele_display']}) and least frequent in {lowest['location_group']} "
+            f"({lowest['effect_allele_display']}) across the 1000 Genomes superpopulation layer."
+        ),
     }
 
 
@@ -518,6 +636,9 @@ def build_variant_interpretations(
                     "clinical_significance", "Clinical significance not specified."
                 ),
                 "methylation_interpretation": matched_record.get("methylation_interpretation", ""),
+                "functional_effects": matched_record.get("functional_effects", []),
+                "associated_conditions": matched_record.get("associated_conditions", []),
+                "research_context": matched_record.get("research_context", []),
                 "relevant_probe_ids": matched_record.get("relevant_methylation_probe_ids", []),
                 "evidence": matched_record.get("evidence", []),
             }
@@ -562,6 +683,8 @@ def build_variant_interpretations(
         "database_name": knowledge_base.get("database_name", "Local DRD4 interpretation database"),
         "gene_name": gene_context.get("gene_name", "DRD4"),
         "clinical_context": gene_context.get("clinical_context", ""),
+        "variant_effect_overview": gene_context.get("variant_effect_overview", []),
+        "condition_research_overview": gene_context.get("condition_research_overview", []),
         "gene_region": gene_region_record,
         "promoter_region": promoter_region_record,
         "promoter_hotspot_region": promoter_hotspot_record,
@@ -572,6 +695,93 @@ def build_variant_interpretations(
             "recommended_promoter_plus_gene_region",
             _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
         ),
+    }
+
+
+def build_population_insights(
+    variants: pd.DataFrame,
+    knowledge_base: dict[str, Any],
+    population_database: dict[str, Any],
+) -> dict[str, Any]:
+    """Build geography-aware population summaries for common curated DRD4 variants."""
+    variant_records = knowledge_base.get("variant_records", [])
+    curated_record_map = {record["variant"]: record for record in variant_records}
+
+    observed_variant_map: dict[str, list[str]] = {}
+    for _, row in variants.iterrows():
+        matched_record = _match_variant_record(row, variant_records)
+        if matched_record is None:
+            continue
+        observed_variant_map.setdefault(matched_record["variant"], []).append(_format_variant_display(row))
+
+    population_variant_records: list[dict[str, Any]] = []
+    location_groups: set[str] = set()
+    for record in population_database.get("variant_population_records", []):
+        knowledge_record = curated_record_map.get(record["variant"], {})
+        focus_alleles = list(record.get("focus_alleles", []))
+        effect_allele = record.get("effect_allele")
+        top_level_rows = _build_population_frequency_rows(
+            record.get("top_level_location_frequencies", []),
+            focus_alleles=focus_alleles,
+            effect_allele=effect_allele,
+        )
+        detailed_rows = _build_population_frequency_rows(
+            record.get("detailed_population_frequencies", []),
+            focus_alleles=focus_alleles,
+            effect_allele=effect_allele,
+        )
+
+        for row in top_level_rows:
+            location_groups.add(row["location_group"])
+
+        population_variant_records.append(
+            {
+                "variant": record["variant"],
+                "display_name": record.get("display_name", record["variant"]),
+                "common_name": record.get("common_name"),
+                "effect_allele": effect_allele,
+                "effect_summary": record.get("effect_summary", ""),
+                "functional_effects": knowledge_record.get("functional_effects", []),
+                "associated_conditions": knowledge_record.get("associated_conditions", []),
+                "research_context": knowledge_record.get("research_context", []),
+                "observed_in_run": record["variant"] in observed_variant_map,
+                "observed_variants": observed_variant_map.get(record["variant"], []),
+                "top_level_location_frequencies": top_level_rows,
+                "detailed_population_groups": _group_population_rows_by_location(detailed_rows),
+                "population_extremes": _summarize_population_extremes(top_level_rows, effect_allele),
+                "source_url": record.get("source_url"),
+            }
+        )
+
+    matched_population_variants = [
+        record["display_name"] for record in population_variant_records if record["observed_in_run"]
+    ]
+    if matched_population_variants:
+        overlap_note = (
+            "The current run directly overlaps curated population-backed variants: "
+            + ", ".join(matched_population_variants)
+            + "."
+        )
+    else:
+        overlap_note = (
+            "The current run did not directly hit one of the curated SNPs with built-in population frequencies, "
+            "so this section provides reference context for commonly studied DRD4 variants."
+        )
+
+    summary = (
+        f"Population reference data are available for {len(population_variant_records)} curated DRD4 SNPs "
+        f"across {', '.join(sorted(location_groups))} panels, plus literature-based geographic patterns for the "
+        "exon III VNTR. "
+        f"{overlap_note}"
+    )
+
+    return {
+        "database_name": population_database.get("database_name", "Local DRD4 population database"),
+        "summary": summary,
+        "location_groups": sorted(location_groups),
+        "variant_population_records": population_variant_records,
+        "gene_population_patterns": population_database.get("gene_population_patterns", []),
+        "sources": population_database.get("sources", []),
     }
 
 
@@ -637,6 +847,8 @@ def build_methylation_insights(
         "curated_probe_count": len(relevant_probe_ids),
         "probe_ids": observed_relevant["probe_id"].tolist(),
         "group_breakdown": group_breakdown,
+        "methylation_effects": gene_context.get("methylation_effects", []),
+        "methylation_condition_research": gene_context.get("methylation_condition_research", []),
         "evidence": gene_context.get("evidence", []),
         "probe_preview": observed_relevant[available_preview_columns].copy(),
     }
@@ -1143,8 +1355,10 @@ def run_analysis(
     variants = load_variants(vcf_path, region)
     methylation = load_methylation(idat_base, manifest_filepath=manifest_filepath)
     knowledge_base = load_interpretation_database()
+    population_database = load_population_database()
     variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
     methylation_insights = build_methylation_insights(methylation, knowledge_base)
+    population_insights = build_population_insights(variants, knowledge_base, population_database)
 
     report_path = Path(output_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1179,6 +1393,8 @@ def run_analysis(
         variant_interpretations=variant_interpretations,
         methylation_insights=methylation_insights,
         knowledge_base=knowledge_base,
+        population_insights=population_insights,
+        population_database=population_database,
     )
 
 
