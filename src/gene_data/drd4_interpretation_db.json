@@ -3,8 +3,30 @@
   "version": "2026-04-12",
   "gene_context": {
     "gene_name": "DRD4",
-    "gene_summary": "DRD4 encodes the dopamine D4 receptor, a dopamine-responsive GPCR that inhibits adenylyl cyclase and has been studied in attention, novelty-seeking, addiction, and schizophrenia-related phenotypes.",
-    "clinical_context": "The curated DRD4 records in this database are research and pharmacogenomic context markers, not high-penetrance pathogenic variants used as stand-alone diagnostic findings.",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "11p15.5",
+    "chromosome": "11",
+    "gene_region": {
+      "label": "DRD4 transcribed interval",
+      "start": 637269,
+      "end": 640706,
+      "definition": "Canonical DRD4 gene interval used by NCBI Gene and ClinGen for the GRCh37/hg19 assembly."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 636269,
+      "end": 637268,
+      "definition": "A practical 1 kb upstream window used by this app to decide whether the commonly studied DRD4 promoter region was included in the search."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter polymorphism hotspot",
+      "start": 636460,
+      "end": 636748,
+      "definition": "Approximate -809 to -521 interval highlighted in classic DRD4 promoter studies, including the rs747302 and rs1800955 regulatory hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "11:636269-640706",
+    "gene_summary": "DRD4 encodes the dopamine D4 receptor, a dopamine-responsive GPCR that inhibits adenylyl cyclase and has been studied in attention, novelty-seeking, addiction, and schizophrenia-related phenotypes. On the hg19/GRCh37 assembly used by this project, DRD4 spans chr11:637,269-640,706 and covers 3,438 bp of the transcribed gene interval.",
+    "clinical_context": "The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation.",
     "relevant_methylation_probe_ids": [
       "cg11335335",
       "cg07212818",
@@ -20,8 +42,12 @@
     "methylation_interpretation": "Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers.",
     "evidence": [
       {
-        "label": "NCBI Gene 1815: DRD4 summary and genomic context",
+        "label": "NCBI Gene 1815: DRD4 genomic coordinates and summary",
         "url": "https://www.ncbi.nlm.nih.gov/gene/1815"
+      },
+      {
+        "label": "ClinGen gene page: DRD4 locus metadata on GRCh37",
+        "url": "https://search.clinicalgenome.org/kb/genes/HGNC:3029"
       },
       {
         "label": "PMC5776619: DRD4 promoter hypermethylation and addiction risk",
@@ -40,18 +66,113 @@
   "variant_records": [
     {
       "gene_name": "DRD4",
+      "variant": "rs3758653",
+      "display_name": "rs3758653",
+      "common_name": "upstream regulatory DRD4 SNP",
+      "region_class": "upstream_regulatory",
+      "position": 636399,
+      "interpretation_scope": "Research association / methylation-QTL",
+      "lookup_keys": [
+        "rs3758653",
+        "11:636399",
+        "11:636399:C>T",
+        "11:636399:T>C"
+      ],
+      "clinical_interpretation": "rs3758653 is best interpreted as an upstream regulatory DRD4 marker with methylation-QTL and behavioral-association evidence. Published studies link it to nearby DRD4 CpG methylation levels, executive-time differences, and time from first heroin exposure to addiction, but it is not treated as a monogenic pathogenic variant.",
+      "clinical_significance": "Research-level association; no pathogenic or likely pathogenic assertion is curated for this SNP in the local database.",
+      "usual_variant_note": "Frequently discussed as a promoter-adjacent regulatory SNP rather than a core coding change.",
+      "relevant_methylation_probe_ids": [
+        "cg11335335",
+        "cg07212818",
+        "cg03909863",
+        "cg05717871",
+        "cg09386376",
+        "cg16313227",
+        "cg03855291",
+        "cg09133032",
+        "cg02762115",
+        "cg20411756"
+      ],
+      "methylation_interpretation": "This locus is especially relevant when DRD4 methylation is also being reviewed: rs3758653 has repeatedly been linked to DRD4 CpG methylation differences. In this workbench, methylation should still be read as supportive regulatory context because the bundled probe subset does not directly reproduce every promoter CpG from the published mQTL studies.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 34864042: rs3758653 mQTL and heroin addiction timing",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34864042/"
+        },
+        {
+          "label": "PMC3538530: rs3758653-associated DRD4 methylation patterns",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3538530/"
+        },
+        {
+          "label": "PubMed 26037358: rs3758653 and executive-time differences in adults",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26037358/"
+        }
+      ]
+    },
+    {
+      "gene_name": "DRD4",
+      "variant": "rs747302",
+      "display_name": "rs747302",
+      "common_name": "-616C>G promoter SNP",
+      "region_class": "promoter",
+      "position": 636689,
+      "interpretation_scope": "Research association",
+      "lookup_keys": [
+        "rs747302",
+        "11:636689",
+        "11:636689:G>C",
+        "11:636689:C>G"
+      ],
+      "clinical_interpretation": "rs747302 (-616C>G) is a commonly studied DRD4 promoter-region polymorphism with phenotype-association evidence rather than diagnostic pathogenicity. Large schizophrenia meta-analysis did not support a robust association for this site, and post-mortem brain tissue work did not show a statistically significant mRNA effect; separate neuroimaging work has reported genotype-related differences in pediatric primary nocturnal enuresis cohorts.",
+      "clinical_significance": "Research-level association; no pathogenic or likely pathogenic classification is seeded for this promoter SNP.",
+      "usual_variant_note": "One of the classic DRD4 promoter polymorphisms routinely reviewed in candidate-gene studies.",
+      "relevant_methylation_probe_ids": [
+        "cg11335335",
+        "cg07212818",
+        "cg03909863",
+        "cg05717871",
+        "cg09386376",
+        "cg16313227",
+        "cg03855291",
+        "cg09133032",
+        "cg02762115",
+        "cg20411756"
+      ],
+      "methylation_interpretation": "Regional methylation may still matter biologically around rs747302, but current evidence supports a regulatory-modifier role rather than a methylation-defined diagnostic effect. Use the paired methylation panel to contextualize local epigenetic state, not to over-call this promoter SNP.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 20468066: post-mortem mRNA study including rs747302",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
+        },
+        {
+          "label": "PMC5757990 / PubMed 29379288: schizophrenia meta-analysis",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
+        },
+        {
+          "label": "PMC5430843 / PubMed 28450726: rs747302-linked neuroimaging differences",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5430843/"
+        }
+      ]
+    },
+    {
+      "gene_name": "DRD4",
       "variant": "rs1800955",
+      "display_name": "rs1800955",
+      "common_name": "-521C>T promoter SNP",
+      "region_class": "promoter",
+      "position": 636784,
       "interpretation_scope": "Research association",
       "lookup_keys": [
         "rs1800955",
-        "11:62636784",
         "11:636784",
-        "11:62636784:C>T",
-        "11:62636784:T>C",
         "11:636784:C>T",
         "11:636784:T>C"
       ],
-      "clinical_interpretation": "rs1800955 (-521C>T) is a common DRD4 promoter polymorphism with research-level evidence for altered transcriptional regulation and small effect-size psychiatric associations. Early reporter assays found lower transcriptional efficiency for the T allele, while later post-mortem brain tissue work did not find a statistically significant genotype-expression relationship; meta-analysis suggests the -521 CC genotype may modestly increase schizophrenia risk, but this site is not treated as a monogenic pathogenic variant.",
+      "clinical_interpretation": "rs1800955 (-521C>T) is a common DRD4 promoter polymorphism with research-level evidence for altered transcriptional regulation and small effect-size psychiatric associations. Early reporter assays found lower transcriptional efficiency for the T allele, while later post-mortem brain tissue work did not find a statistically significant genotype-expression relationship; meta-analysis suggests the CC genotype may modestly increase schizophrenia risk, but this site is not treated as a monogenic pathogenic variant.",
+      "clinical_significance": "Research-level association; no pathogenic or likely pathogenic ClinVar-style assertion is seeded for this promoter SNP.",
+      "usual_variant_note": "The best-known DRD4 promoter SNP in schizophrenia and emotion-processing candidate-gene studies.",
       "relevant_methylation_probe_ids": [
         "cg11335335",
         "cg07212818",
@@ -65,6 +186,7 @@
         "cg20411756"
       ],
       "methylation_interpretation": "Interpret rs1800955 alongside regional DRD4 methylation only as regulatory context. Differential methylation in the broader DRD4 locus has been reported in addiction, ADHD, and schizophrenia cohorts, but those effects are tissue-specific and do not convert rs1800955 into a diagnostic methylation biomarker.",
+      "is_assayable_in_snp_vcf": true,
       "evidence": [
         {
           "label": "PubMed 10329380: -521C>T transcriptional efficiency and schizophrenia association",
@@ -86,64 +208,42 @@
     },
     {
       "gene_name": "DRD4",
-      "variant": "rs3758653",
-      "interpretation_scope": "Research association / mQTL",
-      "lookup_keys": [
-        "rs3758653",
-        "11:62626399",
-        "11:626399",
-        "11:62626399:C>T",
-        "11:62626399:T>C",
-        "11:626399:C>T",
-        "11:626399:T>C"
-      ],
-      "clinical_interpretation": "rs3758653 is best interpreted as a DRD4 promoter-region mQTL and research association marker. Published studies link it to nearby DRD4 CpG methylation levels, cognitive executive-time differences, and duration from first heroin exposure to addiction, with evidence that the locus is related to DRD4 expression in frontal cortex and hippocampus. It provides mechanistic context for dopamine-signaling phenotypes, but it is not a stand-alone clinical pathogenic call.",
-      "relevant_methylation_probe_ids": [
-        "cg11335335",
-        "cg07212818",
-        "cg03909863",
-        "cg05717871",
-        "cg09386376",
-        "cg16313227",
-        "cg03855291",
-        "cg09133032",
-        "cg02762115",
-        "cg20411756"
-      ],
-      "methylation_interpretation": "This locus is especially relevant when DRD4 methylation is also being reviewed: rs3758653 has repeatedly been linked to DRD4 CpG methylation differences. In this workbench, methylation should still be read as supportive regulatory context because the bundled probe subset does not directly reproduce every promoter CpG from the published mQTL studies.",
+      "variant": "120-bp promoter duplication",
+      "display_name": "120-bp promoter duplication",
+      "common_name": "a120-bp duplication in the 5' flanking region",
+      "region_class": "promoter_structural",
+      "position": 636069,
+      "interpretation_scope": "Promoter structural polymorphism",
+      "lookup_keys": [],
+      "clinical_interpretation": "A 120-bp duplication in the DRD4 5' flanking region has been reported as part of the classical promoter haplotype architecture and can alter transcription-factor binding context. It is biologically relevant in promoter studies, but the SNP-oriented VCF preview in this app does not directly genotype this duplication.",
+      "clinical_significance": "Research-level promoter structural variant; not directly assayable by the current SNP-focused search output.",
+      "usual_variant_note": "Often discussed alongside rs747302 and rs1800955 when reviewing DRD4 promoter haplotypes.",
+      "relevant_methylation_probe_ids": [],
+      "methylation_interpretation": "If the duplication is of interest, the methylation panel can still provide regional epigenetic context, but it does not substitute for a structural variant call.",
+      "is_assayable_in_snp_vcf": false,
       "evidence": [
         {
-          "label": "PubMed 34864042: rs3758653 mQTL and heroin addiction timing",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/34864042/"
+          "label": "PubMed 10329380: DRD4 promoter polymorphisms and transcriptional efficiency",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10329380/"
         },
         {
-          "label": "PMC3538530: nearby SNPs including rs3758653 associated with DRD4 methylation",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3538530/"
-        },
-        {
-          "label": "PubMed 26037358: rs3758653 and executive-time differences in adults",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/26037358/"
-        },
-        {
-          "label": "PubMed 26897359: DRD4 methylation, rs3758653, and ADHD symptom dimensions",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/26897359/"
+          "label": "PMC3151559: review of DRD4 polymorphisms and function",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3151559/"
         }
       ]
     },
     {
       "gene_name": "DRD4",
-      "variant": "rs747302",
-      "interpretation_scope": "Research association",
-      "lookup_keys": [
-        "rs747302",
-        "11:62636689",
-        "11:636689",
-        "11:62636689:C>G",
-        "11:62636689:G>C",
-        "11:636689:C>G",
-        "11:636689:G>C"
-      ],
-      "clinical_interpretation": "rs747302 (-616C>G) is another DRD4 promoter-region polymorphism with phenotype-association evidence rather than diagnostic pathogenicity. Large schizophrenia meta-analysis did not support a robust association for this site, and post-mortem brain tissue work did not show a statistically significant mRNA effect; separate neuroimaging work has reported genotype-related differences in pediatric primary nocturnal enuresis cohorts.",
+      "variant": "Exon III 48-bp VNTR",
+      "display_name": "Exon III 48-bp VNTR",
+      "common_name": "2R/4R/7R repeat polymorphism",
+      "region_class": "coding_repeat",
+      "position": null,
+      "interpretation_scope": "Functional repeat polymorphism",
+      "lookup_keys": [],
+      "clinical_interpretation": "The exon III 48-bp VNTR is the most studied DRD4 gene-body variant, especially the 7-repeat allele, which has been associated at the research level with ADHD, novelty-seeking, addiction-related traits, and altered receptor signaling. Its effects are context-dependent and it is not a stand-alone diagnostic pathogenic variant.",
+      "clinical_significance": "Functional research variant; no definitive monogenic pathogenic assertion is seeded for this repeat.",
+      "usual_variant_note": "The 7R allele is the canonical non-promoter DRD4 polymorphism discussed in behavioral-genetics literature.",
       "relevant_methylation_probe_ids": [
         "cg11335335",
         "cg07212818",
@@ -156,19 +256,12 @@
         "cg02762115",
         "cg20411756"
       ],
-      "methylation_interpretation": "Regional methylation may still matter biologically around rs747302, but current evidence supports a regulatory-modifier role rather than a methylation-defined diagnostic effect. Use the paired methylation panel to contextualize local epigenetic state, not to over-call this promoter SNP.",
+      "methylation_interpretation": "The methylation panel can contextualize the gene-body environment around DRD4, but it does not directly genotype the exon III repeat. Dedicated repeat-aware assays are still required if the VNTR itself is the main target.",
+      "is_assayable_in_snp_vcf": false,
       "evidence": [
         {
-          "label": "PubMed 20468066: post-mortem mRNA study including rs747302",
-          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
-        },
-        {
-          "label": "PMC5757990 / PubMed 29379288: schizophrenia meta-analysis found no robust rs747302 association",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
-        },
-        {
-          "label": "PMC5430843 / PubMed 28450726: rs747302-associated neuroimaging differences in pediatric nocturnal enuresis",
-          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5430843/"
+          "label": "PMC3151559: DRD4 exon III VNTR review and functional context",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3151559/"
         }
       ]
     }

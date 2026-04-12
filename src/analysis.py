@@ -17,6 +17,7 @@ import html
 import json
 import logging
 import os
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ import allel
 import pandas as pd
 from methylprep import run_pipeline
 
-DEFAULT_REGION = "11:62637269-62640706"
+DEFAULT_REGION = "11:637269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 
@@ -204,6 +205,59 @@ def _normalize_lookup_key(value: str) -> str:
     return normalized
 
 
+def _parse_region_string(region: str) -> dict[str, Any]:
+    """Parse a ``chr:start-end`` style region string into normalized components."""
+    cleaned_region = region.strip().replace(",", "")
+    match = re.fullmatch(r"(?:chr)?(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)", cleaned_region)
+    if match is None:
+        raise AnalysisError(
+            f"Unsupported region format '{region}'. Use chr:start-end, for example 11:637269-640706."
+        )
+
+    start = int(match.group("start"))
+    end = int(match.group("end"))
+    if start > end:
+        raise AnalysisError(f"Invalid region '{region}': start must be <= end.")
+
+    return {
+        "chrom": match.group("chrom"),
+        "start": start,
+        "end": end,
+    }
+
+
+def _format_interval(chrom: str, start: int, end: int) -> str:
+    """Format a genomic interval for human-readable summaries."""
+    return f"chr{chrom}:{start:,}-{end:,}"
+
+
+def _format_point(chrom: str, position: int) -> str:
+    """Format a single genomic coordinate for human-readable summaries."""
+    return f"chr{chrom}:{position:,}"
+
+
+def _intervals_overlap(first: dict[str, Any], second: dict[str, Any]) -> bool:
+    """Return whether two intervals on the same chromosome overlap."""
+    first_chrom = str(first["chrom"]).removeprefix("chr")
+    second_chrom = str(second["chrom"]).removeprefix("chr")
+    if first_chrom != second_chrom:
+        return False
+    return first["start"] <= second["end"] and second["start"] <= first["end"]
+
+
+def _build_interval_record(label: str, chrom: str, start: int, end: int, definition: str) -> dict[str, Any]:
+    """Create a normalized interval record used in the UI summaries."""
+    return {
+        "label": label,
+        "chrom": chrom,
+        "start": start,
+        "end": end,
+        "length_bp": end - start + 1,
+        "display": _format_interval(chrom, start, end),
+        "definition": definition,
+    }
+
+
 def _build_variant_lookup_keys(row: pd.Series) -> set[str]:
     """Create rsID and coordinate aliases for a single variant row."""
     keys: set[str] = set()
@@ -236,6 +290,147 @@ def _format_variant_display(row: pd.Series) -> str:
     return f"{row['chrom']}:{int(row['pos'])} {row['ref']}>{row['alt']}"
 
 
+def _match_variant_record(row: pd.Series, variant_records: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Return the first curated record that matches the observed variant row."""
+    lookup_keys = _build_variant_lookup_keys(row)
+    for record in variant_records:
+        record_keys = {
+            _normalize_lookup_key(candidate)
+            for candidate in record.get("lookup_keys", [])
+            if candidate
+        }
+        if lookup_keys & record_keys:
+            return record
+    return None
+
+
+def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
+    """Project a curated database record into a compact UI-friendly summary."""
+    position = record.get("position")
+    chrom = record.get("chromosome", "11")
+    assay_note = None
+    if not record.get("is_assayable_in_snp_vcf", True):
+        assay_note = "Not directly called by the current SNP-oriented VCF preview."
+
+    return {
+        "variant": record.get("display_name", record["variant"]),
+        "common_name": record.get("common_name"),
+        "position": _format_point(chrom, int(position)) if position is not None else "Repeat / structural locus",
+        "clinical_significance": record.get("clinical_significance", "Clinical significance not specified."),
+        "summary": record.get("clinical_interpretation", ""),
+        "interpretation_scope": record.get("interpretation_scope", "Research context"),
+        "assay_note": assay_note,
+        "evidence": record.get("evidence", []),
+    }
+
+
+def _build_observed_variant_summary(
+    row: pd.Series,
+    matched_record: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Render an observed variant plus whatever curated significance is available."""
+    chrom = str(row.get("chrom", "")).removeprefix("chr")
+    position = int(row["pos"])
+    quality = row.get("qual")
+    quality_display = f"{float(quality):.2f}" if pd.notna(quality) else "n/a"
+
+    if matched_record is None:
+        return {
+            "display": _format_variant_display(row),
+            "position": _format_point(chrom, position),
+            "quality": quality_display,
+            "matched_variant": None,
+            "clinical_significance": "No curated clinical significance available in the local DRD4 database for this observed site.",
+            "summary": "Observed inside the selected DRD4 search window, but not one of the seeded common DRD4 promoter or gene variants.",
+            "evidence": [],
+        }
+
+    return {
+        "display": _format_variant_display(row),
+        "position": _format_point(chrom, position),
+        "quality": quality_display,
+        "matched_variant": matched_record.get("display_name", matched_record["variant"]),
+        "clinical_significance": matched_record.get(
+            "clinical_significance", "Clinical significance not specified."
+        ),
+        "summary": matched_record.get("clinical_interpretation", ""),
+        "evidence": matched_record.get("evidence", []),
+    }
+
+
+def _summarize_observed_region_variants(
+    variants: pd.DataFrame,
+    variant_records: list[dict[str, Any]],
+    *,
+    chrom: str,
+    start: int,
+    end: int,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """Summarize observed PASS variants in a given region for UI display."""
+    observed = variants[
+        (variants["chrom"].astype(str).str.removeprefix("chr") == chrom)
+        & (variants["pos"] >= start)
+        & (variants["pos"] <= end)
+    ].sort_values("pos")
+
+    summaries: list[dict[str, Any]] = []
+    for _, row in observed.head(limit).iterrows():
+        summaries.append(_build_observed_variant_summary(row, _match_variant_record(row, variant_records)))
+    return summaries
+
+
+def _build_region_variant_analysis(
+    *,
+    region_record: dict[str, Any],
+    search_region: dict[str, Any],
+    variants: pd.DataFrame,
+    curated_records: list[dict[str, Any]],
+    inclusion_hint: str,
+) -> dict[str, Any]:
+    """Build a structured analysis block for promoter or gene-body coverage."""
+    included = _intervals_overlap(search_region, region_record)
+    found_variants = (
+        _summarize_observed_region_variants(
+            variants,
+            curated_records,
+            chrom=region_record["chrom"],
+            start=region_record["start"],
+            end=region_record["end"],
+        )
+        if included
+        else []
+    )
+
+    if included and found_variants:
+        analysis_note = (
+            f"The current search window overlaps {region_record['label'].lower()} "
+            f"and found {len(found_variants)} PASS variant(s) in the first preview slice."
+        )
+    elif included:
+        analysis_note = (
+            f"The current search window overlaps {region_record['label'].lower()}, "
+            "but no PASS variants from that region were retained in the current preview."
+        )
+    else:
+        analysis_note = (
+            f"The current search window does not overlap {region_record['label'].lower()}. "
+            f"{inclusion_hint}"
+        )
+
+    return {
+        "label": region_record["label"],
+        "window": region_record["display"],
+        "length_bp": region_record["length_bp"],
+        "definition": region_record["definition"],
+        "included": included,
+        "analysis_note": analysis_note,
+        "found_variant_count": len(found_variants),
+        "found_variants": found_variants,
+        "known_variants": [_build_known_variant_summary(record) for record in curated_records],
+    }
+
+
 def _categorize_beta(mean_beta: float | None) -> str:
     """Map average beta values to a coarse descriptive band for UI summaries."""
     if mean_beta is None or pd.isna(mean_beta):
@@ -250,26 +445,61 @@ def _categorize_beta(mean_beta: float | None) -> str:
 
 
 def build_variant_interpretations(
-    variants: pd.DataFrame, knowledge_base: dict[str, Any]
+    variants: pd.DataFrame, knowledge_base: dict[str, Any], *, region: str
 ) -> dict[str, Any]:
-    """Match observed variants against the curated DRD4 interpretation database."""
+    """Build a structured DRD4 locus audit for the observed PASS variants."""
     variant_records = knowledge_base.get("variant_records", [])
+    gene_context = knowledge_base.get("gene_context", {})
+    chrom = str(gene_context.get("chromosome", "11")).removeprefix("chr")
+    gene_region_source = gene_context.get("gene_region", {})
+    promoter_region_source = gene_context.get("promoter_review_region", {})
+    promoter_hotspot_source = gene_context.get("promoter_hotspot_region", {})
+
+    search_region = _parse_region_string(region)
+    search_region_record = _build_interval_record(
+        "Current search interval",
+        str(search_region["chrom"]).removeprefix("chr"),
+        int(search_region["start"]),
+        int(search_region["end"]),
+        "Exact interval used to pull PASS variants from the selected VCF.",
+    )
+    gene_region_record = _build_interval_record(
+        gene_region_source.get("label", "DRD4 transcribed interval"),
+        chrom,
+        int(gene_region_source["start"]),
+        int(gene_region_source["end"]),
+        gene_region_source.get("definition", ""),
+    )
+    promoter_region_record = _build_interval_record(
+        promoter_region_source.get("label", "Operational promoter review window"),
+        chrom,
+        int(promoter_region_source["start"]),
+        int(promoter_region_source["end"]),
+        promoter_region_source.get("definition", ""),
+    )
+    promoter_hotspot_record = _build_interval_record(
+        promoter_hotspot_source.get("label", "Promoter polymorphism hotspot"),
+        chrom,
+        int(promoter_hotspot_source["start"]),
+        int(promoter_hotspot_source["end"]),
+        promoter_hotspot_source.get("definition", ""),
+    )
+
+    promoter_records = [
+        record
+        for record in variant_records
+        if record.get("region_class") in {"promoter", "promoter_structural", "upstream_regulatory"}
+    ]
+    gene_records = [
+        record
+        for record in variant_records
+        if record.get("region_class") in {"coding_repeat", "gene_body"}
+    ]
+
     matched_records: list[dict[str, Any]] = []
     seen_matches: set[tuple[str, str]] = set()
-
     for _, row in variants.iterrows():
-        lookup_keys = _build_variant_lookup_keys(row)
-        matched_record = None
-        for record in variant_records:
-            record_keys = {
-                _normalize_lookup_key(candidate)
-                for candidate in record.get("lookup_keys", [])
-                if candidate
-            }
-            if lookup_keys & record_keys:
-                matched_record = record
-                break
-
+        matched_record = _match_variant_record(row, variant_records)
         if matched_record is None:
             continue
 
@@ -281,31 +511,67 @@ def build_variant_interpretations(
         matched_records.append(
             {
                 "observed_variant": observed_label,
-                "variant": matched_record["variant"],
+                "variant": matched_record.get("display_name", matched_record["variant"]),
                 "interpretation_scope": matched_record.get("interpretation_scope", "Research context"),
-                "clinical_interpretation": matched_record["clinical_interpretation"],
-                "methylation_interpretation": matched_record["methylation_interpretation"],
+                "clinical_interpretation": matched_record.get("clinical_interpretation", ""),
+                "clinical_significance": matched_record.get(
+                    "clinical_significance", "Clinical significance not specified."
+                ),
+                "methylation_interpretation": matched_record.get("methylation_interpretation", ""),
                 "relevant_probe_ids": matched_record.get("relevant_methylation_probe_ids", []),
                 "evidence": matched_record.get("evidence", []),
             }
         )
         seen_matches.add(dedupe_key)
 
+    promoter_analysis = _build_region_variant_analysis(
+        region_record=promoter_region_record,
+        search_region=search_region,
+        variants=variants,
+        curated_records=promoter_records,
+        inclusion_hint=(
+            "Use the promoter-plus-gene interval "
+            f"{gene_context.get('recommended_promoter_plus_gene_region', _format_interval(chrom, promoter_region_record['start'], gene_region_record['end']))} "
+            "if you want the upstream DRD4 promoter reviewed alongside the gene."
+        ),
+    )
+    gene_analysis = _build_region_variant_analysis(
+        region_record=gene_region_record,
+        search_region=search_region,
+        variants=variants,
+        curated_records=gene_records,
+        inclusion_hint="Choose a region that overlaps the canonical DRD4 gene interval if you want gene-body variants interpreted.",
+    )
+
+    promoter_phrase = "overlaps" if promoter_analysis["included"] else "does not overlap"
+    gene_phrase = "overlaps" if gene_analysis["included"] else "does not overlap"
     summary = (
-        f"Matched {len(matched_records)} curated DRD4 record(s) from the local interpretation database."
-        if matched_records
-        else (
-            "No curated DRD4 promoter record matched the loaded PASS variants. "
-            "That usually means the VCF lacks rsIDs or contains sites outside the seeded DRD4 research set."
-        )
+        f"DRD4 is located at {gene_region_record['display']} on {gene_context.get('cytoband', '11p15.5')} "
+        f"and spans {gene_region_record['length_bp']:,} bp on the {gene_context.get('assembly', 'GRCh37 / hg19')} assembly. "
+        f"The current search interval {search_region_record['display']} {promoter_phrase} the operational promoter review window "
+        f"{promoter_region_record['display']} and {gene_phrase} the DRD4 transcribed interval {gene_region_record['display']}. "
+        f"In the current preview, {promoter_analysis['found_variant_count']} promoter-window variant(s) and "
+        f"{gene_analysis['found_variant_count']} gene-interval variant(s) were surfaced."
     )
 
     return {
         "summary": summary,
         "matched_records": matched_records,
         "unclassified_variant_count": max(len(variants) - len(matched_records), 0),
-        "gene_summary": knowledge_base.get("gene_context", {}).get("gene_summary", ""),
+        "gene_summary": gene_context.get("gene_summary", ""),
         "database_name": knowledge_base.get("database_name", "Local DRD4 interpretation database"),
+        "gene_name": gene_context.get("gene_name", "DRD4"),
+        "clinical_context": gene_context.get("clinical_context", ""),
+        "gene_region": gene_region_record,
+        "promoter_region": promoter_region_record,
+        "promoter_hotspot_region": promoter_hotspot_record,
+        "search_region": search_region_record,
+        "promoter_analysis": promoter_analysis,
+        "gene_analysis": gene_analysis,
+        "recommended_promoter_plus_gene_region": gene_context.get(
+            "recommended_promoter_plus_gene_region",
+            _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
+        ),
     }
 
 
@@ -877,7 +1143,7 @@ def run_analysis(
     variants = load_variants(vcf_path, region)
     methylation = load_methylation(idat_base, manifest_filepath=manifest_filepath)
     knowledge_base = load_interpretation_database()
-    variant_interpretations = build_variant_interpretations(variants, knowledge_base)
+    variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
     methylation_insights = build_methylation_insights(methylation, knowledge_base)
 
     report_path = Path(output_path)

@@ -714,6 +714,16 @@
     .source-list a:hover {
       text-decoration: underline;
     }
+    .insight-list {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .insight-list li {
+      line-height: 1.55;
+    }
     .muted-badge {
       display: inline-flex;
       align-items: center;
@@ -1065,16 +1075,85 @@
                         <div class="insight-stack">
                           <article class="insight-card">
                             <span class="insight-kicker">Curated interpretation</span>
-                            <h4>{{ result.variant_interpretations.database_name }}</h4>
+                            <h4>{{ result.variant_interpretations.gene_name }} locus audit</h4>
                             <p>{{ result.variant_interpretations.summary }}</p>
                             {% if result.variant_interpretations.gene_summary %}
                             <p>{{ result.variant_interpretations.gene_summary }}</p>
                             {% endif %}
+                            <p>{{ result.variant_interpretations.clinical_context }}</p>
+                            <div class="stat-grid">
+                              <div class="stat-card">
+                                <span>Current search</span>
+                                <strong>{{ result.variant_interpretations.search_region.display }}</strong>
+                              </div>
+                              <div class="stat-card">
+                                <span>Gene interval</span>
+                                <strong>{{ result.variant_interpretations.gene_region.display }}</strong>
+                              </div>
+                              <div class="stat-card">
+                                <span>Promoter review</span>
+                                <strong>{{ result.variant_interpretations.promoter_region.display }}</strong>
+                              </div>
+                            </div>
                             <div class="badge-row">
                               <span class="muted-badge">Matched records: {{ result.variant_interpretations.matched_records | length }}</span>
                               <span class="muted-badge">Unclassified PASS variants: {{ result.variant_interpretations.unclassified_variant_count }}</span>
+                              <span class="muted-badge">Promoter included: {{ "Yes" if result.variant_interpretations.promoter_analysis.included else "No" }}</span>
+                              <span class="muted-badge">Gene included: {{ "Yes" if result.variant_interpretations.gene_analysis.included else "No" }}</span>
                             </div>
                           </article>
+
+                          <div class="insight-grid">
+                            <article class="insight-card">
+                              <span class="insight-kicker">Promoter region</span>
+                              <h4>{{ result.variant_interpretations.promoter_analysis.label }}</h4>
+                              <p>{{ result.variant_interpretations.promoter_analysis.analysis_note }}</p>
+                              <ul class="insight-list">
+                                <li><strong>Review window:</strong> {{ result.variant_interpretations.promoter_analysis.window }}</li>
+                                <li><strong>Definition:</strong> {{ result.variant_interpretations.promoter_analysis.definition }}</li>
+                                <li><strong>Hotspot window:</strong> {{ result.variant_interpretations.promoter_hotspot_region.display }}</li>
+                              </ul>
+                              {% if result.variant_interpretations.promoter_analysis.found_variants %}
+                              <h4>Observed promoter-window variants</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.promoter_analysis.found_variants %}
+                                <li><strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              <h4>Common promoter or upstream regulatory variants</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.promoter_analysis.known_variants %}
+                                <li><strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}. {{ item.clinical_significance }}</li>
+                                {% endfor %}
+                              </ul>
+                            </article>
+
+                            <article class="insight-card">
+                              <span class="insight-kicker">Gene body</span>
+                              <h4>{{ result.variant_interpretations.gene_analysis.label }}</h4>
+                              <p>{{ result.variant_interpretations.gene_analysis.analysis_note }}</p>
+                              <ul class="insight-list">
+                                <li><strong>Gene interval:</strong> {{ result.variant_interpretations.gene_analysis.window }}</li>
+                                <li><strong>Definition:</strong> {{ result.variant_interpretations.gene_analysis.definition }}</li>
+                                <li><strong>Promoter-plus-gene recommendation:</strong> {{ result.variant_interpretations.recommended_promoter_plus_gene_region }}</li>
+                              </ul>
+                              {% if result.variant_interpretations.gene_analysis.found_variants %}
+                              <h4>Observed gene-interval variants</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.gene_analysis.found_variants %}
+                                <li><strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}</li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                              <h4>Common DRD4 gene variants</h4>
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.gene_analysis.known_variants %}
+                                <li><strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}. {{ item.clinical_significance }}</li>
+                                {% endfor %}
+                              </ul>
+                            </article>
+                          </div>
 
                           {% if result.variant_interpretations.matched_records %}
                           <div class="insight-grid">
@@ -1083,6 +1162,7 @@
                               <span class="insight-kicker">{{ item.interpretation_scope }}</span>
                               <h4>{{ item.variant }}</h4>
                               <p><strong>Observed in run:</strong> {{ item.observed_variant }}</p>
+                              <p>{{ item.clinical_significance }}</p>
                               <p>{{ item.clinical_interpretation }}</p>
                               <p>{{ item.methylation_interpretation }}</p>
                               {% if item.relevant_probe_ids %}
@@ -1102,12 +1182,6 @@
                             </article>
                             {% endfor %}
                           </div>
-                          {% else %}
-                          <article class="insight-card">
-                            <span class="insight-kicker">No direct curated match</span>
-                            <h4>Interpretation falls back to gene-level context</h4>
-                            <p>The current PASS variant list can still be reviewed in the raw tab. When rsIDs are absent or the sample contains unseeded DRD4 sites, this workbench keeps the interpretation conservative and avoids over-calling clinical meaning.</p>
-                          </article>
                           {% endif %}
                         </div>
                       </div>
