@@ -188,6 +188,7 @@ def index() -> str:
                 ),
             )
 
+            methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
             result = {
                 "report_path": _as_relative_display(analysis_result.report_path),
                 "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
@@ -196,6 +197,20 @@ def index() -> str:
                 "variant_preview": _render_table(analysis_result.variants),
                 "methylation_preview": _render_table(analysis_result.methylation),
                 "popstats_present": analysis_result.popstats is not None,
+                "variant_interpretations": analysis_result.variant_interpretations,
+                "methylation_insights": {
+                    **analysis_result.methylation_insights,
+                    "probe_preview": (
+                        _render_table(methylation_probe_preview, rows=10)
+                        if isinstance(methylation_probe_preview, pd.DataFrame)
+                        and not methylation_probe_preview.empty
+                        else None
+                    ),
+                },
+                "knowledge_base_name": analysis_result.knowledge_base.get(
+                    "database_name", "Local DRD4 interpretation database"
+                ),
+                "knowledge_base_version": analysis_result.knowledge_base.get("version", "curated"),
             }
         except AnalysisError as exc:
             error = str(exc)

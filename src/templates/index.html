@@ -404,6 +404,23 @@
       gap: 14px;
       flex: 1;
     }
+    .viewer-stage {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      flex: 1;
+    }
+    .loading-hideable {
+      transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease;
+    }
+    .viewer-stage.is-loading .loading-hideable {
+      opacity: 0.14;
+      filter: blur(1px);
+      pointer-events: none;
+      transform: scale(0.995);
+    }
     .metrics {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -453,6 +470,110 @@
       background: rgba(255, 255, 255, 0.68);
       border: 1px solid var(--line);
     }
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(209, 31, 79, 0.16), transparent 18rem),
+        radial-gradient(circle at 80% 20%, rgba(124, 13, 45, 0.16), transparent 18rem),
+        rgba(255, 249, 250, 0.92);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+      backdrop-filter: blur(10px);
+    }
+    .viewer-stage.is-loading .loading-overlay {
+      display: flex;
+    }
+    .loading-shell {
+      width: min(100%, 40rem);
+      padding: 24px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+      box-shadow: 0 20px 40px rgba(90, 12, 36, 0.10);
+    }
+    .loading-shell h3 {
+      margin-bottom: 8px;
+    }
+    .loading-shell p {
+      margin-top: 0;
+    }
+    .loading-readout {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 18px 0 12px;
+    }
+    .loading-percent {
+      font-family: "Aptos Display", "Segoe UI Variable Display", "Franklin Gothic Medium", sans-serif;
+      font-size: clamp(2.2rem, 6vw, 3.4rem);
+      line-height: 1;
+      letter-spacing: -0.06em;
+      color: var(--accent-3);
+    }
+    .loading-label {
+      color: var(--accent);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+      font-size: 0.82rem;
+    }
+    .dna-progress-track {
+      position: relative;
+      height: 22px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(161, 20, 61, 0.08);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+    }
+    .dna-progress-fill {
+      position: relative;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(124, 13, 45, 0.95), rgba(209, 31, 79, 0.96), rgba(255, 128, 128, 0.94));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      transition: width 320ms ease;
+    }
+    .dna-progress-fill::before,
+    .dna-progress-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-size: 24px 24px;
+      opacity: 0.65;
+      animation: dnaShift 1.1s linear infinite;
+    }
+    .dna-progress-fill::before {
+      background-image:
+        linear-gradient(45deg, transparent 32%, rgba(255, 240, 244, 0.94) 33%, rgba(255, 240, 244, 0.94) 40%, transparent 41%, transparent 59%, rgba(255, 240, 244, 0.94) 60%, rgba(255, 240, 244, 0.94) 67%, transparent 68%);
+    }
+    .dna-progress-fill::after {
+      background-image:
+        linear-gradient(-45deg, transparent 32%, rgba(255, 215, 224, 0.88) 33%, rgba(255, 215, 224, 0.88) 40%, transparent 41%, transparent 59%, rgba(255, 215, 224, 0.88) 60%, rgba(255, 215, 224, 0.88) 67%, transparent 68%);
+      animation-direction: reverse;
+    }
+    .loading-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .loading-step {
+      padding: 12px 13px;
+      border-radius: 16px;
+      background: rgba(161, 20, 61, 0.06);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+      color: var(--accent-3);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
     .subtab-nav {
       display: inline-flex;
       gap: 10px;
@@ -462,6 +583,10 @@
       border: 1px solid rgba(161, 20, 61, 0.08);
       margin-bottom: 12px;
       align-self: flex-start;
+    }
+    .subtab-nav--nested {
+      margin-bottom: 14px;
+      background: rgba(124, 13, 45, 0.04);
     }
     .subtab-button {
       padding: 10px 14px;
@@ -485,6 +610,12 @@
       flex-direction: column;
       min-height: 0;
     }
+    .viewer-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+    }
     .table-shell {
       flex: 1;
       min-height: 0;
@@ -492,6 +623,106 @@
       border-radius: 16px;
       border: 1px solid rgba(118, 19, 45, 0.10);
       background: rgba(255, 255, 255, 0.84);
+    }
+    .insight-stack {
+      display: grid;
+      gap: 14px;
+    }
+    .insight-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+    }
+    .insight-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .insight-card h4 {
+      margin: 12px 0 8px;
+    }
+    .insight-card p:last-child {
+      margin-bottom: 0;
+    }
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .stat-card {
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(161, 20, 61, 0.06);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+    }
+    .stat-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+    .stat-card strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.05rem;
+      color: var(--accent-3);
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .probe-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(124, 13, 45, 0.08);
+      color: var(--accent-3);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .source-list {
+      display: grid;
+      gap: 8px;
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .source-list a {
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .source-list a:hover {
+      text-decoration: underline;
+    }
+    .muted-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(107, 75, 86, 0.10);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
     }
     .preview-table {
       width: 100%;
@@ -537,6 +768,14 @@
     code {
       font-family: "Cascadia Code", "Consolas", monospace;
     }
+    @keyframes dnaShift {
+      from {
+        background-position: 0 0;
+      }
+      to {
+        background-position: 24px 0;
+      }
+    }
     @media (max-width: 1180px) {
       .analysis-shell,
       .overview-grid {
@@ -554,6 +793,11 @@
         overflow: visible;
       }
       .metrics {
+        grid-template-columns: 1fr;
+      }
+      .insight-grid,
+      .stat-grid,
+      .loading-steps {
         grid-template-columns: 1fr;
       }
     }
@@ -756,58 +1000,211 @@
             </div>
 
             <div class="results-stack">
-              {% if result %}
-              <div class="metrics">
-                <article class="metric">
-                  <span>PASS variants</span>
-                  <strong>{{ result.variant_count }}</strong>
-                </article>
-                <article class="metric">
-                  <span>Methylation probes</span>
-                  <strong>{{ result.methylation_count }}</strong>
-                </article>
-                <article class="metric">
-                  <span>Population stats</span>
-                  <strong>{{ "Loaded" if result.popstats_present else "None" }}</strong>
-                </article>
-              </div>
-
-              <div class="paths">
-                <div class="path-chip"><strong>Report</strong> <code>{{ result.report_path }}</code></div>
-                <div class="path-chip"><strong>Methylation CSV</strong> <code>{{ result.methylation_output_path }}</code></div>
-              </div>
-
-              <div class="results-viewer">
-                <div class="subtab-nav" aria-label="Result previews">
-                  <button type="button" class="subtab-button" data-subtab-target="variants" aria-selected="false">Variant Preview</button>
-                  <button type="button" class="subtab-button" data-subtab-target="methylation" aria-selected="false">Methylation Preview</button>
-                </div>
-
-                <section class="subtab-panel" data-subtab-panel="variants">
-                  <h3>Variant Preview</h3>
-                  <p class="status-note">Regional PASS variants currently visible in the report summary.</p>
-                  <div class="table-shell">
-                    {{ result.variant_preview | safe }}
+              <div class="viewer-stage" id="viewer-stage">
+                <section class="loading-overlay" data-loading-overlay hidden>
+                  <div class="loading-shell">
+                    <span class="insight-kicker">Live processing</span>
+                    <h3>Analyzing the DRD4 locus</h3>
+                    <p>The result viewer stays active while the app calls variants, processes methylation, and assembles the interpretation database view.</p>
+                    <div class="loading-readout">
+                      <div>
+                        <div class="loading-percent" data-loading-percent>3%</div>
+                        <div class="loading-label" data-loading-label>Preparing analysis workspace</div>
+                      </div>
+                      <span class="muted-badge" data-loading-note>Result Viewer is tracking progress</span>
+                    </div>
+                    <div class="dna-progress-track" aria-hidden="true">
+                      <div class="dna-progress-fill" data-loading-fill></div>
+                    </div>
+                    <div class="loading-steps">
+                      <div class="loading-step">1. Calling DRD4-region variants from the selected VCF</div>
+                      <div class="loading-step">2. Processing paired IDAT intensities into methylation beta values</div>
+                      <div class="loading-step">3. Joining results to the custom DRD4 interpretation database</div>
+                    </div>
                   </div>
                 </section>
 
-                <section class="subtab-panel" data-subtab-panel="methylation">
-                  <h3>Methylation Preview</h3>
-                  <p class="status-note">Probe-level beta values after annotation against the curated DRD4 manifest subset.</p>
-                  <div class="table-shell">
-                    {{ result.methylation_preview | safe }}
+                {% if result %}
+                <div class="metrics loading-hideable">
+                  <article class="metric">
+                    <span>PASS variants</span>
+                    <strong>{{ result.variant_count }}</strong>
+                  </article>
+                  <article class="metric">
+                    <span>Methylation probes</span>
+                    <strong>{{ result.methylation_count }}</strong>
+                  </article>
+                  <article class="metric">
+                    <span>Population stats</span>
+                    <strong>{{ "Loaded" if result.popstats_present else "None" }}</strong>
+                  </article>
+                </div>
+
+                <div class="paths loading-hideable">
+                  <div class="path-chip"><strong>Report</strong> <code>{{ result.report_path }}</code></div>
+                  <div class="path-chip"><strong>Methylation CSV</strong> <code>{{ result.methylation_output_path }}</code></div>
+                  <div class="path-chip"><strong>Knowledge base</strong> <code>{{ result.knowledge_base_name }} ({{ result.knowledge_base_version }})</code></div>
+                </div>
+
+                <div class="results-viewer loading-hideable">
+                  <div class="subtab-nav" aria-label="Result previews">
+                    <button type="button" class="subtab-button" data-subtab-target="variants" aria-selected="false">Variant Preview</button>
+                    <button type="button" class="subtab-button" data-subtab-target="methylation" aria-selected="false">Methylation Preview</button>
+                  </div>
+
+                  <section class="subtab-panel" data-subtab-panel="variants">
+                    <h3>Variant Preview</h3>
+                    <p class="status-note">Clinical and biological interpretation now sits beside the raw PASS calls, so you can switch context without leaving the viewer.</p>
+                    <div class="subtab-nav subtab-nav--nested" aria-label="Variant preview details">
+                      <button type="button" class="subtab-button" data-detail-group="variant" data-detail-target="interpretation" aria-selected="false">Interpretation</button>
+                      <button type="button" class="subtab-button" data-detail-group="variant" data-detail-target="raw" aria-selected="false">Raw Results</button>
+                    </div>
+
+                    <section class="subtab-panel" data-detail-group-panel="variant" data-detail-panel="interpretation">
+                      <div class="viewer-scroll">
+                        <div class="insight-stack">
+                          <article class="insight-card">
+                            <span class="insight-kicker">Curated interpretation</span>
+                            <h4>{{ result.variant_interpretations.database_name }}</h4>
+                            <p>{{ result.variant_interpretations.summary }}</p>
+                            {% if result.variant_interpretations.gene_summary %}
+                            <p>{{ result.variant_interpretations.gene_summary }}</p>
+                            {% endif %}
+                            <div class="badge-row">
+                              <span class="muted-badge">Matched records: {{ result.variant_interpretations.matched_records | length }}</span>
+                              <span class="muted-badge">Unclassified PASS variants: {{ result.variant_interpretations.unclassified_variant_count }}</span>
+                            </div>
+                          </article>
+
+                          {% if result.variant_interpretations.matched_records %}
+                          <div class="insight-grid">
+                            {% for item in result.variant_interpretations.matched_records %}
+                            <article class="insight-card">
+                              <span class="insight-kicker">{{ item.interpretation_scope }}</span>
+                              <h4>{{ item.variant }}</h4>
+                              <p><strong>Observed in run:</strong> {{ item.observed_variant }}</p>
+                              <p>{{ item.clinical_interpretation }}</p>
+                              <p>{{ item.methylation_interpretation }}</p>
+                              {% if item.relevant_probe_ids %}
+                              <div class="badge-row">
+                                {% for probe_id in item.relevant_probe_ids %}
+                                <span class="probe-tag">{{ probe_id }}</span>
+                                {% endfor %}
+                              </div>
+                              {% endif %}
+                              {% if item.evidence %}
+                              <ul class="source-list">
+                                {% for source in item.evidence %}
+                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                                {% endfor %}
+                              </ul>
+                              {% endif %}
+                            </article>
+                            {% endfor %}
+                          </div>
+                          {% else %}
+                          <article class="insight-card">
+                            <span class="insight-kicker">No direct curated match</span>
+                            <h4>Interpretation falls back to gene-level context</h4>
+                            <p>The current PASS variant list can still be reviewed in the raw tab. When rsIDs are absent or the sample contains unseeded DRD4 sites, this workbench keeps the interpretation conservative and avoids over-calling clinical meaning.</p>
+                          </article>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="subtab-panel" data-detail-group-panel="variant" data-detail-panel="raw">
+                      <div class="viewer-scroll">
+                        <div class="table-shell">
+                          {{ result.variant_preview | safe }}
+                        </div>
+                      </div>
+                    </section>
+                  </section>
+
+                  <section class="subtab-panel" data-subtab-panel="methylation">
+                    <h3>Methylation Preview</h3>
+                    <p class="status-note">The methylation tab now combines a gene-level interpretation view with the original probe-level raw table.</p>
+                    <div class="subtab-nav subtab-nav--nested" aria-label="Methylation preview details">
+                      <button type="button" class="subtab-button" data-detail-group="methylation" data-detail-target="interpretation" aria-selected="false">Interpretation</button>
+                      <button type="button" class="subtab-button" data-detail-group="methylation" data-detail-target="raw" aria-selected="false">Raw Results</button>
+                    </div>
+
+                    <section class="subtab-panel" data-detail-group-panel="methylation" data-detail-panel="interpretation">
+                      <div class="viewer-scroll">
+                        <div class="insight-stack">
+                          <article class="insight-card">
+                            <span class="insight-kicker">Gene-level methylation insight</span>
+                            <h4>{{ result.methylation_insights.gene_name }}</h4>
+                            <p>{{ result.methylation_insights.summary }}</p>
+                            <p>{{ result.methylation_insights.clinical_context }}</p>
+                            <div class="stat-grid">
+                              <div class="stat-card">
+                                <span>Observed probes</span>
+                                <strong>{{ result.methylation_insights.observed_probe_count }}</strong>
+                              </div>
+                              <div class="stat-card">
+                                <span>Curated probe set</span>
+                                <strong>{{ result.methylation_insights.curated_probe_count }}</strong>
+                              </div>
+                              <div class="stat-card">
+                                <span>Mean beta band</span>
+                                <strong>{{ result.methylation_insights.beta_band }}</strong>
+                              </div>
+                            </div>
+                            {% if result.methylation_insights.mean_beta is not none %}
+                            <div class="badge-row">
+                              <span class="muted-badge">Average beta: {{ result.methylation_insights.mean_beta }}</span>
+                            </div>
+                            {% endif %}
+                            {% if result.methylation_insights.probe_ids %}
+                            <div class="badge-row">
+                              {% for probe_id in result.methylation_insights.probe_ids %}
+                              <span class="probe-tag">{{ probe_id }}</span>
+                              {% endfor %}
+                            </div>
+                            {% endif %}
+                            {% if result.methylation_insights.evidence %}
+                            <ul class="source-list">
+                              {% for source in result.methylation_insights.evidence %}
+                              <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
+                              {% endfor %}
+                            </ul>
+                            {% endif %}
+                          </article>
+
+                          {% if result.methylation_insights.probe_preview %}
+                          <article class="insight-card">
+                            <span class="insight-kicker">Relevant DRD4 probe subset</span>
+                            <h4>Curated probes used for interpretation</h4>
+                            <div class="table-shell">
+                              {{ result.methylation_insights.probe_preview | safe }}
+                            </div>
+                          </article>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section class="subtab-panel" data-detail-group-panel="methylation" data-detail-panel="raw">
+                      <div class="viewer-scroll">
+                        <div class="table-shell">
+                          {{ result.methylation_preview | safe }}
+                        </div>
+                      </div>
+                    </section>
+                  </section>
+                </div>
+                {% else %}
+                <section class="empty-state loading-hideable">
+                  <div class="empty-state-inner">
+                    <h3>Analysis output will appear here</h3>
+                    <p>Run the workflow from the left-hand form and this panel will update in place with summary counts, output paths, biological interpretation, and raw previews for the current DRD4 analysis.</p>
+                    <p>If the suggestion lists are empty, make sure the project <code>{{ data_dir }}</code> folder contains your local VCF and IDAT files.</p>
                   </div>
                 </section>
+                {% endif %}
               </div>
-              {% else %}
-              <section class="empty-state">
-                <div class="empty-state-inner">
-                  <h3>Analysis output will appear here</h3>
-                  <p>Run the workflow from the left-hand form and this panel will update in place with summary counts, output paths, and table previews for the current DRD4 analysis.</p>
-                  <p>If the suggestion lists are empty, make sure the project <code>{{ data_dir }}</code> folder contains your local VCF and IDAT files.</p>
-                </div>
-              </section>
-              {% endif %}
             </div>
           </section>
         </div>
@@ -822,6 +1219,24 @@
       const tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
       const subtabButtons = Array.from(document.querySelectorAll("[data-subtab-target]"));
       const subtabPanels = Array.from(document.querySelectorAll("[data-subtab-panel]"));
+      const detailButtons = Array.from(document.querySelectorAll("[data-detail-target]"));
+      const detailPanels = Array.from(document.querySelectorAll("[data-detail-panel]"));
+      const form = document.querySelector("form");
+      const viewerStage = document.getElementById("viewer-stage");
+      const loadingOverlay = document.querySelector("[data-loading-overlay]");
+      const loadingPercent = document.querySelector("[data-loading-percent]");
+      const loadingFill = document.querySelector("[data-loading-fill]");
+      const loadingLabel = document.querySelector("[data-loading-label]");
+      const loadingNote = document.querySelector("[data-loading-note]");
+      let loadingTimer = null;
+      let loadingValue = 3;
+      const loadingSteps = [
+        { threshold: 0, label: "Preparing analysis workspace", note: "Result Viewer is tracking progress" },
+        { threshold: 24, label: "Calling DRD4-region variants", note: "VCF signals are being filtered to PASS loci" },
+        { threshold: 52, label: "Processing methylation intensities", note: "Paired IDAT channels are being converted to beta values" },
+        { threshold: 78, label: "Joining the custom interpretation database", note: "Biological and clinical context is being assembled" },
+        { threshold: 94, label: "Finalizing previews", note: "Preparing the nested result tabs" }
+      ];
 
       function activateTab(name) {
         tabButtons.forEach((button) => {
@@ -845,6 +1260,66 @@
         });
       }
 
+      function activateDetailTab(group, name) {
+        detailButtons.forEach((button) => {
+          const isActive =
+            button.dataset.detailGroup === group && button.dataset.detailTarget === name;
+          if (button.dataset.detailGroup === group) {
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-selected", isActive ? "true" : "false");
+          }
+        });
+        detailPanels.forEach((panel) => {
+          if (panel.dataset.detailGroupPanel === group) {
+            panel.classList.toggle("is-active", panel.dataset.detailPanel === name);
+          }
+        });
+      }
+
+      function updateLoadingState(percentValue) {
+        const currentStep = loadingSteps
+          .slice()
+          .reverse()
+          .find((step) => percentValue >= step.threshold) || loadingSteps[0];
+
+        if (loadingPercent) {
+          loadingPercent.textContent = `${percentValue}%`;
+        }
+        if (loadingFill) {
+          loadingFill.style.width = `${percentValue}%`;
+        }
+        if (loadingLabel) {
+          loadingLabel.textContent = currentStep.label;
+        }
+        if (loadingNote) {
+          loadingNote.textContent = currentStep.note;
+        }
+      }
+
+      function startLoadingExperience() {
+        if (!viewerStage || !loadingOverlay) {
+          return;
+        }
+        viewerStage.classList.add("is-loading");
+        loadingOverlay.hidden = false;
+        loadingValue = 3;
+        updateLoadingState(loadingValue);
+
+        if (loadingTimer) {
+          window.clearInterval(loadingTimer);
+        }
+
+        loadingTimer = window.setInterval(() => {
+          if (loadingValue >= 96) {
+            window.clearInterval(loadingTimer);
+            return;
+          }
+          const nextStep = loadingValue < 40 ? 7 : loadingValue < 72 ? 5 : 2;
+          loadingValue = Math.min(96, loadingValue + nextStep);
+          updateLoadingState(loadingValue);
+        }, 420);
+      }
+
       tabButtons.forEach((button) => {
         button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
       });
@@ -857,8 +1332,31 @@
         button.addEventListener("click", () => activateSubtab(button.dataset.subtabTarget));
       });
 
+      detailButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activateDetailTab(button.dataset.detailGroup, button.dataset.detailTarget);
+        });
+      });
+
+      if (form && viewerStage) {
+        form.addEventListener("submit", (event) => {
+          if (form.dataset.submitting === "true") {
+            return;
+          }
+          event.preventDefault();
+          activateTab("analysis");
+          startLoadingExperience();
+          form.dataset.submitting = "true";
+          window.requestAnimationFrame(() => {
+            window.setTimeout(() => form.submit(), 40);
+          });
+        });
+      }
+
       activateTab(initialTab);
       activateSubtab("variants");
+      activateDetailTab("variant", "interpretation");
+      activateDetailTab("methylation", "interpretation");
     }());
   </script>
 </body>

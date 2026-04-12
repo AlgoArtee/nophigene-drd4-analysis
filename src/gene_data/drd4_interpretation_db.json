@@ -1,0 +1,176 @@
+{
+  "database_name": "NophiGene DRD4 Interpretation Database",
+  "version": "2026-04-12",
+  "gene_context": {
+    "gene_name": "DRD4",
+    "gene_summary": "DRD4 encodes the dopamine D4 receptor, a dopamine-responsive GPCR that inhibits adenylyl cyclase and has been studied in attention, novelty-seeking, addiction, and schizophrenia-related phenotypes.",
+    "clinical_context": "The curated DRD4 records in this database are research and pharmacogenomic context markers, not high-penetrance pathogenic variants used as stand-alone diagnostic findings.",
+    "relevant_methylation_probe_ids": [
+      "cg11335335",
+      "cg07212818",
+      "cg03909863",
+      "cg05717871",
+      "cg09386376",
+      "cg16313227",
+      "cg03855291",
+      "cg09133032",
+      "cg02762115",
+      "cg20411756"
+    ],
+    "methylation_interpretation": "Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers.",
+    "evidence": [
+      {
+        "label": "NCBI Gene 1815: DRD4 summary and genomic context",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/1815"
+      },
+      {
+        "label": "PMC5776619: DRD4 promoter hypermethylation and addiction risk",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5776619/"
+      },
+      {
+        "label": "PMC3929639: male-specific DRD4 methylation association in schizophrenia",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3929639/"
+      },
+      {
+        "label": "PubMed 26897359: DRD4 methylation and ADHD symptom dimensions",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/26897359/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "gene_name": "DRD4",
+      "variant": "rs1800955",
+      "interpretation_scope": "Research association",
+      "lookup_keys": [
+        "rs1800955",
+        "11:62636784",
+        "11:636784",
+        "11:62636784:C>T",
+        "11:62636784:T>C",
+        "11:636784:C>T",
+        "11:636784:T>C"
+      ],
+      "clinical_interpretation": "rs1800955 (-521C>T) is a common DRD4 promoter polymorphism with research-level evidence for altered transcriptional regulation and small effect-size psychiatric associations. Early reporter assays found lower transcriptional efficiency for the T allele, while later post-mortem brain tissue work did not find a statistically significant genotype-expression relationship; meta-analysis suggests the -521 CC genotype may modestly increase schizophrenia risk, but this site is not treated as a monogenic pathogenic variant.",
+      "relevant_methylation_probe_ids": [
+        "cg11335335",
+        "cg07212818",
+        "cg03909863",
+        "cg05717871",
+        "cg09386376",
+        "cg16313227",
+        "cg03855291",
+        "cg09133032",
+        "cg02762115",
+        "cg20411756"
+      ],
+      "methylation_interpretation": "Interpret rs1800955 alongside regional DRD4 methylation only as regulatory context. Differential methylation in the broader DRD4 locus has been reported in addiction, ADHD, and schizophrenia cohorts, but those effects are tissue-specific and do not convert rs1800955 into a diagnostic methylation biomarker.",
+      "evidence": [
+        {
+          "label": "PubMed 10329380: -521C>T transcriptional efficiency and schizophrenia association",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/10329380/"
+        },
+        {
+          "label": "PubMed 20468066: post-mortem brain mRNA study of rs1800955 and rs747302",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
+        },
+        {
+          "label": "PMC5757990 / PubMed 29379288: DRD4 schizophrenia meta-analysis",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
+        },
+        {
+          "label": "PMC9321090 / PubMed 35574658: rs1800955 and emotion-processing phenotype",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9321090/"
+        }
+      ]
+    },
+    {
+      "gene_name": "DRD4",
+      "variant": "rs3758653",
+      "interpretation_scope": "Research association / mQTL",
+      "lookup_keys": [
+        "rs3758653",
+        "11:62626399",
+        "11:626399",
+        "11:62626399:C>T",
+        "11:62626399:T>C",
+        "11:626399:C>T",
+        "11:626399:T>C"
+      ],
+      "clinical_interpretation": "rs3758653 is best interpreted as a DRD4 promoter-region mQTL and research association marker. Published studies link it to nearby DRD4 CpG methylation levels, cognitive executive-time differences, and duration from first heroin exposure to addiction, with evidence that the locus is related to DRD4 expression in frontal cortex and hippocampus. It provides mechanistic context for dopamine-signaling phenotypes, but it is not a stand-alone clinical pathogenic call.",
+      "relevant_methylation_probe_ids": [
+        "cg11335335",
+        "cg07212818",
+        "cg03909863",
+        "cg05717871",
+        "cg09386376",
+        "cg16313227",
+        "cg03855291",
+        "cg09133032",
+        "cg02762115",
+        "cg20411756"
+      ],
+      "methylation_interpretation": "This locus is especially relevant when DRD4 methylation is also being reviewed: rs3758653 has repeatedly been linked to DRD4 CpG methylation differences. In this workbench, methylation should still be read as supportive regulatory context because the bundled probe subset does not directly reproduce every promoter CpG from the published mQTL studies.",
+      "evidence": [
+        {
+          "label": "PubMed 34864042: rs3758653 mQTL and heroin addiction timing",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34864042/"
+        },
+        {
+          "label": "PMC3538530: nearby SNPs including rs3758653 associated with DRD4 methylation",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3538530/"
+        },
+        {
+          "label": "PubMed 26037358: rs3758653 and executive-time differences in adults",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26037358/"
+        },
+        {
+          "label": "PubMed 26897359: DRD4 methylation, rs3758653, and ADHD symptom dimensions",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26897359/"
+        }
+      ]
+    },
+    {
+      "gene_name": "DRD4",
+      "variant": "rs747302",
+      "interpretation_scope": "Research association",
+      "lookup_keys": [
+        "rs747302",
+        "11:62636689",
+        "11:636689",
+        "11:62636689:C>G",
+        "11:62636689:G>C",
+        "11:636689:C>G",
+        "11:636689:G>C"
+      ],
+      "clinical_interpretation": "rs747302 (-616C>G) is another DRD4 promoter-region polymorphism with phenotype-association evidence rather than diagnostic pathogenicity. Large schizophrenia meta-analysis did not support a robust association for this site, and post-mortem brain tissue work did not show a statistically significant mRNA effect; separate neuroimaging work has reported genotype-related differences in pediatric primary nocturnal enuresis cohorts.",
+      "relevant_methylation_probe_ids": [
+        "cg11335335",
+        "cg07212818",
+        "cg03909863",
+        "cg05717871",
+        "cg09386376",
+        "cg16313227",
+        "cg03855291",
+        "cg09133032",
+        "cg02762115",
+        "cg20411756"
+      ],
+      "methylation_interpretation": "Regional methylation may still matter biologically around rs747302, but current evidence supports a regulatory-modifier role rather than a methylation-defined diagnostic effect. Use the paired methylation panel to contextualize local epigenetic state, not to over-call this promoter SNP.",
+      "evidence": [
+        {
+          "label": "PubMed 20468066: post-mortem mRNA study including rs747302",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20468066/"
+        },
+        {
+          "label": "PMC5757990 / PubMed 29379288: schizophrenia meta-analysis found no robust rs747302 association",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5757990/"
+        },
+        {
+          "label": "PMC5430843 / PubMed 28450726: rs747302-associated neuroimaging differences in pediatric nocturnal enuresis",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5430843/"
+        }
+      ]
+    }
+  ]
+}

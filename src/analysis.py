@@ -26,8 +26,9 @@ import allel
 import pandas as pd
 from methylprep import run_pipeline
 
-DEFAULT_REGION = "11:63671737-63677367"
+DEFAULT_REGION = "11:62637269-62640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
+INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 
 # Configure the root logger once so both CLI and web runs stream progress.
 logging.basicConfig(
@@ -66,6 +67,15 @@ class AnalysisResult:
         Input VCF path used during execution.
     idat_base : Path
         Input IDAT prefix used during execution.
+    variant_interpretations : dict[str, Any]
+        Curated DRD4 variant interpretations matched against the loaded PASS
+        variants using the local interpretation database.
+    methylation_insights : dict[str, Any]
+        Gene-level methylation interpretation assembled from the current probe
+        table plus the local interpretation database.
+    knowledge_base : dict[str, Any]
+        Parsed local interpretation database used to build the biological and
+        clinical insights shown in the UI.
     """
 
     variants: pd.DataFrame
@@ -76,6 +86,9 @@ class AnalysisResult:
     region: str
     vcf_path: Path
     idat_base: Path
+    variant_interpretations: dict[str, Any]
+    methylation_insights: dict[str, Any]
+    knowledge_base: dict[str, Any]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -146,6 +159,223 @@ def _derive_methylation_output_path(output_path: str | Path) -> Path:
     return report_path.with_name(f"{stem}_methylation.csv")
 
 
+def load_interpretation_database(database_path: str | Path = INTERPRETATION_DB_PATH) -> dict[str, Any]:
+    """Load the curated local DRD4 interpretation database.
+
+    Parameters
+    ----------
+    database_path : str | Path, optional
+        Path to the JSON-backed local knowledge base that stores DRD4 variant
+        and methylation interpretations.
+
+    Returns
+    -------
+    dict[str, Any]
+        Parsed JSON payload describing gene context plus curated variant
+        records.
+
+    Raises
+    ------
+    AnalysisError
+        Raised when the JSON file cannot be found or parsed.
+    """
+    payload_path = Path(database_path)
+    if not payload_path.exists():
+        raise AnalysisError(f"Interpretation database not found: {payload_path}")
+
+    try:
+        return json.loads(payload_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise AnalysisError(f"Interpretation database is not valid JSON: {payload_path}") from exc
+
+
+def _decode_scalar(value: Any) -> Any:
+    """Decode byte-valued VCF fields into plain Python strings when needed."""
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8")
+    return value
+
+
+def _normalize_lookup_key(value: str) -> str:
+    """Canonicalize lookup keys so IDs and coordinate aliases can match reliably."""
+    normalized = value.strip().lower().replace(" ", "")
+    if normalized.startswith("chr"):
+        normalized = normalized[3:]
+    return normalized
+
+
+def _build_variant_lookup_keys(row: pd.Series) -> set[str]:
+    """Create rsID and coordinate aliases for a single variant row."""
+    keys: set[str] = set()
+
+    raw_id = row.get("id")
+    if pd.notna(raw_id) and str(raw_id).strip() and str(raw_id).strip() != ".":
+        keys.update(_normalize_lookup_key(part) for part in str(raw_id).split(";") if part.strip())
+
+    chrom = str(row.get("chrom", "")).strip()
+    pos = row.get("pos")
+    ref = str(row.get("ref", "") or "").strip().upper()
+    alt = str(row.get("alt", "") or "").strip().upper()
+
+    if chrom and pd.notna(pos):
+        chrom = chrom[3:] if chrom.lower().startswith("chr") else chrom
+        pos_text = str(int(pos))
+        keys.add(_normalize_lookup_key(f"{chrom}:{pos_text}"))
+
+        if ref and alt and ref not in {"NAN", "NONE"} and alt not in {"NAN", "NONE"}:
+            keys.add(_normalize_lookup_key(f"{chrom}:{pos_text}:{ref}>{alt}"))
+
+    return keys
+
+
+def _format_variant_display(row: pd.Series) -> str:
+    """Render a human-readable label for a variant row in the UI."""
+    raw_id = row.get("id")
+    if pd.notna(raw_id) and str(raw_id).strip() and str(raw_id).strip() != ".":
+        return str(raw_id)
+    return f"{row['chrom']}:{int(row['pos'])} {row['ref']}>{row['alt']}"
+
+
+def _categorize_beta(mean_beta: float | None) -> str:
+    """Map average beta values to a coarse descriptive band for UI summaries."""
+    if mean_beta is None or pd.isna(mean_beta):
+        return "unavailable"
+    if mean_beta < 0.20:
+        return "low"
+    if mean_beta < 0.60:
+        return "intermediate"
+    if mean_beta < 0.80:
+        return "moderately high"
+    return "high"
+
+
+def build_variant_interpretations(
+    variants: pd.DataFrame, knowledge_base: dict[str, Any]
+) -> dict[str, Any]:
+    """Match observed variants against the curated DRD4 interpretation database."""
+    variant_records = knowledge_base.get("variant_records", [])
+    matched_records: list[dict[str, Any]] = []
+    seen_matches: set[tuple[str, str]] = set()
+
+    for _, row in variants.iterrows():
+        lookup_keys = _build_variant_lookup_keys(row)
+        matched_record = None
+        for record in variant_records:
+            record_keys = {
+                _normalize_lookup_key(candidate)
+                for candidate in record.get("lookup_keys", [])
+                if candidate
+            }
+            if lookup_keys & record_keys:
+                matched_record = record
+                break
+
+        if matched_record is None:
+            continue
+
+        observed_label = _format_variant_display(row)
+        dedupe_key = (matched_record["variant"], observed_label)
+        if dedupe_key in seen_matches:
+            continue
+
+        matched_records.append(
+            {
+                "observed_variant": observed_label,
+                "variant": matched_record["variant"],
+                "interpretation_scope": matched_record.get("interpretation_scope", "Research context"),
+                "clinical_interpretation": matched_record["clinical_interpretation"],
+                "methylation_interpretation": matched_record["methylation_interpretation"],
+                "relevant_probe_ids": matched_record.get("relevant_methylation_probe_ids", []),
+                "evidence": matched_record.get("evidence", []),
+            }
+        )
+        seen_matches.add(dedupe_key)
+
+    summary = (
+        f"Matched {len(matched_records)} curated DRD4 record(s) from the local interpretation database."
+        if matched_records
+        else (
+            "No curated DRD4 promoter record matched the loaded PASS variants. "
+            "That usually means the VCF lacks rsIDs or contains sites outside the seeded DRD4 research set."
+        )
+    )
+
+    return {
+        "summary": summary,
+        "matched_records": matched_records,
+        "unclassified_variant_count": max(len(variants) - len(matched_records), 0),
+        "gene_summary": knowledge_base.get("gene_context", {}).get("gene_summary", ""),
+        "database_name": knowledge_base.get("database_name", "Local DRD4 interpretation database"),
+    }
+
+
+def build_methylation_insights(
+    methylation: pd.DataFrame, knowledge_base: dict[str, Any]
+) -> dict[str, Any]:
+    """Build a gene-level methylation interpretation from the current probe table."""
+    gene_context = knowledge_base.get("gene_context", {})
+    relevant_probe_ids = list(gene_context.get("relevant_methylation_probe_ids", []))
+    relevant_probe_lookup = set(relevant_probe_ids)
+
+    observed_relevant = methylation[methylation["probe_id"].isin(relevant_probe_lookup)].copy()
+    if observed_relevant.empty:
+        observed_relevant = methylation.copy()
+
+    mean_beta = float(observed_relevant["beta"].mean()) if not observed_relevant.empty else None
+    beta_band = _categorize_beta(mean_beta)
+
+    if "UCSC_RefGene_Group" in observed_relevant.columns:
+        group_breakdown = (
+            observed_relevant["UCSC_RefGene_Group"]
+            .fillna("Unannotated")
+            .value_counts()
+            .to_dict()
+        )
+    else:
+        group_breakdown = {}
+
+    group_summary = ", ".join(f"{count} {group}" for group, count in group_breakdown.items())
+    if not group_summary:
+        group_summary = "annotation breakdown unavailable"
+
+    summary_prefix = (
+        f"The current run captured {len(observed_relevant)} curated DRD4 probe(s) "
+        f"with a mean beta of {mean_beta:.2f}, which sits in the {beta_band} range. "
+        if mean_beta is not None
+        else "The current run did not yield a mean beta estimate for the curated DRD4 probes. "
+    )
+
+    summary = (
+        f"{summary_prefix}The bundled DRD4 array subset is dominated by {group_summary}. "
+        f"{gene_context.get('methylation_interpretation', '')}"
+    ).strip()
+
+    preview_columns = [
+        "probe_id",
+        "beta",
+        "UCSC_RefGene_Group",
+        "Relation_to_UCSC_CpG_Island",
+        "UCSC_CpG_Islands_Name",
+    ]
+    available_preview_columns = [
+        column for column in preview_columns if column in observed_relevant.columns
+    ]
+
+    return {
+        "gene_name": gene_context.get("gene_name", "DRD4"),
+        "clinical_context": gene_context.get("clinical_context", ""),
+        "summary": summary,
+        "mean_beta": round(mean_beta, 3) if mean_beta is not None else None,
+        "beta_band": beta_band,
+        "observed_probe_count": int(len(observed_relevant)),
+        "curated_probe_count": len(relevant_probe_ids),
+        "probe_ids": observed_relevant["probe_id"].tolist(),
+        "group_breakdown": group_breakdown,
+        "evidence": gene_context.get("evidence", []),
+        "probe_preview": observed_relevant[available_preview_columns].copy(),
+    }
+
+
 def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     """Load PASS variants for the requested region from a tabix-indexed VCF.
 
@@ -177,6 +407,7 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
             region=region,
             fields=[
                 "variants/CHROM",
+                "variants/ID",
                 "variants/POS",
                 "variants/REF",
                 "variants/ALT",
@@ -192,10 +423,19 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
 
     df = pd.DataFrame(
         {
-            "chrom": callset["variants/CHROM"],
+            "chrom": [_decode_scalar(value) for value in callset["variants/CHROM"]],
+            "id": [
+                None
+                if _decode_scalar(value) in {None, "."}
+                else _decode_scalar(value)
+                for value in callset["variants/ID"]
+            ],
             "pos": callset["variants/POS"],
-            "ref": callset["variants/REF"],
-            "alt": [alts[0] if len(alts) > 0 else None for alts in callset["variants/ALT"]],
+            "ref": [_decode_scalar(value) for value in callset["variants/REF"]],
+            "alt": [
+                _decode_scalar(alts[0]) if len(alts) > 0 else None
+                for alts in callset["variants/ALT"]
+            ],
             "qual": callset["variants/QUAL"],
             "filter_pass": callset["variants/FILTER_PASS"],
         }
@@ -636,6 +876,9 @@ def run_analysis(
     """
     variants = load_variants(vcf_path, region)
     methylation = load_methylation(idat_base, manifest_filepath=manifest_filepath)
+    knowledge_base = load_interpretation_database()
+    variant_interpretations = build_variant_interpretations(variants, knowledge_base)
+    methylation_insights = build_methylation_insights(methylation, knowledge_base)
 
     report_path = Path(output_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -667,6 +910,9 @@ def run_analysis(
         region=region,
         vcf_path=Path(vcf_path),
         idat_base=Path(idat_base),
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
     )
 
 
