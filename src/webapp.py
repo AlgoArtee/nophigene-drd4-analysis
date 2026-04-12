@@ -93,14 +93,78 @@ def _empty_form_state() -> dict[str, str]:
     }
 
 
+def _build_field_info(
+    form: dict[str, str],
+    *,
+    vcf_files: list[str],
+    idat_prefixes: list[str],
+    popstats_files: list[str],
+) -> dict[str, dict[str, str]]:
+    """Build UI metadata for field examples and foldable biological explanations."""
+    return {
+        "vcf": {
+            "example": form["vcf"] or (vcf_files[0] if vcf_files else "data/drd4.vcf.gz"),
+            "details": (
+                "A VCF, or Variant Call Format file, lists sequence differences observed "
+                "between your sample and the reference genome. In this app it provides the "
+                "DRD4-region SNPs and other variant calls that will be summarized in the report."
+            ),
+        },
+        "idat": {
+            "example": form["idat"] or (idat_prefixes[0] if idat_prefixes else "data/202277800037_R01C01"),
+            "details": (
+                "An IDAT base path points to the paired red and green Illumina methylation "
+                "array intensity files. Those raw signal files are what methylprep uses to "
+                "calculate probe-level methylation beta values for the DRD4-associated probes."
+            ),
+        },
+        "out": {
+            "example": form["out"] or f"results/{DEFAULT_REPORT_NAME}",
+            "details": (
+                "This is not a biological input, but it controls where the generated report "
+                "artifact is written so you can review or share the analysis output after the run."
+            ),
+        },
+        "region": {
+            "example": form["region"] or DEFAULT_REGION,
+            "details": (
+                "The genomic region limits the analysis to a specific coordinate interval. "
+                "Biologically, this defines the stretch of the genome around DRD4 whose variants "
+                "you want to inspect in the current run."
+            ),
+        },
+        "popstats": {
+            "example": form["popstats"] or form["suggested_popstats"] or (popstats_files[0] if popstats_files else "data/gnomad.json"),
+            "details": (
+                "Population statistics files add cohort-level context such as allele frequency "
+                "or prevalence summaries. They help interpret whether a DRD4 variant looks rare, "
+                "common, or enriched in reference populations."
+            ),
+        },
+        "manifest_file": {
+            "example": form["manifest_file"] or "data/custom_manifest.csv.gz",
+            "details": (
+                "A manifest maps array probe identifiers to genomic coordinates and annotations. "
+                "In methylation analysis, it is what turns raw probe signals into biologically "
+                "located CpG measurements tied to genes, islands, enhancers, or other features."
+            ),
+        },
+    }
+
+
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
     """Render the landing page and handle analysis submissions."""
     form = _empty_form_state()
     result = None
     error = None
+    initial_tab = "overview"
+    vcf_files = discover_vcf_files()
+    idat_prefixes = discover_idat_prefixes()
+    popstats_files = discover_population_stats_files()
 
     if request.method == "POST":
+        initial_tab = "analysis"
         form.update(
             {
                 "vcf": request.form.get("vcf", "").strip(),
@@ -141,11 +205,18 @@ def index() -> str:
         form=form,
         error=error,
         result=result,
+        initial_tab=initial_tab,
+        field_info=_build_field_info(
+            form,
+            vcf_files=vcf_files,
+            idat_prefixes=idat_prefixes,
+            popstats_files=popstats_files,
+        ),
         data_dir=_as_relative_display(DATA_DIR),
         results_dir=_as_relative_display(RESULTS_DIR),
-        vcf_files=discover_vcf_files(),
-        idat_prefixes=discover_idat_prefixes(),
-        popstats_files=discover_population_stats_files(),
+        vcf_files=vcf_files,
+        idat_prefixes=idat_prefixes,
+        popstats_files=popstats_files,
     )
 
 
