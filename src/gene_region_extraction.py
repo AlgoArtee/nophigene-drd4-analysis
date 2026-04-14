@@ -1,5 +1,8 @@
-"""Fetch candidate DRD4 genomic intervals from multiple public annotation APIs."""
+"""Fetch candidate genomic intervals from multiple public annotation APIs."""
 
+from __future__ import annotations
+
+import re
 from typing import Iterable
 
 import requests
@@ -148,6 +151,66 @@ def fetch_ucsc_region(gene_symbol: str = "DRD4") -> str | None:
     start = min(start for start, _ in regions)
     end = max(end for _, end in regions)
     return f"11:{start}-{end}"
+
+
+def _validate_gene_symbol(gene_symbol: str) -> str:
+    """Normalize and validate a gene symbol before external API lookups."""
+    cleaned = gene_symbol.strip()
+    if not cleaned:
+        raise ValueError("Enter a gene symbol before requesting genomic coordinates.")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", cleaned):
+        raise ValueError(
+            "Gene symbols may only contain letters, digits, dots, underscores, and hyphens."
+        )
+    return cleaned
+
+
+def find_gene_region(gene_symbol: str = "DRD4") -> dict[str, object]:
+    """Resolve a gene symbol to the widest candidate interval across public sources.
+
+    Parameters
+    ----------
+    gene_symbol : str, optional
+        HGNC-style gene symbol to look up.
+
+    Returns
+    -------
+    dict[str, object]
+        Structured lookup result containing the selected region plus the
+        individual source candidates that were found.
+
+    Raises
+    ------
+    ValueError
+        Raised when the symbol is blank or when none of the configured sources
+        returns a usable interval.
+    """
+    cleaned_symbol = _validate_gene_symbol(gene_symbol)
+    source_candidates = [
+        ("NCBI RefSeq", fetch_refseq_region(cleaned_symbol)),
+        ("Ensembl GRCh37", fetch_ensembl_region(cleaned_symbol)),
+        ("UCSC knownGene", fetch_ucsc_region(cleaned_symbol)),
+    ]
+    candidates = [
+        {"source": source_name, "region": region}
+        for source_name, region in source_candidates
+        if region
+    ]
+    if not candidates:
+        raise ValueError(
+            f"No genomic interval could be resolved for gene symbol '{cleaned_symbol}'."
+        )
+
+    selected_region = get_widest_region(candidate["region"] for candidate in candidates)
+    selected_sources = [
+        candidate["source"] for candidate in candidates if candidate["region"] == selected_region
+    ]
+    return {
+        "gene_name": cleaned_symbol.upper(),
+        "selected_region": selected_region,
+        "selected_sources": selected_sources,
+        "candidate_regions": candidates,
+    }
 
 
 def get_widest_region(regions: Iterable[str]) -> str | None:

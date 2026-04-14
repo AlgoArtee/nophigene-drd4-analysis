@@ -1,22 +1,37 @@
-"""Flask-based web UI for the DRD4 analysis workflow."""
+"""Flask-based web UI for the gene-focused analysis workflow."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 
 try:
-    from .analysis import AnalysisError, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
+    from .analysis import (
+        AnalysisError,
+        DEFAULT_GENE_NAME,
+        DEFAULT_REGION,
+        DEFAULT_REPORT_NAME,
+        run_analysis,
+    )
+    from .gene_region_extraction import find_gene_region
+    from .helper_functions.filter_manifest_region import save_filtered_manifest
 except ImportError:
-    from analysis import AnalysisError, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
+    from analysis import AnalysisError, DEFAULT_GENE_NAME, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
+    from gene_region_extraction import find_gene_region
+    from helper_functions.filter_manifest_region import save_filtered_manifest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
+PREPROCESSED_MANIFEST_DIR = Path(__file__).resolve().parent / "gene_data"
+SESSION_PREPROCESS_KEY = "preprocess_state"
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
+app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
 
 
 def _as_relative_display(path: Path) -> str:
@@ -51,6 +66,29 @@ def discover_population_stats_files() -> list[str]:
     return [_as_relative_display(path) for path in matches]
 
 
+def discover_manifest_files() -> list[str]:
+    """Find EPIC or manifest-like CSV inputs that can be prefiltered for one gene."""
+    if not DATA_DIR.exists():
+        return []
+
+    matches: list[Path] = []
+    for path in DATA_DIR.rglob("*"):
+        lower_name = path.name.lower()
+        if not path.is_file():
+            continue
+        if not (
+            lower_name.endswith(".csv")
+            or lower_name.endswith(".csv.gz")
+            or lower_name.endswith(".txt")
+        ):
+            continue
+        if "manifest" not in lower_name and "epic" not in lower_name:
+            continue
+        matches.append(path)
+
+    return [_as_relative_display(path) for path in sorted(matches)]
+
+
 def discover_idat_prefixes() -> list[str]:
     """Discover IDAT sample prefixes that have both green and red channels."""
     if not DATA_DIR.exists():
@@ -77,7 +115,7 @@ def _render_table(df: pd.DataFrame, rows: int = 12) -> str:
 
 
 def _empty_form_state() -> dict[str, str]:
-    """Return the initial form state used on first page load."""
+    """Return the initial analysis form state used on first page load."""
     vcf_files = discover_vcf_files()
     idat_prefixes = discover_idat_prefixes()
     popstats_files = discover_population_stats_files()
@@ -93,9 +131,71 @@ def _empty_form_state() -> dict[str, str]:
     }
 
 
+def _empty_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
+    """Return the default preprocessing state."""
+    return {
+        "gene_name": DEFAULT_GENE_NAME,
+        "region": DEFAULT_REGION,
+        "manifest_source": manifest_files[0] if manifest_files else "",
+        "filtered_manifest": "",
+        "region_candidates": [],
+        "selected_sources": [],
+        "region_ready": False,
+        "manifest_ready": False,
+        "analysis_ready": False,
+        "probe_count": 0,
+        "build": "hg19",
+    }
+
+
+def _load_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
+    """Load the persisted preprocessing state from the Flask session."""
+    state = _empty_preprocess_state(manifest_files)
+    saved_state = session.get(SESSION_PREPROCESS_KEY)
+    if isinstance(saved_state, dict):
+        state.update(saved_state)
+
+    if not state.get("manifest_source") and manifest_files:
+        state["manifest_source"] = manifest_files[0]
+    return state
+
+
+def _store_preprocess_state(state: dict[str, Any]) -> None:
+    """Persist preprocessing state back to the Flask session."""
+    session[SESSION_PREPROCESS_KEY] = {
+        "gene_name": str(state.get("gene_name", DEFAULT_GENE_NAME)),
+        "region": str(state.get("region", DEFAULT_REGION)),
+        "manifest_source": str(state.get("manifest_source", "")),
+        "filtered_manifest": str(state.get("filtered_manifest", "")),
+        "region_candidates": list(state.get("region_candidates", [])),
+        "selected_sources": list(state.get("selected_sources", [])),
+        "region_ready": bool(state.get("region_ready", False)),
+        "manifest_ready": bool(state.get("manifest_ready", False)),
+        "analysis_ready": bool(state.get("analysis_ready", False)),
+        "probe_count": int(state.get("probe_count", 0)),
+        "build": str(state.get("build", "hg19")),
+    }
+    session.modified = True
+
+
+def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[str, Any]) -> None:
+    """Propagate preprocessing results into the analysis form defaults."""
+    if preprocess_state.get("region"):
+        form["region"] = str(preprocess_state["region"])
+    if preprocess_state.get("manifest_source"):
+        form["manifest_file"] = str(preprocess_state["manifest_source"])
+    elif preprocess_state.get("filtered_manifest"):
+        form["manifest_file"] = str(preprocess_state["filtered_manifest"])
+
+    default_output = f"results/{DEFAULT_REPORT_NAME}"
+    if form["out"] == default_output and preprocess_state.get("gene_name"):
+        form["out"] = f"results/{str(preprocess_state['gene_name']).lower()}_report.html"
+
+
 def _build_field_info(
     form: dict[str, str],
     *,
+    preprocess_state: dict[str, Any],
     vcf_files: list[str],
     idat_prefixes: list[str],
     popstats_files: list[str],
@@ -103,11 +203,11 @@ def _build_field_info(
     """Build UI metadata for field examples and foldable biological explanations."""
     return {
         "vcf": {
-            "example": form["vcf"] or (vcf_files[0] if vcf_files else "data/drd4.vcf.gz"),
+            "example": form["vcf"] or (vcf_files[0] if vcf_files else "data/gene.vcf.gz"),
             "details": (
                 "A VCF, or Variant Call Format file, lists sequence differences observed "
                 "between your sample and the reference genome. In this app it provides the "
-                "DRD4-region SNPs and other variant calls that will be summarized in the report."
+                "gene-region SNPs and other variant calls that will be summarized in the report."
             ),
         },
         "idat": {
@@ -115,130 +215,313 @@ def _build_field_info(
             "details": (
                 "An IDAT base path points to the paired red and green Illumina methylation "
                 "array intensity files. Those raw signal files are what methylprep uses to "
-                "calculate probe-level methylation beta values for the DRD4-associated probes."
+                "calculate probe-level methylation beta values for the preprocessed gene subset."
             ),
         },
         "out": {
             "example": form["out"] or f"results/{DEFAULT_REPORT_NAME}",
             "details": (
-                "This is not a biological input, but it controls where the generated report "
-                "artifact is written so you can review or share the analysis output after the run."
+                "This controls where the generated report artifact is written so you can review "
+                "or share the analysis output after the run."
             ),
         },
         "region": {
-            "example": form["region"] or DEFAULT_REGION,
+            "example": form["region"] or str(preprocess_state.get("region", DEFAULT_REGION)),
             "details": (
                 "The genomic region limits the analysis to a specific coordinate interval. "
-                "Biologically, this defines the stretch of the genome around DRD4 whose variants "
-                "you want to inspect in the current run."
+                "In this workflow it should usually come from preprocessing, where the gene name "
+                "is resolved to the active genome interval."
             ),
         },
         "popstats": {
-            "example": form["popstats"] or form["suggested_popstats"] or (popstats_files[0] if popstats_files else "data/gnomad.json"),
+            "example": form["popstats"]
+            or form["suggested_popstats"]
+            or (popstats_files[0] if popstats_files else "data/reference_population.json"),
             "details": (
                 "Population statistics files add cohort-level context such as allele frequency "
-                "or prevalence summaries. They help interpret whether a DRD4 variant looks rare, "
+                "or prevalence summaries. They help interpret whether a gene-region variant looks rare, "
                 "common, or enriched in reference populations."
             ),
         },
         "manifest_file": {
-            "example": form["manifest_file"] or "data/custom_manifest.csv.gz",
+            "example": form["manifest_file"]
+            or str(preprocess_state.get("manifest_source", "data/infinium-methylationepic-manifest-file.csv")),
             "details": (
-                "A manifest maps array probe identifiers to genomic coordinates and annotations. "
-                "In methylation analysis, it is what turns raw probe signals into biologically "
-                "located CpG measurements tied to genes, islands, enhancers, or other features."
+                "This should point to the full EPIC manifest source file. During analysis the app saves a "
+                "gene-specific subset like src/gene_data/GENE_epigenetics_hg19.csv before methylprep runs, "
+                "and that saved subset is then reused for the probe annotation join."
             ),
         },
     }
 
 
+def _build_preprocess_field_info(
+    preprocess_state: dict[str, Any],
+    *,
+    manifest_files: list[str],
+) -> dict[str, dict[str, str]]:
+    """Build field hints for the preprocessing tab."""
+    return {
+        "gene_name": {
+            "example": str(preprocess_state.get("gene_name") or DEFAULT_GENE_NAME),
+            "details": (
+                "Enter an HGNC-style gene symbol. The preprocessing workflow will look up the genomic "
+                "coordinates for that gene and use the resulting interval in the downstream analysis."
+            ),
+        },
+        "region": {
+            "example": str(preprocess_state.get("region") or DEFAULT_REGION),
+            "details": (
+                "This field is filled by the gene-region lookup step and can also be adjusted manually if "
+                "you want to use a custom span such as promoter-plus-gene coverage."
+            ),
+        },
+        "manifest_source": {
+            "example": str(preprocess_state.get("manifest_source") or (manifest_files[0] if manifest_files else "data/infinium-methylationepic-manifest.csv")),
+            "details": (
+                "Use the full EPIC manifest here. The app will filter it down to just the selected gene interval "
+                "and save a much smaller CSV subset into src/gene_data for downstream methylation processing."
+            ),
+        },
+    }
+
+
+def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any] | None:
+    """Build the preprocessing result payload used by the lower status panel."""
+    if not any(
+        [
+            preprocess_state.get("region_ready"),
+            preprocess_state.get("manifest_ready"),
+            preprocess_state.get("filtered_manifest"),
+        ]
+    ):
+        return None
+
+    filtered_manifest = str(preprocess_state.get("filtered_manifest", "")).strip()
+    preview_html = None
+    if filtered_manifest:
+        preview_path = _resolve_user_path(filtered_manifest)
+        if preview_path.exists():
+            try:
+                preview_df = pd.read_csv(preview_path).head(12)
+                preview_html = _render_table(preview_df, rows=12)
+            except Exception:
+                preview_html = None
+
+    return {
+        "gene_name": str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
+        "region": str(preprocess_state.get("region", "")),
+        "manifest_source": str(preprocess_state.get("manifest_source", "")),
+        "filtered_manifest": filtered_manifest,
+        "region_ready": bool(preprocess_state.get("region_ready", False)),
+        "manifest_ready": bool(preprocess_state.get("manifest_ready", False)),
+        "analysis_ready": bool(preprocess_state.get("analysis_ready", False)),
+        "probe_count": int(preprocess_state.get("probe_count", 0)),
+        "selected_sources": list(preprocess_state.get("selected_sources", [])),
+        "region_candidates": list(preprocess_state.get("region_candidates", [])),
+        "build": str(preprocess_state.get("build", "hg19")),
+        "preview_html": preview_html,
+    }
+
+
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
-    """Render the landing page and handle analysis submissions."""
-    form = _empty_form_state()
+    """Render the landing page and handle preprocessing and analysis submissions."""
     result = None
-    error = None
+    analysis_error = None
+    preprocess_error = None
+    preprocess_notice = None
     initial_tab = "overview"
+
     vcf_files = discover_vcf_files()
     idat_prefixes = discover_idat_prefixes()
     popstats_files = discover_population_stats_files()
+    manifest_files = discover_manifest_files()
+
+    preprocess_state = _load_preprocess_state(manifest_files)
+    analysis_unlocked = bool(preprocess_state.get("analysis_ready", False))
+
+    form = _empty_form_state()
+    _apply_preprocessing_defaults(form, preprocess_state)
 
     if request.method == "POST":
-        initial_tab = "analysis"
-        form.update(
-            {
-                "vcf": request.form.get("vcf", "").strip(),
-                "idat": request.form.get("idat", "").strip(),
-                "out": request.form.get("out", "").strip() or f"results/{DEFAULT_REPORT_NAME}",
-                "region": request.form.get("region", "").strip() or DEFAULT_REGION,
-                "popstats": request.form.get("popstats", "").strip(),
-                "manifest_file": request.form.get("manifest_file", "").strip(),
-            }
-        )
+        workflow = request.form.get("workflow", "analysis").strip()
 
-        try:
-            analysis_result = run_analysis(
-                vcf_path=str(_resolve_user_path(form["vcf"])),
-                idat_base=str(_resolve_user_path(form["idat"])),
-                output_path=str(_resolve_user_path(form["out"])),
-                region=form["region"],
-                popstats_source=str(_resolve_user_path(form["popstats"])) if form["popstats"] else None,
-                manifest_filepath=(
-                    str(_resolve_user_path(form["manifest_file"])) if form["manifest_file"] else None
-                ),
+        if workflow == "preprocess":
+            initial_tab = "preprocessing"
+            previous_gene_name = str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)).strip().upper()
+            requested_gene_name = (
+                request.form.get("gene_name", "").strip() or DEFAULT_GENE_NAME
+            ).upper()
+            preprocess_state.update(
+                {
+                    "gene_name": requested_gene_name,
+                    "region": request.form.get("preprocess_region", "").strip()
+                    or str(preprocess_state.get("region", DEFAULT_REGION)),
+                    "manifest_source": request.form.get("manifest_source", "").strip()
+                    or str(preprocess_state.get("manifest_source", "")),
+                }
             )
+            if requested_gene_name != previous_gene_name:
+                preprocess_state["region_ready"] = False
+                preprocess_state["manifest_ready"] = False
+                preprocess_state["analysis_ready"] = False
+                preprocess_state["filtered_manifest"] = ""
+                preprocess_state["probe_count"] = 0
+                preprocess_state["selected_sources"] = []
+                preprocess_state["region_candidates"] = []
+            preprocess_action = request.form.get("preprocess_action", "").strip()
 
-            methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
-            result = {
-                "report_path": _as_relative_display(analysis_result.report_path),
-                "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
-                "variant_count": len(analysis_result.variants),
-                "methylation_count": len(analysis_result.methylation),
-                "variant_preview": _render_table(analysis_result.variants),
-                "methylation_preview": _render_table(analysis_result.methylation),
-                "popstats_present": analysis_result.popstats is not None,
-                "variant_interpretations": analysis_result.variant_interpretations,
-                "population_insights": analysis_result.population_insights,
-                "methylation_insights": {
-                    **analysis_result.methylation_insights,
-                    "probe_preview": (
-                        _render_table(methylation_probe_preview, rows=10)
-                        if isinstance(methylation_probe_preview, pd.DataFrame)
-                        and not methylation_probe_preview.empty
-                        else None
-                    ),
-                },
-                "knowledge_base_name": analysis_result.knowledge_base.get(
-                    "database_name", "Local DRD4 interpretation database"
-                ),
-                "knowledge_base_version": analysis_result.knowledge_base.get("version", "curated"),
-                "population_database_name": analysis_result.population_database.get(
-                    "database_name", "Local DRD4 population database"
-                ),
-                "population_database_version": analysis_result.population_database.get(
-                    "version", "curated"
-                ),
-            }
-        except AnalysisError as exc:
-            error = str(exc)
+            try:
+                if preprocess_action == "find_region":
+                    lookup = find_gene_region(preprocess_state["gene_name"])
+                    preprocess_state["gene_name"] = str(lookup["gene_name"])
+                    preprocess_state["region"] = str(lookup["selected_region"])
+                    preprocess_state["selected_sources"] = list(lookup["selected_sources"])
+                    preprocess_state["region_candidates"] = list(lookup["candidate_regions"])
+                    preprocess_state["region_ready"] = True
+                    preprocess_state["manifest_ready"] = False
+                    preprocess_state["analysis_ready"] = False
+                    preprocess_state["filtered_manifest"] = ""
+                    preprocess_state["probe_count"] = 0
+                    preprocess_notice = (
+                        f"Resolved {preprocess_state['gene_name']} to {preprocess_state['region']}."
+                    )
+                elif preprocess_action == "select_methylation":
+                    if not preprocess_state.get("region"):
+                        raise AnalysisError(
+                            "Resolve the gene coordinates first, or enter a region before selecting methylation data."
+                        )
+                    if not preprocess_state.get("manifest_source"):
+                        raise AnalysisError(
+                            "Enter an EPIC manifest path before selecting methylation data."
+                        )
+
+                    selection = save_filtered_manifest(
+                        gene_name=str(preprocess_state["gene_name"]),
+                        manifest_path=str(_resolve_user_path(str(preprocess_state["manifest_source"]))),
+                        region=str(preprocess_state["region"]),
+                        genome_build=str(preprocess_state.get("build", "hg19")),
+                        output_dir=PREPROCESSED_MANIFEST_DIR,
+                    )
+                    preprocess_state["filtered_manifest"] = _as_relative_display(selection["output_path"])
+                    preprocess_state["manifest_ready"] = True
+                    preprocess_state["analysis_ready"] = True
+                    preprocess_state["probe_count"] = int(selection["probe_count"])
+                    preprocess_notice = (
+                        f"Saved {selection['probe_count']} probe(s) to {preprocess_state['filtered_manifest']}."
+                    )
+                else:
+                    raise AnalysisError("Choose a preprocessing action before submitting the form.")
+            except (AnalysisError, ValueError) as exc:
+                preprocess_error = str(exc)
+
+            _store_preprocess_state(preprocess_state)
+            analysis_unlocked = bool(preprocess_state.get("analysis_ready", False))
+            form = _empty_form_state()
+            _apply_preprocessing_defaults(form, preprocess_state)
+
+        else:
+            if not analysis_unlocked:
+                preprocess_error = "Complete preprocessing before running the analysis workflow."
+                initial_tab = "preprocessing"
+            else:
+                initial_tab = "analysis"
+                form = _empty_form_state()
+                _apply_preprocessing_defaults(form, preprocess_state)
+                form.update(
+                    {
+                        "vcf": request.form.get("vcf", "").strip(),
+                        "idat": request.form.get("idat", "").strip(),
+                        "out": request.form.get("out", "").strip() or form["out"],
+                        "region": request.form.get("region", "").strip() or form["region"],
+                        "popstats": request.form.get("popstats", "").strip(),
+                        "manifest_file": request.form.get("manifest_file", "").strip() or form["manifest_file"],
+                    }
+                )
+
+                try:
+                    analysis_result = run_analysis(
+                        vcf_path=str(_resolve_user_path(form["vcf"])),
+                        idat_base=str(_resolve_user_path(form["idat"])),
+                        output_path=str(_resolve_user_path(form["out"])),
+                        gene_name=str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
+                        region=form["region"],
+                        popstats_source=str(_resolve_user_path(form["popstats"])) if form["popstats"] else None,
+                        manifest_filepath=(
+                            str(_resolve_user_path(form["manifest_file"])) if form["manifest_file"] else None
+                        ),
+                    )
+
+                    methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
+                    result = {
+                        "report_path": _as_relative_display(analysis_result.report_path),
+                        "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
+                        "variant_count": len(analysis_result.variants),
+                        "methylation_count": len(analysis_result.methylation),
+                        "variant_preview": _render_table(analysis_result.variants),
+                        "methylation_preview": _render_table(analysis_result.methylation),
+                        "popstats_present": analysis_result.popstats is not None,
+                        "variant_interpretations": analysis_result.variant_interpretations,
+                        "population_insights": analysis_result.population_insights,
+                        "methylation_insights": {
+                            **analysis_result.methylation_insights,
+                            "probe_preview": (
+                                _render_table(methylation_probe_preview, rows=10)
+                                if isinstance(methylation_probe_preview, pd.DataFrame)
+                                and not methylation_probe_preview.empty
+                                else None
+                            ),
+                        },
+                        "knowledge_base_name": analysis_result.knowledge_base.get(
+                            "database_name", "Local interpretation database"
+                        ),
+                        "knowledge_base_version": analysis_result.knowledge_base.get("version", "curated"),
+                        "population_database_name": analysis_result.population_database.get(
+                            "database_name", "Local population database"
+                        ),
+                        "population_database_version": analysis_result.population_database.get(
+                            "version", "curated"
+                        ),
+                    }
+                except AnalysisError as exc:
+                    analysis_error = str(exc)
+
+    preprocess_result = _build_preprocess_result(preprocess_state)
+    available_tabs = ["overview", "preprocessing", "structure"]
+    if analysis_unlocked:
+        available_tabs.insert(2, "analysis")
+    if initial_tab not in available_tabs:
+        initial_tab = "preprocessing" if "preprocessing" in available_tabs else "overview"
 
     return render_template(
         "index.html",
         form=form,
-        error=error,
+        error=analysis_error,
+        preprocess_error=preprocess_error,
+        preprocess_notice=preprocess_notice,
+        preprocess_state=preprocess_state,
+        preprocess_result=preprocess_result,
+        analysis_unlocked=analysis_unlocked,
         result=result,
         initial_tab=initial_tab,
         field_info=_build_field_info(
             form,
+            preprocess_state=preprocess_state,
             vcf_files=vcf_files,
             idat_prefixes=idat_prefixes,
             popstats_files=popstats_files,
+        ),
+        preprocess_field_info=_build_preprocess_field_info(
+            preprocess_state,
+            manifest_files=manifest_files,
         ),
         data_dir=_as_relative_display(DATA_DIR),
         results_dir=_as_relative_display(RESULTS_DIR),
         vcf_files=vcf_files,
         idat_prefixes=idat_prefixes,
         popstats_files=popstats_files,
+        manifest_files=manifest_files,
     )
 
 
@@ -246,4 +529,5 @@ def run_server(host: str = "0.0.0.0", port: int = 8000, debug: bool = False) -> 
     """Start the web server."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PREPROCESSED_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
     app.run(host=host, port=port, debug=debug)

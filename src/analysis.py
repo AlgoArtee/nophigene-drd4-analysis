@@ -27,8 +27,18 @@ import allel
 import pandas as pd
 from methylprep import run_pipeline
 
+try:
+    from .helper_functions.filter_manifest_region import (
+        sanitize_gene_name_for_filename,
+        save_filtered_manifest,
+    )
+except ImportError:
+    from helper_functions.filter_manifest_region import sanitize_gene_name_for_filename, save_filtered_manifest
+
 DEFAULT_REGION = "11:637269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
+DEFAULT_GENE_NAME = "DRD4"
+GENE_DATA_DIR = Path(__file__).resolve().parent / "gene_data"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 POPULATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_population_db.json"
 
@@ -976,6 +986,215 @@ def build_methylation_insights(
     }
 
 
+def build_generic_variant_interpretations(
+    variants: pd.DataFrame,
+    *,
+    region: str,
+    gene_name: str,
+) -> dict[str, Any]:
+    """Build a generic region-based interpretation payload for genes without a curated database."""
+    search_region = _parse_region_string(region)
+    chrom = str(search_region["chrom"]).removeprefix("chr")
+    search_region_record = _build_interval_record(
+        f"{gene_name} selected interval",
+        chrom,
+        int(search_region["start"]),
+        int(search_region["end"]),
+        "Interval selected during preprocessing or manual entry for the current gene.",
+    )
+
+    observed_summaries = [
+        _build_observed_variant_summary(row, None)
+        for _, row in variants.sort_values("pos").head(12).iterrows()
+    ]
+    highlight_items = [
+        {
+            "title": item["display"],
+            "observed_variant": item["position"],
+            "category": "Observed PASS variant",
+            "description": item["summary"],
+            "conditions": [],
+            "literature_findings": [],
+        }
+        for item in observed_summaries
+    ]
+
+    no_model_region = {
+        "label": "Promoter model unavailable",
+        "window": "Manual promoter interval required",
+        "length_bp": 0,
+        "definition": (
+            f"No curated promoter interval is bundled for {gene_name} yet. "
+            "Use a gene-specific promoter window if you need promoter-only review."
+        ),
+        "included": False,
+        "analysis_note": (
+            f"Promoter-specific interpretation is not currently modeled for {gene_name}. "
+            "The app is using the selected interval as a generic gene-level review window."
+        ),
+        "found_variant_count": 0,
+        "found_variants": [],
+        "known_variants": [],
+    }
+
+    return {
+        "summary": (
+            f"{gene_name} is being analyzed with a generic region-based workflow. "
+            f"No curated interpretation database is bundled for this gene yet, so the app is prioritizing "
+            f"observed PASS variants and raw previews inside {search_region_record['display']}."
+        ),
+        "matched_records": [],
+        "unclassified_variant_count": int(len(variants)),
+        "gene_summary": (
+            f"The current run treats {search_region_record['display']} as the active {gene_name} review interval."
+        ),
+        "database_name": f"No curated {gene_name} interpretation database loaded",
+        "gene_name": gene_name,
+        "clinical_context": (
+            f"Variant interpretation for {gene_name} is currently generic. "
+            "Observed calls are shown directly, but no bundled disease- or gene-specific assertions are being applied."
+        ),
+        "variant_effect_overview": [],
+        "condition_research_overview": [],
+        "sample_highlights": {
+            "summary": (
+                f"This sample yielded {len(observed_summaries)} visible PASS variant(s) in the current {gene_name} interval preview."
+            ),
+            "highlight_items": highlight_items,
+        },
+        "region_recommendations": [
+            {
+                "title": "Promoter only",
+                "region": "Set manually for this gene",
+                "purpose": (
+                    f"No curated promoter span is bundled for {gene_name} yet. "
+                    "Enter a promoter-focused coordinate window manually if you need upstream review."
+                ),
+            },
+            {
+                "title": "Gene body only",
+                "region": search_region_record["display"],
+                "purpose": (
+                    f"Use the selected {gene_name} interval when you want a direct gene-body review with the current generic workflow."
+                ),
+            },
+            {
+                "title": "Promoter plus gene body",
+                "region": search_region_record["display"],
+                "purpose": (
+                    f"Start from the selected {gene_name} interval and extend it upstream manually if you want promoter-plus-gene coverage."
+                ),
+            },
+        ],
+        "gene_region": search_region_record,
+        "promoter_region": {
+            "label": "Promoter model unavailable",
+            "chrom": chrom,
+            "start": int(search_region["start"]),
+            "end": int(search_region["start"]),
+            "length_bp": 0,
+            "display": "Manual promoter interval required",
+            "definition": no_model_region["definition"],
+        },
+        "promoter_hotspot_region": {
+            "label": "Promoter hotspot unavailable",
+            "chrom": chrom,
+            "start": int(search_region["start"]),
+            "end": int(search_region["start"]),
+            "length_bp": 0,
+            "display": "No curated hotspot available",
+            "definition": f"No curated promoter hotspot interval is bundled for {gene_name}.",
+        },
+        "search_region": search_region_record,
+        "promoter_analysis": no_model_region,
+        "gene_analysis": {
+            "label": f"{gene_name} selected interval",
+            "window": search_region_record["display"],
+            "length_bp": search_region_record["length_bp"],
+            "definition": search_region_record["definition"],
+            "included": True,
+            "analysis_note": (
+                f"The current run found {len(observed_summaries)} PASS variant(s) in the first preview slice for the selected {gene_name} interval."
+            ),
+            "found_variant_count": len(observed_summaries),
+            "found_variants": observed_summaries,
+            "known_variants": [],
+        },
+        "recommended_promoter_plus_gene_region": search_region_record["display"],
+    }
+
+
+def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: str) -> dict[str, Any]:
+    """Build a generic methylation payload for genes without a curated interpretation database."""
+    mean_beta = float(methylation["beta"].mean()) if "beta" in methylation.columns and not methylation.empty else None
+    beta_band = _categorize_beta(mean_beta)
+
+    if "UCSC_RefGene_Group" in methylation.columns:
+        group_breakdown = (
+            methylation["UCSC_RefGene_Group"].fillna("Unannotated").value_counts().to_dict()
+        )
+    else:
+        group_breakdown = {}
+
+    preview_columns = [
+        "probe_id",
+        "beta",
+        "chrom",
+        "pos",
+        "UCSC_RefGene_Group",
+        "Relation_to_UCSC_CpG_Island",
+        "UCSC_CpG_Islands_Name",
+    ]
+    available_preview_columns = [column for column in preview_columns if column in methylation.columns]
+
+    summary_prefix = (
+        f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset "
+        f"with a mean beta of {mean_beta:.2f}. "
+        if mean_beta is not None
+        else f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset. "
+    )
+
+    return {
+        "gene_name": gene_name,
+        "clinical_context": (
+            f"No curated methylation interpretation database is bundled for {gene_name} yet."
+        ),
+        "summary": (
+            summary_prefix
+            + "These values are shown as gene-focused methylation context rather than as a curated clinical interpretation."
+        ),
+        "mean_beta": round(mean_beta, 3) if mean_beta is not None else None,
+        "beta_band": beta_band,
+        "observed_probe_count": int(len(methylation)),
+        "curated_probe_count": int(len(methylation)),
+        "probe_ids": methylation["probe_id"].tolist() if "probe_id" in methylation.columns else [],
+        "group_breakdown": group_breakdown,
+        "methylation_effects": [
+            f"The current methylation summary for {gene_name} is based on the filtered manifest subset selected during preprocessing.",
+            "Beta values are being shown as region-level context until a curated gene-specific methylation knowledge base is added.",
+        ],
+        "methylation_condition_research": [],
+        "evidence": [],
+        "probe_preview": methylation[available_preview_columns].copy() if available_preview_columns else methylation.head(12).copy(),
+    }
+
+
+def build_empty_population_insights(*, gene_name: str) -> dict[str, Any]:
+    """Return a placeholder population-insight payload for genes without curated reference data."""
+    return {
+        "summary": (
+            f"No curated population reference database is bundled for {gene_name} yet. "
+            "The app is therefore showing raw variant and methylation results without population-frequency overlays."
+        ),
+        "location_groups": [],
+        "sources": [],
+        "variant_population_records": [],
+        "gene_population_patterns": [],
+        "database_name": f"No curated {gene_name} population database loaded",
+        "database_version": "generic",
+    }
+
+
 def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     """Load PASS variants for the requested region from a tabix-indexed VCF.
 
@@ -1051,8 +1270,50 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     return df
 
 
-def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd.DataFrame:
-    """Load methylation beta values and annotate them with DRD4 region metadata.
+def _gene_manifest_filename(gene_name: str, genome_build: str = "hg19") -> str:
+    """Build the conventional gene-specific manifest subset filename."""
+    return f"{sanitize_gene_name_for_filename(gene_name)}_epigenetics_{genome_build}.csv"
+
+
+def _prepare_gene_manifest_subset(
+    *,
+    manifest_filepath: str,
+    gene_name: str,
+    region: str,
+    genome_build: str = "hg19",
+) -> Path:
+    """Save the selected gene-region manifest subset into `src/gene_data`.
+
+    The full manifest path is still passed through to methylprep, but the
+    analysis also keeps a smaller gene-specific CSV next to the bundled
+    knowledge-base files so the post-pipeline annotation join can reuse it.
+    """
+    try:
+        selection = save_filtered_manifest(
+            gene_name=gene_name,
+            manifest_path=manifest_filepath,
+            region=region,
+            genome_build=genome_build,
+            output_dir=GENE_DATA_DIR,
+        )
+    except Exception as exc:
+        raise AnalysisError(
+            f"Failed to prepare the {gene_name} methylation subset from '{manifest_filepath}': {exc}"
+        ) from exc
+
+    output_path = Path(selection["output_path"])
+    logger.info("Saved %s gene manifest subset to %s", gene_name, output_path)
+    return output_path
+
+
+def load_methylation(
+    idat_base: str,
+    manifest_filepath: str | None = None,
+    *,
+    gene_name: str = DEFAULT_GENE_NAME,
+    region: str = DEFAULT_REGION,
+) -> pd.DataFrame:
+    """Load methylation beta values and annotate them with a selected manifest subset.
 
     Parameters
     ----------
@@ -1061,22 +1322,30 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
         ``data/R01C01_Grn.idat`` and ``data/R01C01_Red.idat``, pass
         ``data/R01C01``.
     manifest_filepath : str | None, optional
-        Optional path to a custom manifest file consumed directly by
-        ``methylprep.run_pipeline``.
+        Optional path to the full Illumina manifest. When provided, the
+        function saves a gene-specific subset CSV to ``src/gene_data`` before
+        running methylprep, then reuses that subset for the final probe
+        annotation join.
+    gene_name : str, optional
+        Gene symbol used to derive the gene-specific manifest subset filename.
+    region : str, optional
+        Genomic interval used to select probe rows for the gene-specific
+        manifest subset.
 
     Returns
     -------
     pd.DataFrame
-        Probe-level methylation table limited to probes present in the curated
-        DRD4 region manifest.
+        Probe-level methylation table limited to probes present in the selected
+        region-specific manifest subset.
 
     Raises
     ------
     AnalysisError
         Raised when the IDAT pair is incomplete, methylprep fails, or the local
-        DRD4 manifest subset cannot be loaded.
+        manifest subset cannot be loaded.
     """
     logger.info("Starting methylation loading for sample")
+    normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
 
     data_dir = os.path.dirname(idat_base) or "."
     sample_name = os.path.basename(idat_base)
@@ -1090,6 +1359,18 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
         logger.debug("Checking IDAT: %s", path)
         if not os.path.isfile(path):
             raise AnalysisError(f"Missing IDAT file: {path}")
+
+    region_manifest_file = (
+        Path(__file__).resolve().parent
+        / "gene_data"
+        / _gene_manifest_filename(normalized_gene_name)
+    )
+    if manifest_filepath:
+        region_manifest_file = _prepare_gene_manifest_subset(
+            manifest_filepath=manifest_filepath,
+            gene_name=normalized_gene_name,
+            region=region,
+        )
 
     try:
         logger.info("Running methylprep pipeline with betas=True")
@@ -1112,8 +1393,6 @@ def load_methylation(idat_base: str, manifest_filepath: str | None = None) -> pd
     beta_df = beta_values[sample_name].rename("beta").reset_index()
     beta_df = beta_df.rename(columns={beta_df.columns[0]: "probe_id"})
     logger.debug("First 5 rows of beta-values DataFrame after renaming:\n%s", beta_df.head(5))
-
-    region_manifest_file = Path(__file__).resolve().parent / "gene_data" / "drd4_epigenetics_hg19.csv"
     try:
         manifest_region = pd.read_csv(region_manifest_file)
     except Exception as exc:
@@ -1214,6 +1493,7 @@ def generate_report(
     popstats: Any,
     output_path: str,
     *,
+    gene_name: str = DEFAULT_GENE_NAME,
     region: str,
     methylation_output_path: Path | None = None,
 ) -> Path:
@@ -1222,7 +1502,7 @@ def generate_report(
     Parameters
     ----------
     variants : pd.DataFrame
-        PASS variant table for the requested DRD4 interval.
+        PASS variant table for the requested gene interval.
     methylation : pd.DataFrame
         Annotated probe-level beta-value table returned by
         :func:`load_methylation`.
@@ -1233,6 +1513,8 @@ def generate_report(
     region : str
         Genomic interval used during the run. It is surfaced in the report
         summary so the output remains self-describing.
+    gene_name : str, optional
+        Gene name displayed in the report heading and summary copy.
     methylation_output_path : Path | None, optional
         Path to the exported methylation CSV, shown in the report when provided.
 
@@ -1270,7 +1552,7 @@ def generate_report(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DRD4 Analysis Report</title>
+  <title>{html.escape(gene_name)} Analysis Report</title>
   <style>
     :root {{
       --bg: #f6efe3;
@@ -1380,8 +1662,8 @@ def generate_report(
 <body>
   <main>
     <section class="hero">
-      <h1>DRD4 Analysis Report</h1>
-      <p>This report summarizes the current DRD4 variant and methylation analysis run.</p>
+      <h1>{html.escape(gene_name)} Analysis Report</h1>
+      <p>This report summarizes the current {html.escape(gene_name)} variant and methylation analysis run.</p>
       <p><strong>Region:</strong> {html.escape(region)}</p>
       <p><strong>Report path:</strong> {html.escape(str(report_path))}</p>
       {methylation_path_markup}
@@ -1447,11 +1729,12 @@ def run_analysis(
     vcf_path: str,
     idat_base: str,
     output_path: str,
+    gene_name: str = DEFAULT_GENE_NAME,
     region: str = DEFAULT_REGION,
     popstats_source: str | None = None,
     manifest_filepath: str | None = None,
 ) -> AnalysisResult:
-    """Run the end-to-end DRD4 analysis workflow.
+    """Run the end-to-end gene analysis workflow.
 
     Parameters
     ----------
@@ -1461,12 +1744,15 @@ def run_analysis(
         Input IDAT prefix without the color suffix.
     output_path : str
         Output report path.
+    gene_name : str, optional
+        Gene symbol associated with the current run.
     region : str, optional
         Genomic region to inspect.
     popstats_source : str | None, optional
         Optional population statistics sidecar file path.
     manifest_filepath : str | None, optional
-        Optional manifest file path passed through to methylprep.
+        Optional full manifest file path passed through to methylprep and used
+        to refresh the gene-specific subset stored in ``src/gene_data``.
 
     Returns
     -------
@@ -1474,13 +1760,42 @@ def run_analysis(
         Structured result containing the in-memory tables plus the generated
         output paths.
     """
+    normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
+
     variants = load_variants(vcf_path, region)
-    methylation = load_methylation(idat_base, manifest_filepath=manifest_filepath)
-    knowledge_base = load_interpretation_database()
-    population_database = load_population_database()
-    variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
-    methylation_insights = build_methylation_insights(methylation, knowledge_base)
-    population_insights = build_population_insights(variants, knowledge_base, population_database)
+    methylation = load_methylation(
+        idat_base,
+        manifest_filepath=manifest_filepath,
+        gene_name=normalized_gene_name,
+        region=region,
+    )
+
+    if normalized_gene_name == DEFAULT_GENE_NAME:
+        knowledge_base = load_interpretation_database()
+        population_database = load_population_database()
+        variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
+        methylation_insights = build_methylation_insights(methylation, knowledge_base)
+        population_insights = build_population_insights(variants, knowledge_base, population_database)
+    else:
+        knowledge_base = {
+            "database_name": f"No curated {normalized_gene_name} interpretation database loaded",
+            "version": "generic",
+            "gene_context": {"gene_name": normalized_gene_name},
+        }
+        population_database = {
+            "database_name": f"No curated {normalized_gene_name} population database loaded",
+            "version": "generic",
+        }
+        variant_interpretations = build_generic_variant_interpretations(
+            variants,
+            region=region,
+            gene_name=normalized_gene_name,
+        )
+        methylation_insights = build_generic_methylation_insights(
+            methylation,
+            gene_name=normalized_gene_name,
+        )
+        population_insights = build_empty_population_insights(gene_name=normalized_gene_name)
 
     report_path = Path(output_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1499,6 +1814,7 @@ def run_analysis(
         methylation,
         popstats,
         str(report_path),
+        gene_name=normalized_gene_name,
         region=region,
         methylation_output_path=methylation_output_path,
     )
@@ -1528,6 +1844,7 @@ def main(argv: list[str] | None = None) -> int:
             vcf_path=args.vcf,
             idat_base=args.idat,
             output_path=args.out,
+            gene_name=DEFAULT_GENE_NAME,
             region=args.region,
             popstats_source=args.popstats,
             manifest_filepath=args.manifest_file,

@@ -1,10 +1,16 @@
 """Filter Illumina methylation manifest rows down to a target genomic interval."""
 
+from __future__ import annotations
+
 import argparse
 import gzip
+import re
 from pathlib import Path
 
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "src" / "gene_data"
 
 
 def load_manifest(filepath: str) -> pd.DataFrame:
@@ -119,6 +125,104 @@ def filter_probes_by_region(
     return filtered
 
 
+def parse_region_string(region: str) -> tuple[str, int, int]:
+    """Parse a ``chr:start-end`` style region string into its coordinate parts."""
+    cleaned_region = region.strip().replace(",", "")
+    match = re.fullmatch(r"(?:chr)?(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)", cleaned_region)
+    if match is None:
+        raise ValueError(
+            f"Unsupported region format '{region}'. Use chr:start-end, for example 11:637269-640706."
+        )
+
+    start = int(match.group("start"))
+    end = int(match.group("end"))
+    if start > end:
+        raise ValueError(f"Invalid region '{region}': start must be <= end.")
+
+    return match.group("chrom"), start, end
+
+
+def sanitize_gene_name_for_filename(gene_name: str) -> str:
+    """Convert a gene symbol into a filesystem-safe filename stem."""
+    cleaned = gene_name.strip()
+    if not cleaned:
+        raise ValueError("Enter a gene symbol before saving a filtered manifest.")
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", cleaned)
+    return sanitized.strip("_") or "gene"
+
+
+def save_filtered_manifest(
+    *,
+    gene_name: str,
+    manifest_path: str,
+    region: str,
+    genome_build: str = "hg19",
+    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+) -> dict[str, object]:
+    """Filter a manifest to one gene interval and save the resulting CSV subset.
+
+    Parameters
+    ----------
+    gene_name : str
+        Gene symbol used to name the output subset file.
+    manifest_path : str
+        Filesystem path to the source Illumina manifest.
+    region : str
+        Gene interval in ``chr:start-end`` form.
+    genome_build : str, optional
+        Genome build used for manifest coordinate matching.
+    output_dir : str | Path, optional
+        Destination directory for the filtered CSV subset.
+
+    Returns
+    -------
+    dict[str, object]
+        Summary containing the saved path, the filtered probe count, and a
+        preview DataFrame for UI display.
+    """
+    manifest_source = Path(manifest_path)
+    if not manifest_source.exists():
+        raise ValueError(f"Manifest file not found: {manifest_source}")
+
+    chrom, start, end = parse_region_string(region)
+    manifest_df = load_manifest(str(manifest_source))
+    filtered = filter_probes_by_region(manifest_df, chrom, start, end, genome_build)
+    if filtered.empty:
+        raise ValueError(
+            f"No manifest probes were found in {chrom}:{start}-{end} for genome build {genome_build}."
+        )
+
+    destination_dir = Path(output_dir)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    output_path = destination_dir / (
+        f"{sanitize_gene_name_for_filename(gene_name)}_epigenetics_{genome_build}.csv"
+    )
+    filtered.to_csv(output_path, index=False)
+
+    preview_columns = [
+        "IlmnID",
+        "CHR",
+        "MAPINFO",
+        "CHR_hg38",
+        "Start_hg38",
+        "End_hg38",
+        "UCSC_RefGene_Name",
+    ]
+    available_preview_columns = [column for column in preview_columns if column in filtered.columns]
+    preview = filtered[available_preview_columns].head(12).copy() if available_preview_columns else filtered.head(12).copy()
+
+    return {
+        "gene_name": gene_name,
+        "chrom": chrom,
+        "start": start,
+        "end": end,
+        "build": genome_build,
+        "probe_count": int(len(filtered)),
+        "output_path": output_path,
+        "preview": preview,
+    }
+
+
 def main() -> None:
     """Parse CLI arguments, filter the manifest, and save the region subset."""
     parser = argparse.ArgumentParser(
@@ -138,28 +242,17 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    df = load_manifest(args.manifest)
-    filtered = filter_probes_by_region(df, args.chrom, args.start, args.end, args.build)
+    result = save_filtered_manifest(
+        gene_name=args.gene_name,
+        manifest_path=args.manifest,
+        region=f"{args.chrom}:{args.start}-{args.end}",
+        genome_build=args.build,
+        output_dir=PROJECT_ROOT / "src" / "gene_data",
+    )
 
-    out_filename = Path("src/gene_data") / f"{args.gene_name}_epigenetics_{args.build}.csv"
-    out_filename = out_filename.resolve()
-    print("Saving to:", out_filename)
-    filtered.to_csv(out_filename, index=False)
-
-    print(f"Found {len(filtered)} probes in {args.chrom}:{args.start}-{args.end} ({args.build})")
-
-    preview_columns = [
-        "IlmnID",
-        "CHR",
-        "MAPINFO",
-        "CHR_hg38",
-        "Start_hg38",
-        "End_hg38",
-        "UCSC_RefGene_Name",
-    ]
-    available_preview_columns = [column for column in preview_columns if column in filtered.columns]
-    if available_preview_columns:
-        print(filtered[available_preview_columns].head(10))
+    print("Saving to:", result["output_path"])
+    print(f"Found {result['probe_count']} probes in {args.chrom}:{args.start}-{args.end} ({args.build})")
+    print(result["preview"])
 
 
 if __name__ == "__main__":

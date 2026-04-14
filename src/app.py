@@ -15,7 +15,7 @@ except ImportError:
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level launcher parser."""
     parser = argparse.ArgumentParser(
-        description="Launch the NophiGene DRD4 analysis app in CLI or web mode."
+        description="Launch the NophiGene gene-analysis app in CLI or web mode."
     )
     subparsers = parser.add_subparsers(dest="mode")
 
