@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.human_protein_catalog import (
     build_human_protein_query,
+    load_longevity_gene_database,
     normalize_protein_record,
     parse_next_cursor,
 )
@@ -80,6 +81,17 @@ def test_normalize_protein_record_extracts_drd4_details() -> None:
     assert normalized["uniprot_url"].endswith("/P21917/entry")
 
 
+def test_longevity_gene_database_contains_known_symbols() -> None:
+    """The bundled longevity filter database should expose expected HAGR genes."""
+    longevity_db = load_longevity_gene_database()
+
+    assert longevity_db["source"].startswith("Human Ageing Genomic Resources")
+    assert longevity_db["total_significant_gene_symbols"] >= 300
+    assert "DRD4" in longevity_db["gene_symbols"]
+    assert "APOE" in longevity_db["gene_symbols"]
+    assert "FOXO3" in longevity_db["gene_symbols"]
+
+
 def test_human_proteins_api_returns_json_payload(monkeypatch) -> None:
     """The UI endpoint should expose the protein catalog as JSON."""
     sample_payload = {
@@ -88,6 +100,11 @@ def test_human_proteins_api_returns_json_payload(monkeypatch) -> None:
         "cursor": None,
         "next_cursor": None,
         "has_next_page": False,
+        "has_previous_page": False,
+        "page_index": None,
+        "next_page_index": None,
+        "previous_page_index": None,
+        "pagination_mode": "cursor",
         "page_size": 24,
         "records_returned": 1,
         "total_results": 1,
@@ -95,6 +112,8 @@ def test_human_proteins_api_returns_json_payload(monkeypatch) -> None:
         "catalog_scope": "Reviewed human proteins",
         "catalog_url": "https://rest.uniprot.org/uniprotkb/search",
         "featured_queries": ["DRD4"],
+        "longevity_only": False,
+        "longevity_source": None,
         "proteins": [
             {
                 "gene_name": "DRD4",
@@ -130,3 +149,44 @@ def test_human_proteins_api_returns_json_payload(monkeypatch) -> None:
     payload = response.get_json()
     assert payload["query"] == "DRD4"
     assert payload["proteins"][0]["gene_name"] == "DRD4"
+
+
+def test_human_proteins_api_accepts_longevity_filter(monkeypatch) -> None:
+    """The API should forward the longevity filter flag to the catalog helper."""
+    captured: dict[str, object] = {}
+
+    def fake_catalog(**kwargs):
+        captured.update(kwargs)
+        return {
+            "query": kwargs.get("query", ""),
+            "reviewed_only": kwargs.get("reviewed_only", True),
+            "cursor": None,
+            "next_cursor": None,
+            "has_next_page": False,
+            "has_previous_page": False,
+            "page_index": kwargs.get("longevity_page"),
+            "next_page_index": None,
+            "previous_page_index": None,
+            "pagination_mode": "page",
+            "page_size": 24,
+            "records_returned": 0,
+            "total_results": 0,
+            "catalog_label": "UniProt human proteins filtered by HAGR LongevityMap genes",
+            "catalog_scope": "Reviewed longevity-associated human proteins",
+            "catalog_url": "https://rest.uniprot.org/uniprotkb/search",
+            "featured_queries": ["DRD4"],
+            "longevity_only": True,
+            "longevity_source": {"database_name": "HAGR LongevityMap significant human longevity genes"},
+            "proteins": [],
+            "error": None,
+        }
+
+    monkeypatch.setattr("src.webapp.get_human_protein_catalog", fake_catalog)
+
+    client = app.test_client()
+    response = client.get("/api/human-proteins?q=DRD4&longevity_only=1&longevity_page=2")
+
+    assert response.status_code == 200
+    assert captured["query"] == "DRD4"
+    assert captured["longevity_only"] is True
+    assert captured["longevity_page"] == 2

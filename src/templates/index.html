@@ -1468,6 +1468,11 @@
                         <input type="checkbox" data-protein-reviewed-only checked>
                         <span>Reviewed human entries only</span>
                       </label>
+                      <label class="toggle-row" style="margin-top: 10px;">
+                        <input type="checkbox" data-protein-longevity-only>
+                        <span>Longevity genes only</span>
+                      </label>
+                      <p class="hint">This filter uses HAGR LongevityMap and narrows the catalog to genes with at least one reported significant human longevity association.</p>
                       <p class="hint">Turn this off if you want the catalog to include unreviewed or predicted human UniProt entries as well.</p>
                     </div>
                     <div class="analysis-actions">
@@ -2316,6 +2321,7 @@
       const proteinForm = document.querySelector("[data-protein-search-form]");
       const proteinQueryInput = document.querySelector("[data-protein-query]");
       const proteinReviewedOnlyInput = document.querySelector("[data-protein-reviewed-only]");
+      const proteinLongevityOnlyInput = document.querySelector("[data-protein-longevity-only]");
       const proteinResults = document.querySelector("[data-protein-results]");
       const proteinRefreshButton = document.querySelector("[data-protein-refresh]");
       const proteinQuickButtons = Array.from(document.querySelectorAll("[data-protein-quick-query]"));
@@ -2327,9 +2333,12 @@
         loading: false,
         query: "",
         reviewedOnly: true,
+        longevityOnly: false,
         cursor: null,
         cursorHistory: [],
-        nextCursor: null
+        nextCursor: null,
+        pageIndex: 1,
+        paginationMode: "cursor"
       };
       const preprocessLoading = {
         overlay: document.querySelector("[data-preprocess-loading-overlay]"),
@@ -2390,6 +2399,20 @@
         const queryLabel = data.query
           ? `Showing matches for <code>${escapeHtml(data.query)}</code> in the ${escapeHtml(data.catalog_scope)}.`
           : `Showing the current ${escapeHtml(data.catalog_scope)} from UniProt. Search for symbols like <code>DRD4</code> to narrow the catalog.`;
+
+        const longevityNote = data.longevity_only && data.longevity_source
+          ? `
+            <div class="diagram-note" style="margin-bottom: 14px;">
+              <strong>${escapeHtml(data.longevity_source.database_name || "Longevity gene filter")}</strong>
+              <div class="hint" style="margin-top: 8px;">
+                Source: ${escapeHtml(data.longevity_source.source || "HAGR LongevityMap")}
+                ${data.longevity_source.build ? ` | ${escapeHtml(data.longevity_source.build)}` : ""}
+                ${data.longevity_source.release_date ? ` | ${escapeHtml(data.longevity_source.release_date)}` : ""}.
+                ${escapeHtml(data.longevity_source.selection_rule || "")}
+              </div>
+            </div>
+          `
+          : "";
 
         const errorMarkup = data.error
           ? `
@@ -2511,10 +2534,11 @@
               <strong>${escapeHtml(totalLabel)}</strong>
             </article>
           </div>
+          ${longevityNote}
           <p class="protein-search-summary">${queryLabel}</p>
           ${proteinsMarkup}
           <div class="protein-pagination">
-            <button type="button" data-protein-prev ${proteinState.cursorHistory.length ? "" : "disabled"}>Previous page</button>
+            <button type="button" data-protein-prev ${data.has_previous_page || proteinState.cursorHistory.length ? "" : "disabled"}>Previous page</button>
             <span class="subtle">Source: <a href="${escapeHtml(data.catalog_url)}" target="_blank" rel="noreferrer">${escapeHtml(data.catalog_label)}</a></span>
             <button type="button" data-protein-next ${data.has_next_page ? "" : "disabled"}>Next page</button>
           </div>
@@ -2525,22 +2549,36 @@
 
         if (previousButton) {
           previousButton.addEventListener("click", () => {
-            if (!proteinState.cursorHistory.length) {
-              return;
+            if (proteinState.paginationMode === "page") {
+              if (proteinState.pageIndex <= 1) {
+                return;
+              }
+              proteinState.pageIndex -= 1;
+            } else {
+              if (!proteinState.cursorHistory.length) {
+                return;
+              }
+              const previousCursor = proteinState.cursorHistory.pop();
+              proteinState.cursor = previousCursor || null;
             }
-            const previousCursor = proteinState.cursorHistory.pop();
-            proteinState.cursor = previousCursor || null;
             loadProteinCatalog();
           });
         }
 
         if (nextButton) {
           nextButton.addEventListener("click", () => {
-            if (!proteinState.nextCursor) {
-              return;
+            if (proteinState.paginationMode === "page") {
+              if (!data.has_next_page) {
+                return;
+              }
+              proteinState.pageIndex += 1;
+            } else {
+              if (!proteinState.nextCursor) {
+                return;
+              }
+              proteinState.cursorHistory.push(proteinState.cursor || "");
+              proteinState.cursor = proteinState.nextCursor;
             }
-            proteinState.cursorHistory.push(proteinState.cursor || "");
-            proteinState.cursor = proteinState.nextCursor;
             loadProteinCatalog();
           });
         }
@@ -2555,10 +2593,12 @@
           proteinState.query = proteinQueryInput.value.trim();
         }
         proteinState.reviewedOnly = proteinReviewedOnlyInput ? proteinReviewedOnlyInput.checked : true;
+        proteinState.longevityOnly = proteinLongevityOnlyInput ? proteinLongevityOnlyInput.checked : false;
 
         if (resetCursor) {
           proteinState.cursor = null;
           proteinState.cursorHistory = [];
+          proteinState.pageIndex = 1;
         }
 
         proteinState.loading = true;
@@ -2572,7 +2612,10 @@
           if (!proteinState.reviewedOnly) {
             params.set("reviewed_only", "0");
           }
-          if (proteinState.cursor) {
+          if (proteinState.longevityOnly) {
+            params.set("longevity_only", "1");
+            params.set("longevity_page", String(proteinState.pageIndex));
+          } else if (proteinState.cursor) {
             params.set("cursor", proteinState.cursor);
           }
 
@@ -2583,18 +2626,24 @@
 
           const payload = await response.json();
           proteinState.nextCursor = payload.next_cursor || null;
+          proteinState.paginationMode = payload.pagination_mode || (proteinState.longevityOnly ? "page" : "cursor");
           proteinState.initialized = true;
           renderProteinCatalog(payload);
         } catch (error) {
           renderProteinCatalog({
             query: proteinState.query,
             reviewed_only: proteinState.reviewedOnly,
+            longevity_only: proteinState.longevityOnly,
             records_returned: 0,
             total_results: null,
             has_next_page: false,
+            has_previous_page: false,
             catalog_label: "UniProt human UniProtKB catalog",
-            catalog_scope: proteinState.reviewedOnly ? "Reviewed human proteins" : "Reviewed and unreviewed human proteins",
+            catalog_scope: proteinState.longevityOnly
+              ? (proteinState.reviewedOnly ? "Reviewed longevity-associated human proteins" : "Longevity-associated human proteins")
+              : (proteinState.reviewedOnly ? "Reviewed human proteins" : "Reviewed and unreviewed human proteins"),
             catalog_url: "https://rest.uniprot.org/uniprotkb/search",
+            longevity_source: null,
             proteins: [],
             error: error instanceof Error ? error.message : "Protein catalog request failed."
           });
@@ -2728,6 +2777,9 @@
           }
           if (proteinReviewedOnlyInput) {
             proteinReviewedOnlyInput.checked = true;
+          }
+          if (proteinLongevityOnlyInput) {
+            proteinLongevityOnlyInput.checked = false;
           }
           activateTab("proteins");
           loadProteinCatalog({ resetCursor: true });

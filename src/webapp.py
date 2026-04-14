@@ -331,13 +331,22 @@ def human_proteins_api() -> Any:
     """Return a page of the live human protein catalog for the UI tab."""
     query = request.args.get("q", "").strip()
     cursor = request.args.get("cursor", "").strip() or None
+    longevity_page_raw = request.args.get("longevity_page", "1").strip()
     reviewed_only_raw = request.args.get("reviewed_only", "1").strip().lower()
+    longevity_only_raw = request.args.get("longevity_only", "0").strip().lower()
     reviewed_only = reviewed_only_raw not in {"0", "false", "no"}
+    longevity_only = longevity_only_raw in {"1", "true", "yes"}
+    try:
+        longevity_page = max(1, int(longevity_page_raw))
+    except ValueError:
+        longevity_page = 1
 
     payload = get_human_protein_catalog(
         query=query,
         reviewed_only=reviewed_only,
         cursor=cursor,
+        longevity_only=longevity_only,
+        longevity_page=longevity_page,
     )
     return jsonify(payload)
 
