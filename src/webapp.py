@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from flask import Flask, render_template, request, session
+from flask import Flask, jsonify, render_template, request, session
 
 try:
     from .analysis import (
@@ -19,10 +19,12 @@ try:
     )
     from .gene_region_extraction import find_gene_region
     from .helper_functions.filter_manifest_region import save_filtered_manifest
+    from .human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 except ImportError:
     from analysis import AnalysisError, DEFAULT_GENE_NAME, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
     from gene_region_extraction import find_gene_region
     from helper_functions.filter_manifest_region import save_filtered_manifest
+    from human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -324,6 +326,22 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
     }
 
 
+@app.get("/api/human-proteins")
+def human_proteins_api() -> Any:
+    """Return a page of the live human protein catalog for the UI tab."""
+    query = request.args.get("q", "").strip()
+    cursor = request.args.get("cursor", "").strip() or None
+    reviewed_only_raw = request.args.get("reviewed_only", "1").strip().lower()
+    reviewed_only = reviewed_only_raw not in {"0", "false", "no"}
+
+    payload = get_human_protein_catalog(
+        query=query,
+        reviewed_only=reviewed_only,
+        cursor=cursor,
+    )
+    return jsonify(payload)
+
+
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
     """Render the landing page and handle preprocessing and analysis submissions."""
@@ -488,7 +506,7 @@ def index() -> str:
                     analysis_error = str(exc)
 
     preprocess_result = _build_preprocess_result(preprocess_state)
-    available_tabs = ["overview", "preprocessing", "structure"]
+    available_tabs = ["overview", "preprocessing", "proteins", "structure"]
     if analysis_unlocked:
         available_tabs.insert(2, "analysis")
     if initial_tab not in available_tabs:
@@ -522,6 +540,7 @@ def index() -> str:
         idat_prefixes=idat_prefixes,
         popstats_files=popstats_files,
         manifest_files=manifest_files,
+        featured_protein_queries=FEATURED_HUMAN_PROTEIN_QUERIES,
     )
 
 

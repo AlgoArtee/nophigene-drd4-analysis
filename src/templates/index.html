@@ -343,6 +343,152 @@
       background: rgba(161, 20, 61, 0.05);
       border: 1px solid rgba(161, 20, 61, 0.08);
     }
+    .protein-panel {
+      padding: 18px;
+    }
+    .protein-shell {
+      display: grid;
+      min-height: calc(100vh - 168px);
+    }
+    .protein-toolbar {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .protein-search-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.7fr);
+      gap: 14px;
+    }
+    .protein-toggle-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .toggle-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      color: var(--accent-3);
+    }
+    .toggle-row input {
+      width: auto;
+      margin: 0;
+      transform: translateY(1px);
+    }
+    .protein-quick-searches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .quick-chip {
+      appearance: none;
+      font: inherit;
+      cursor: pointer;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(161, 20, 61, 0.12);
+      background: rgba(161, 20, 61, 0.05);
+      color: var(--accent-3);
+      font-weight: 700;
+    }
+    .protein-results-viewer {
+      min-height: 0;
+      flex: 1;
+      padding: 18px;
+    }
+    .protein-search-summary {
+      margin-bottom: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .protein-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .protein-card .expandable-body > *:first-child {
+      margin-top: 0;
+    }
+    .protein-summary-line {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .protein-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .protein-meta-card {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(161, 20, 61, 0.05);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+    }
+    .protein-meta-card span,
+    .protein-meta-card strong {
+      display: block;
+    }
+    .protein-meta-card span {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+    .protein-meta-card strong {
+      margin-top: 8px;
+      color: var(--accent-3);
+      letter-spacing: -0.02em;
+      word-break: break-word;
+    }
+    .protein-section-label {
+      margin: 16px 0 8px;
+      color: var(--accent);
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+    .protein-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .protein-pagination button {
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(161, 20, 61, 0.12);
+      background: rgba(161, 20, 61, 0.05);
+      color: var(--accent-3);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .protein-pagination button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .protein-source-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .protein-source-links a {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent-3);
+      text-decoration: none;
+      font-weight: 700;
+    }
     .analysis-shell {
       display: grid;
       grid-template-columns: minmax(370px, 0.9fr) minmax(0, 1.45fr);
@@ -991,6 +1137,7 @@
     @media (max-width: 1180px) {
       .preprocess-shell,
       .analysis-shell,
+      .protein-search-grid,
       .overview-grid,
       .diagram-grid {
         grid-template-columns: 1fr;
@@ -1059,6 +1206,7 @@
         {% if analysis_unlocked %}
         <button type="button" class="tab-button" data-tab-target="analysis" aria-selected="false">Run Analysis</button>
         {% endif %}
+        <button type="button" class="tab-button" data-tab-target="proteins" aria-selected="false">Human Proteins</button>
         <button type="button" class="tab-button" data-tab-target="structure" aria-selected="false">App Structure</button>
       </nav>
     </header>
@@ -1282,6 +1430,70 @@
                     {% endif %}
                   </div>
                 </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="frame tab-panel protein-panel" data-tab-panel="proteins">
+        <div class="protein-shell">
+          <section class="analysis-panel-inner">
+            <div class="panel-head">
+              <div>
+                <h2>Human Proteins</h2>
+                <p>Browse the live UniProt human protein catalog, search for gene symbols like <code>DRD4</code>, and expand cards for the returned protein details.</p>
+              </div>
+              <span class="panel-chip">UniProt-backed catalog</span>
+            </div>
+
+            <div class="protein-toolbar">
+              <form class="field-grid" data-protein-search-form>
+                <div class="protein-search-grid">
+                  <div class="field-card">
+                    <label for="protein_query">Search Human Proteins</label>
+                    <p class="field-example">Examples: <code>DRD4</code>, <code>TP53</code>, <code>dopamine receptor</code>, <code>P21917</code></p>
+                    <input id="protein_query" data-protein-query type="text" placeholder="Search by gene symbol, protein name, UniProt entry, or accession">
+                    <details class="field-details">
+                      <summary>What this means biologically</summary>
+                      <p>This search covers the human UniProtKB protein catalog. Gene symbols such as DRD4, protein names, UniProt entry IDs, and accessions can all be used to find the relevant human protein entry.</p>
+                    </details>
+                  </div>
+
+                  <div class="field-card protein-toggle-card">
+                    <div>
+                      <label>Catalog Scope</label>
+                      <p class="field-example">Default: <code>Reviewed human proteins</code></p>
+                      <label class="toggle-row">
+                        <input type="checkbox" data-protein-reviewed-only checked>
+                        <span>Reviewed human entries only</span>
+                      </label>
+                      <p class="hint">Turn this off if you want the catalog to include unreviewed or predicted human UniProt entries as well.</p>
+                    </div>
+                    <div class="analysis-actions">
+                      <button type="submit" class="run-button">Search Catalog</button>
+                      <button type="button" class="cta-button" data-protein-refresh>Load Default Catalog</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <div class="protein-quick-searches" aria-label="Featured protein shortcuts">
+                {% for item in featured_protein_queries %}
+                <button type="button" class="quick-chip" data-protein-quick-query="{{ item }}">{{ item }}</button>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="results-viewer protein-results-viewer">
+              <div class="viewer-scroll" data-protein-results>
+                <section class="empty-state">
+                  <div class="empty-state-inner">
+                    <h3>Protein catalog results will appear here</h3>
+                    <p>Open the Human Proteins tab and load the default catalog to browse reviewed human proteins, or search directly for a symbol like <code>DRD4</code> to pull a focused set of entries.</p>
+                    <p>The returned cards are backed by the live UniProt human catalog and link out to UniProt, AlphaFold, and NCBI Gene when those references are available.</p>
+                  </div>
+                </section>
               </div>
             </div>
           </section>
@@ -2101,8 +2313,24 @@
       const detailPanels = Array.from(document.querySelectorAll("[data-detail-panel]"));
       const preprocessForm = document.querySelector("[data-preprocess-form]");
       const analysisForm = document.querySelector("[data-analysis-form]");
+      const proteinForm = document.querySelector("[data-protein-search-form]");
+      const proteinQueryInput = document.querySelector("[data-protein-query]");
+      const proteinReviewedOnlyInput = document.querySelector("[data-protein-reviewed-only]");
+      const proteinResults = document.querySelector("[data-protein-results]");
+      const proteinRefreshButton = document.querySelector("[data-protein-refresh]");
+      const proteinQuickButtons = Array.from(document.querySelectorAll("[data-protein-quick-query]"));
       const preprocessViewerStage = document.getElementById("preprocess-viewer-stage");
       const analysisViewerStage = document.getElementById("viewer-stage");
+      const proteinApiUrl = "/api/human-proteins";
+      const proteinState = {
+        initialized: false,
+        loading: false,
+        query: "",
+        reviewedOnly: true,
+        cursor: null,
+        cursorHistory: [],
+        nextCursor: null
+      };
       const preprocessLoading = {
         overlay: document.querySelector("[data-preprocess-loading-overlay]"),
         percent: document.querySelector("[data-preprocess-loading-percent]"),
@@ -2131,6 +2359,256 @@
         { threshold: 90, label: "Saving the subset", note: "Prepared files are being written for the analysis workspace" }
       ];
 
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function renderProteinLoading() {
+        if (!proteinResults) {
+          return;
+        }
+        proteinResults.innerHTML = `
+          <section class="empty-state">
+            <div class="empty-state-inner">
+              <h3>Loading the human protein catalog</h3>
+              <p>Fetching the current UniProt human protein results for this query.</p>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderProteinCatalog(data) {
+        if (!proteinResults) {
+          return;
+        }
+
+        const queryLabel = data.query
+          ? `Showing matches for <code>${escapeHtml(data.query)}</code> in the ${escapeHtml(data.catalog_scope)}.`
+          : `Showing the current ${escapeHtml(data.catalog_scope)} from UniProt. Search for symbols like <code>DRD4</code> to narrow the catalog.`;
+
+        const errorMarkup = data.error
+          ? `
+            <div class="error">
+              ${escapeHtml(data.error)}
+              <div class="hint">If the network is unavailable, try again in a moment or refine the query to a specific protein symbol.</div>
+            </div>
+          `
+          : "";
+
+        const proteinsMarkup = data.proteins && data.proteins.length
+          ? `
+            <div class="protein-grid">
+              ${data.proteins.map((protein) => {
+                const geneSynonyms = protein.gene_synonyms && protein.gene_synonyms.length
+                  ? `
+                    <div>
+                      <p class="protein-section-label">Gene synonyms</p>
+                      <div class="badge-row">
+                        ${protein.gene_synonyms.map((item) => `<span class="muted-badge">${escapeHtml(item)}</span>`).join("")}
+                      </div>
+                    </div>
+                  `
+                  : "";
+
+                const alternativeNames = protein.alternative_names && protein.alternative_names.length
+                  ? `
+                    <div>
+                      <p class="protein-section-label">Alternative protein names</p>
+                      <ul class="insight-list">
+                        ${protein.alternative_names.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                      </ul>
+                    </div>
+                  `
+                  : "";
+
+                const subcellularLocations = protein.subcellular_locations && protein.subcellular_locations.length
+                  ? `
+                    <div>
+                      <p class="protein-section-label">Subcellular location</p>
+                      <ul class="insight-list">
+                        ${protein.subcellular_locations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                      </ul>
+                    </div>
+                  `
+                  : "";
+
+                const sourceLinks = [
+                  protein.uniprot_url ? `<a href="${escapeHtml(protein.uniprot_url)}" target="_blank" rel="noreferrer">UniProt entry</a>` : "",
+                  protein.alphafold_url ? `<a href="${escapeHtml(protein.alphafold_url)}" target="_blank" rel="noreferrer">AlphaFold structure</a>` : "",
+                  protein.ncbi_gene_url ? `<a href="${escapeHtml(protein.ncbi_gene_url)}" target="_blank" rel="noreferrer">NCBI Gene</a>` : ""
+                ].filter(Boolean).join("");
+
+                return `
+                  <details class="insight-card expandable-card protein-card">
+                    <summary class="expandable-summary">
+                      <div class="expandable-copy">
+                        <span class="insight-kicker">${escapeHtml(protein.gene_name)}</span>
+                        <h4>${escapeHtml(protein.protein_name)}</h4>
+                        <p class="protein-summary-line">${escapeHtml(protein.entry_type_label)} | Accession ${escapeHtml(protein.accession)} | ${escapeHtml(protein.length)} aa</p>
+                      </div>
+                    </summary>
+                    <div class="expandable-body">
+                      <div class="protein-meta-grid">
+                        <div class="protein-meta-card">
+                          <span>UniProt entry</span>
+                          <strong>${escapeHtml(protein.entry_name)}</strong>
+                        </div>
+                        <div class="protein-meta-card">
+                          <span>Protein existence</span>
+                          <strong>${escapeHtml(protein.protein_existence)}</strong>
+                        </div>
+                        <div class="protein-meta-card">
+                          <span>Annotation score</span>
+                          <strong>${escapeHtml(protein.annotation_score ?? "n/a")}</strong>
+                        </div>
+                        <div class="protein-meta-card">
+                          <span>Gene ID</span>
+                          <strong>${escapeHtml(protein.gene_id || "n/a")}</strong>
+                        </div>
+                      </div>
+                      <p>${escapeHtml(protein.function_summary)}</p>
+                      ${subcellularLocations}
+                      ${alternativeNames}
+                      ${geneSynonyms}
+                      ${sourceLinks ? `<div class="protein-source-links">${sourceLinks}</div>` : ""}
+                    </div>
+                  </details>
+                `;
+              }).join("")}
+            </div>
+          `
+          : `
+            <section class="empty-state">
+              <div class="empty-state-inner">
+                <h3>No proteins matched this query</h3>
+                <p>Try a broader term, a direct gene symbol such as <code>DRD4</code>, or load the default catalog again.</p>
+              </div>
+            </section>
+          `;
+
+        const totalLabel = Number.isInteger(data.total_results)
+          ? data.total_results.toLocaleString()
+          : "Live query";
+
+        proteinResults.innerHTML = `
+          ${errorMarkup}
+          <div class="metrics">
+            <article class="metric">
+              <span>Catalog scope</span>
+              <strong>${escapeHtml(data.reviewed_only ? "Reviewed" : "All human")}</strong>
+            </article>
+            <article class="metric">
+              <span>Returned now</span>
+              <strong>${escapeHtml(data.records_returned)}</strong>
+            </article>
+            <article class="metric">
+              <span>Total hits</span>
+              <strong>${escapeHtml(totalLabel)}</strong>
+            </article>
+          </div>
+          <p class="protein-search-summary">${queryLabel}</p>
+          ${proteinsMarkup}
+          <div class="protein-pagination">
+            <button type="button" data-protein-prev ${proteinState.cursorHistory.length ? "" : "disabled"}>Previous page</button>
+            <span class="subtle">Source: <a href="${escapeHtml(data.catalog_url)}" target="_blank" rel="noreferrer">${escapeHtml(data.catalog_label)}</a></span>
+            <button type="button" data-protein-next ${data.has_next_page ? "" : "disabled"}>Next page</button>
+          </div>
+        `;
+
+        const previousButton = proteinResults.querySelector("[data-protein-prev]");
+        const nextButton = proteinResults.querySelector("[data-protein-next]");
+
+        if (previousButton) {
+          previousButton.addEventListener("click", () => {
+            if (!proteinState.cursorHistory.length) {
+              return;
+            }
+            const previousCursor = proteinState.cursorHistory.pop();
+            proteinState.cursor = previousCursor || null;
+            loadProteinCatalog();
+          });
+        }
+
+        if (nextButton) {
+          nextButton.addEventListener("click", () => {
+            if (!proteinState.nextCursor) {
+              return;
+            }
+            proteinState.cursorHistory.push(proteinState.cursor || "");
+            proteinState.cursor = proteinState.nextCursor;
+            loadProteinCatalog();
+          });
+        }
+      }
+
+      async function loadProteinCatalog({ resetCursor = false } = {}) {
+        if (!proteinResults || proteinState.loading) {
+          return;
+        }
+
+        if (proteinQueryInput) {
+          proteinState.query = proteinQueryInput.value.trim();
+        }
+        proteinState.reviewedOnly = proteinReviewedOnlyInput ? proteinReviewedOnlyInput.checked : true;
+
+        if (resetCursor) {
+          proteinState.cursor = null;
+          proteinState.cursorHistory = [];
+        }
+
+        proteinState.loading = true;
+        renderProteinLoading();
+
+        try {
+          const params = new URLSearchParams();
+          if (proteinState.query) {
+            params.set("q", proteinState.query);
+          }
+          if (!proteinState.reviewedOnly) {
+            params.set("reviewed_only", "0");
+          }
+          if (proteinState.cursor) {
+            params.set("cursor", proteinState.cursor);
+          }
+
+          const response = await fetch(`${proteinApiUrl}?${params.toString()}`);
+          if (!response.ok) {
+            throw new Error(`Protein catalog request failed with status ${response.status}`);
+          }
+
+          const payload = await response.json();
+          proteinState.nextCursor = payload.next_cursor || null;
+          proteinState.initialized = true;
+          renderProteinCatalog(payload);
+        } catch (error) {
+          renderProteinCatalog({
+            query: proteinState.query,
+            reviewed_only: proteinState.reviewedOnly,
+            records_returned: 0,
+            total_results: null,
+            has_next_page: false,
+            catalog_label: "UniProt human UniProtKB catalog",
+            catalog_scope: proteinState.reviewedOnly ? "Reviewed human proteins" : "Reviewed and unreviewed human proteins",
+            catalog_url: "https://rest.uniprot.org/uniprotkb/search",
+            proteins: [],
+            error: error instanceof Error ? error.message : "Protein catalog request failed."
+          });
+        } finally {
+          proteinState.loading = false;
+        }
+      }
+
+      function ensureProteinCatalogLoaded() {
+        if (!proteinState.initialized) {
+          loadProteinCatalog({ resetCursor: true });
+        }
+      }
+
       function activateTab(name) {
         tabButtons.forEach((button) => {
           const isActive = button.dataset.tabTarget === name;
@@ -2140,6 +2618,9 @@
         tabPanels.forEach((panel) => {
           panel.classList.toggle("is-active", panel.dataset.tabPanel === name);
         });
+        if (name === "proteins") {
+          ensureProteinCatalogLoaded();
+        }
       }
 
       function activateSubtab(name) {
@@ -2229,6 +2710,37 @@
       detailButtons.forEach((button) => {
         button.addEventListener("click", () => {
           activateDetailTab(button.dataset.detailGroup, button.dataset.detailTarget);
+        });
+      });
+
+      if (proteinForm) {
+        proteinForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          activateTab("proteins");
+          loadProteinCatalog({ resetCursor: true });
+        });
+      }
+
+      if (proteinRefreshButton) {
+        proteinRefreshButton.addEventListener("click", () => {
+          if (proteinQueryInput) {
+            proteinQueryInput.value = "";
+          }
+          if (proteinReviewedOnlyInput) {
+            proteinReviewedOnlyInput.checked = true;
+          }
+          activateTab("proteins");
+          loadProteinCatalog({ resetCursor: true });
+        });
+      }
+
+      proteinQuickButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (proteinQueryInput) {
+            proteinQueryInput.value = button.dataset.proteinQuickQuery || "";
+          }
+          activateTab("proteins");
+          loadProteinCatalog({ resetCursor: true });
         });
       });
 
