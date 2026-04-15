@@ -17,6 +17,7 @@ DEFAULT_TIMEOUT_SEC = 20
 FEATURED_HUMAN_PROTEIN_QUERIES = ["DRD4", "TP53", "BRCA1", "EGFR", "APOE", "ACE2"]
 HUMAN_PROTEOME_SCOPE = "organism_id:9606"
 NEXT_CURSOR_PATTERN = re.compile(r"<[^>]*[?&]cursor=([^&>]+)[^>]*>;\s*rel=\"next\"")
+SIMPLE_QUERY_TERM_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 LONGEVITY_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "longevity_genes_hagr.json"
 REQUEST_HEADERS = {
     "User-Agent": "NophiGene/1.0 (+https://rest.uniprot.org)",
@@ -44,18 +45,40 @@ class ProteinCatalogError(RuntimeError):
     """Raised when the live UniProt catalog cannot be reached or parsed."""
 
 
-def build_human_protein_query(search_term: str = "", *, reviewed_only: bool = True) -> str:
-    """Build the UniProt query used for the human protein catalog."""
+def _quote_uniprot_search_term(search_term: str) -> str:
+    """Quote a free-text UniProt search term safely."""
+    cleaned = " ".join(search_term.split()).replace('"', "").strip()
+    if not cleaned:
+        raise ValueError("A UniProt search term is required before quoting it.")
+    return f'"{cleaned}"'
+
+
+def build_human_protein_query(
+    search_term: str = "",
+    *,
+    reviewed_only: bool = True,
+    relaxed: bool = False,
+) -> str:
+    """Build the UniProt query used for the human protein catalog.
+
+    The search builder intentionally avoids assuming that response field names
+    like ``protein_name`` or ``accession`` are also valid query clauses. For a
+    compact symbol such as ``IGF1R`` we boost the search with a gene-specific
+    clause and pair it with an exact free-text search. When ``relaxed`` is
+    true, the query falls back to free text only so the UI can recover from
+    strict-clause failures returned by UniProt.
+    """
     clauses = [HUMAN_PROTEOME_SCOPE]
     if reviewed_only:
         clauses.append("reviewed:true")
 
     normalized_term = " ".join(search_term.split())
     if normalized_term:
-        protein_term = f"\"{normalized_term}\"" if " " in normalized_term else normalized_term
-        clauses.append(
-            f"(gene:{normalized_term} OR protein_name:{protein_term} OR id:{normalized_term} OR accession:{normalized_term})"
-        )
+        quoted_term = _quote_uniprot_search_term(normalized_term)
+        if not relaxed and SIMPLE_QUERY_TERM_PATTERN.fullmatch(normalized_term):
+            clauses.append(f"(gene:{normalized_term} OR {quoted_term})")
+        else:
+            clauses.append(quoted_term)
 
     return " AND ".join(clauses)
 
@@ -279,6 +302,9 @@ def _execute_uniprot_search(
             timeout=DEFAULT_TIMEOUT_SEC,
         )
         response.raise_for_status()
+    except requests.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response is not None else "unknown"
+        raise ProteinCatalogError(f"UniProt request failed: {status_code} {exc}") from exc
     except requests.RequestException as exc:
         raise ProteinCatalogError(f"UniProt request failed: {exc}") from exc
 
@@ -381,11 +407,26 @@ def fetch_human_protein_catalog(
             page_size=page_size,
         )
 
-    proteins, response = _execute_uniprot_search(
-        query_string=build_human_protein_query(query, reviewed_only=reviewed_only),
-        cursor=cursor,
-        page_size=page_size,
-    )
+    query_string = build_human_protein_query(query, reviewed_only=reviewed_only)
+    try:
+        proteins, response = _execute_uniprot_search(
+            query_string=query_string,
+            cursor=cursor,
+            page_size=page_size,
+        )
+    except ProteinCatalogError as exc:
+        if query and "400" in str(exc):
+            proteins, response = _execute_uniprot_search(
+                query_string=build_human_protein_query(
+                    query,
+                    reviewed_only=reviewed_only,
+                    relaxed=True,
+                ),
+                cursor=cursor,
+                page_size=page_size,
+            )
+        else:
+            raise
     total_results = response.headers.get("X-Total-Results")
     next_cursor = parse_next_cursor(response.headers.get("Link"))
 

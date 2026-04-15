@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from src.human_protein_catalog import (
+    ProteinCatalogError,
     build_human_protein_query,
+    fetch_human_protein_catalog,
     load_longevity_gene_database,
     normalize_protein_record,
     parse_next_cursor,
@@ -18,6 +20,17 @@ def test_build_human_protein_query_supports_symbol_search() -> None:
     assert "organism_id:9606" in query
     assert "reviewed:true" in query
     assert "gene:DRD4" in query
+    assert '"DRD4"' in query
+    assert "protein_name:" not in query
+    assert "accession:" not in query
+    assert "id:" not in query
+
+
+def test_build_human_protein_query_relaxed_mode_uses_free_text_only() -> None:
+    """Relaxed mode should fall back to a simple free-text UniProt query."""
+    query = build_human_protein_query("IGF1R", reviewed_only=True, relaxed=True)
+
+    assert query == 'organism_id:9606 AND reviewed:true AND "IGF1R"'
 
 
 def test_parse_next_cursor_extracts_uniprot_cursor_value() -> None:
@@ -190,3 +203,30 @@ def test_human_proteins_api_accepts_longevity_filter(monkeypatch) -> None:
     assert captured["query"] == "DRD4"
     assert captured["longevity_only"] is True
     assert captured["longevity_page"] == 2
+
+
+def test_fetch_human_protein_catalog_retries_with_relaxed_query_on_400(monkeypatch) -> None:
+    """A 400 from UniProt should retry with the relaxed free-text query."""
+    calls: list[str] = []
+
+    class _FakeResponse:
+        headers = {}
+
+    def fake_execute_uniprot_search(*, query_string, cursor=None, page_size=24):
+        calls.append(query_string)
+        if len(calls) == 1:
+            raise ProteinCatalogError("UniProt request failed: 400 Client Error: Bad Request")
+        return [], _FakeResponse()
+
+    monkeypatch.setattr(
+        "src.human_protein_catalog._execute_uniprot_search",
+        fake_execute_uniprot_search,
+    )
+
+    payload = fetch_human_protein_catalog(query="IGF1R", reviewed_only=True)
+
+    assert payload["query"] == "IGF1R"
+    assert payload["records_returned"] == 0
+    assert len(calls) == 2
+    assert calls[0] == 'organism_id:9606 AND reviewed:true AND (gene:IGF1R OR "IGF1R")'
+    assert calls[1] == 'organism_id:9606 AND reviewed:true AND "IGF1R"'
