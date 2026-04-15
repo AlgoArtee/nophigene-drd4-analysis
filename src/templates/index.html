@@ -1599,10 +1599,22 @@
                     </details>
                     <div class="analysis-actions">
                       <button type="submit" class="run-button" name="preprocess_action" value="select_methylation">Select Methylation Data</button>
+                      <label class="toggle-row">
+                        <input
+                          type="checkbox"
+                          name="overwrite_filtered_manifest"
+                          value="1"
+                          {% if preprocess_state.overwrite_filtered_manifest %}checked{% endif %}
+                        >
+                        <span>Overwrite existing filtered file</span>
+                      </label>
                       {% if analysis_unlocked %}
                       <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
                       {% endif %}
                     </div>
+                    <p class="hint">
+                      Leave this unchecked to reuse an existing <code>{{ preprocess_state.gene_name }}_epigenetics_{{ preprocess_state.build }}.csv</code> if one is already present. Check it to regenerate that file for the current region.
+                    </p>
                   </div>
                 </div>
 

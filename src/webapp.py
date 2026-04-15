@@ -21,12 +21,15 @@ try:
         run_analysis,
     )
     from .gene_region_extraction import find_gene_region
-    from .helper_functions.filter_manifest_region import save_filtered_manifest
+    from .helper_functions.filter_manifest_region import (
+        sanitize_gene_name_for_filename,
+        save_filtered_manifest,
+    )
     from .human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 except ImportError:
     from analysis import AnalysisError, DEFAULT_GENE_NAME, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
     from gene_region_extraction import find_gene_region
-    from helper_functions.filter_manifest_region import save_filtered_manifest
+    from helper_functions.filter_manifest_region import sanitize_gene_name_for_filename, save_filtered_manifest
     from human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -152,6 +155,7 @@ def _empty_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
         "build": "hg19",
         "logs": [],
         "region_recently_updated": False,
+        "overwrite_filtered_manifest": False,
     }
 
 
@@ -183,6 +187,7 @@ def _store_preprocess_state(state: dict[str, Any]) -> None:
         "build": str(state.get("build", "hg19")),
         "logs": list(state.get("logs", []))[-160:],
         "region_recently_updated": bool(state.get("region_recently_updated", False)),
+        "overwrite_filtered_manifest": bool(state.get("overwrite_filtered_manifest", False)),
     }
     session.modified = True
 
@@ -206,6 +211,22 @@ def _capture_preprocess_call(operation, *args, **kwargs):
     with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
         result = operation(*args, **kwargs)
     return result, stdout_buffer.getvalue(), stderr_buffer.getvalue()
+
+
+def _expected_filtered_manifest_path(gene_name: str, genome_build: str) -> Path:
+    """Return the canonical saved subset path for one gene/build combination."""
+    return PREPROCESSED_MANIFEST_DIR / (
+        f"{sanitize_gene_name_for_filename(gene_name)}_epigenetics_{genome_build}.csv"
+    )
+
+
+def _summarize_existing_filtered_manifest(output_path: Path) -> dict[str, object]:
+    """Read an existing filtered manifest so it can be reused without rewriting it."""
+    existing_df = pd.read_csv(output_path, low_memory=False)
+    return {
+        "output_path": output_path,
+        "probe_count": int(len(existing_df)),
+    }
 
 
 def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[str, Any]) -> None:
@@ -445,6 +466,7 @@ def index() -> str:
                     or str(preprocess_state.get("region", DEFAULT_REGION)),
                     "manifest_source": request.form.get("manifest_source", "").strip()
                     or str(preprocess_state.get("manifest_source", "")),
+                    "overwrite_filtered_manifest": request.form.get("overwrite_filtered_manifest") == "1",
                 }
             )
             if requested_gene_name != previous_gene_name:
@@ -499,20 +521,49 @@ def index() -> str:
                         )
 
                     manifest_source = str(_resolve_user_path(str(preprocess_state["manifest_source"])))
+                    target_output_path = _expected_filtered_manifest_path(
+                        str(preprocess_state["gene_name"]),
+                        str(preprocess_state.get("build", "hg19")),
+                    )
+                    target_output_previously_existed = target_output_path.exists()
+                    overwrite_filtered_manifest = bool(
+                        preprocess_state.get("overwrite_filtered_manifest", False)
+                    )
                     _append_preprocess_log(
                         preprocess_state,
-                        f"Filtering EPIC manifest {manifest_source} for {preprocess_state['region']}.",
+                        (
+                            f"Preparing filtered EPIC manifest for {preprocess_state['region']} from {manifest_source}. "
+                            f"Overwrite existing subset: {'yes' if overwrite_filtered_manifest else 'no'}."
+                        ),
                     )
-                    selection, captured_stdout, captured_stderr = _capture_preprocess_call(
-                        save_filtered_manifest,
-                        gene_name=str(preprocess_state["gene_name"]),
-                        manifest_path=manifest_source,
-                        region=str(preprocess_state["region"]),
-                        genome_build=str(preprocess_state.get("build", "hg19")),
-                        output_dir=PREPROCESSED_MANIFEST_DIR,
-                    )
-                    _append_preprocess_log(preprocess_state, captured_stdout, stream="stdout")
-                    _append_preprocess_log(preprocess_state, captured_stderr, stream="stderr")
+                    if target_output_path.exists() and not overwrite_filtered_manifest:
+                        selection = _summarize_existing_filtered_manifest(target_output_path)
+                        _append_preprocess_log(
+                            preprocess_state,
+                            (
+                                f"Reusing existing filtered manifest at "
+                                f"{_as_relative_display(target_output_path)} because overwrite is disabled."
+                            ),
+                        )
+                    else:
+                        selection, captured_stdout, captured_stderr = _capture_preprocess_call(
+                            save_filtered_manifest,
+                            gene_name=str(preprocess_state["gene_name"]),
+                            manifest_path=manifest_source,
+                            region=str(preprocess_state["region"]),
+                            genome_build=str(preprocess_state.get("build", "hg19")),
+                            output_dir=PREPROCESSED_MANIFEST_DIR,
+                        )
+                        _append_preprocess_log(preprocess_state, captured_stdout, stream="stdout")
+                        _append_preprocess_log(preprocess_state, captured_stderr, stream="stderr")
+                        _append_preprocess_log(
+                            preprocess_state,
+                            (
+                                "Created a fresh filtered manifest subset."
+                                if not target_output_previously_existed
+                                else "Overwrote the existing filtered manifest subset."
+                            ),
+                        )
                     preprocess_state["filtered_manifest"] = _as_relative_display(selection["output_path"])
                     preprocess_state["manifest_ready"] = True
                     preprocess_state["analysis_ready"] = True
@@ -520,10 +571,13 @@ def index() -> str:
                     preprocess_state["region_recently_updated"] = False
                     _append_preprocess_log(
                         preprocess_state,
-                        f"Saved {selection['probe_count']} probes to {preprocess_state['filtered_manifest']}.",
+                        (
+                            f"Prepared {selection['probe_count']} probes at "
+                            f"{preprocess_state['filtered_manifest']}."
+                        ),
                     )
                     preprocess_notice = (
-                        f"Saved {selection['probe_count']} probe(s) to {preprocess_state['filtered_manifest']}."
+                        f"Prepared {selection['probe_count']} probe(s) at {preprocess_state['filtered_manifest']}."
                     )
                 else:
                     raise AnalysisError("Choose a preprocessing action before submitting the form.")
