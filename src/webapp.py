@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import os
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
 
@@ -147,6 +150,8 @@ def _empty_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
         "analysis_ready": False,
         "probe_count": 0,
         "build": "hg19",
+        "logs": [],
+        "region_recently_updated": False,
     }
 
 
@@ -176,8 +181,31 @@ def _store_preprocess_state(state: dict[str, Any]) -> None:
         "analysis_ready": bool(state.get("analysis_ready", False)),
         "probe_count": int(state.get("probe_count", 0)),
         "build": str(state.get("build", "hg19")),
+        "logs": list(state.get("logs", []))[-160:],
+        "region_recently_updated": bool(state.get("region_recently_updated", False)),
     }
     session.modified = True
+
+
+def _append_preprocess_log(state: dict[str, Any], message: str, *, stream: str = "stdout") -> None:
+    """Append a timestamp-free developer log line to the preprocessing state."""
+    normalized = str(message).rstrip()
+    if not normalized:
+        return
+
+    logs = list(state.get("logs", []))
+    for line in normalized.splitlines():
+        logs.append(f"[{stream}] {line}")
+    state["logs"] = logs[-160:]
+
+
+def _capture_preprocess_call(operation, *args, **kwargs):
+    """Run a preprocessing helper while capturing any stdout/stderr it emits."""
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+        result = operation(*args, **kwargs)
+    return result, stdout_buffer.getvalue(), stderr_buffer.getvalue()
 
 
 def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[str, Any]) -> None:
@@ -295,6 +323,7 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
             preprocess_state.get("region_ready"),
             preprocess_state.get("manifest_ready"),
             preprocess_state.get("filtered_manifest"),
+            preprocess_state.get("logs"),
         ]
     ):
         return None
@@ -323,6 +352,35 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
         "region_candidates": list(preprocess_state.get("region_candidates", [])),
         "build": str(preprocess_state.get("build", "hg19")),
         "preview_html": preview_html,
+        "logs": list(preprocess_state.get("logs", [])),
+        "region_recently_updated": bool(preprocess_state.get("region_recently_updated", False)),
+        "progress_percent": (
+            100
+            if preprocess_state.get("manifest_ready")
+            else 50
+            if preprocess_state.get("region_ready")
+            else 0
+        ),
+        "steps": [
+            {
+                "title": "Find Region from Gene Name",
+                "status": "complete" if preprocess_state.get("region_ready") else "pending",
+                "summary": (
+                    f"Resolved to {preprocess_state.get('region', DEFAULT_REGION)}"
+                    if preprocess_state.get("region_ready")
+                    else "Waiting for a gene-symbol lookup."
+                ),
+            },
+            {
+                "title": "Select Methylation Data",
+                "status": "complete" if preprocess_state.get("manifest_ready") else "pending",
+                "summary": (
+                    f"{preprocess_state.get('probe_count', 0)} probes saved to {filtered_manifest}"
+                    if preprocess_state.get("manifest_ready")
+                    else "Waiting for the filtered EPIC manifest subset."
+                ),
+            },
+        ],
     }
 
 
@@ -397,11 +455,22 @@ def index() -> str:
                 preprocess_state["probe_count"] = 0
                 preprocess_state["selected_sources"] = []
                 preprocess_state["region_candidates"] = []
+                preprocess_state["logs"] = []
+                preprocess_state["region_recently_updated"] = False
             preprocess_action = request.form.get("preprocess_action", "").strip()
 
             try:
                 if preprocess_action == "find_region":
-                    lookup = find_gene_region(preprocess_state["gene_name"])
+                    _append_preprocess_log(
+                        preprocess_state,
+                        f"Starting gene-region lookup for {preprocess_state['gene_name']}.",
+                    )
+                    lookup, captured_stdout, captured_stderr = _capture_preprocess_call(
+                        find_gene_region,
+                        preprocess_state["gene_name"],
+                    )
+                    _append_preprocess_log(preprocess_state, captured_stdout, stream="stdout")
+                    _append_preprocess_log(preprocess_state, captured_stderr, stream="stderr")
                     preprocess_state["gene_name"] = str(lookup["gene_name"])
                     preprocess_state["region"] = str(lookup["selected_region"])
                     preprocess_state["selected_sources"] = list(lookup["selected_sources"])
@@ -411,6 +480,11 @@ def index() -> str:
                     preprocess_state["analysis_ready"] = False
                     preprocess_state["filtered_manifest"] = ""
                     preprocess_state["probe_count"] = 0
+                    preprocess_state["region_recently_updated"] = True
+                    _append_preprocess_log(
+                        preprocess_state,
+                        f"Resolved {preprocess_state['gene_name']} to {preprocess_state['region']} using {', '.join(preprocess_state['selected_sources']) or 'the available sources'}.",
+                    )
                     preprocess_notice = (
                         f"Resolved {preprocess_state['gene_name']} to {preprocess_state['region']}."
                     )
@@ -424,17 +498,30 @@ def index() -> str:
                             "Enter an EPIC manifest path before selecting methylation data."
                         )
 
-                    selection = save_filtered_manifest(
+                    manifest_source = str(_resolve_user_path(str(preprocess_state["manifest_source"])))
+                    _append_preprocess_log(
+                        preprocess_state,
+                        f"Filtering EPIC manifest {manifest_source} for {preprocess_state['region']}.",
+                    )
+                    selection, captured_stdout, captured_stderr = _capture_preprocess_call(
+                        save_filtered_manifest,
                         gene_name=str(preprocess_state["gene_name"]),
-                        manifest_path=str(_resolve_user_path(str(preprocess_state["manifest_source"]))),
+                        manifest_path=manifest_source,
                         region=str(preprocess_state["region"]),
                         genome_build=str(preprocess_state.get("build", "hg19")),
                         output_dir=PREPROCESSED_MANIFEST_DIR,
                     )
+                    _append_preprocess_log(preprocess_state, captured_stdout, stream="stdout")
+                    _append_preprocess_log(preprocess_state, captured_stderr, stream="stderr")
                     preprocess_state["filtered_manifest"] = _as_relative_display(selection["output_path"])
                     preprocess_state["manifest_ready"] = True
                     preprocess_state["analysis_ready"] = True
                     preprocess_state["probe_count"] = int(selection["probe_count"])
+                    preprocess_state["region_recently_updated"] = False
+                    _append_preprocess_log(
+                        preprocess_state,
+                        f"Saved {selection['probe_count']} probes to {preprocess_state['filtered_manifest']}.",
+                    )
                     preprocess_notice = (
                         f"Saved {selection['probe_count']} probe(s) to {preprocess_state['filtered_manifest']}."
                     )
@@ -442,6 +529,10 @@ def index() -> str:
                     raise AnalysisError("Choose a preprocessing action before submitting the form.")
             except (AnalysisError, ValueError) as exc:
                 preprocess_error = str(exc)
+                _append_preprocess_log(preprocess_state, str(exc), stream="stderr")
+            except Exception as exc:
+                preprocess_error = str(exc)
+                _append_preprocess_log(preprocess_state, traceback.format_exc(), stream="stderr")
 
             _store_preprocess_state(preprocess_state)
             analysis_unlocked = bool(preprocess_state.get("analysis_ready", False))

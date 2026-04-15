@@ -253,9 +253,27 @@
     }
     .preprocess-shell {
       display: grid;
-      grid-template-rows: auto minmax(320px, 1fr);
+      grid-template-columns: minmax(420px, 1.16fr) minmax(320px, 0.84fr);
       gap: 18px;
       min-height: calc(100vh - 168px);
+      align-items: stretch;
+    }
+    .preprocess-sidebar {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) minmax(220px, 0.72fr);
+      gap: 18px;
+      min-height: 0;
+    }
+    .preprocess-main-panel,
+    .preprocess-status-panel,
+    .preprocess-console-panel {
+      min-height: calc(100vh - 204px);
+    }
+    .preprocess-sidebar .analysis-panel-inner {
+      min-height: 0;
+    }
+    .preprocess-console-panel {
+      min-height: 0;
     }
     .architecture-panel {
       padding: 34px;
@@ -588,6 +606,13 @@
       box-shadow: 0 0 0 4px rgba(161, 20, 61, 0.12);
       transform: translateY(-1px);
     }
+    .input-autofilled {
+      background:
+        linear-gradient(135deg, rgba(209, 31, 79, 0.14), rgba(255, 255, 255, 0.96)),
+        rgba(255, 255, 255, 0.96);
+      border-color: rgba(161, 20, 61, 0.34);
+      box-shadow: 0 0 0 4px rgba(209, 31, 79, 0.10);
+    }
     .hint {
       margin: 8px 0 0;
       font-size: 0.87rem;
@@ -778,6 +803,12 @@
       background: rgba(161, 20, 61, 0.08);
       border: 1px solid rgba(118, 19, 45, 0.10);
     }
+    .dna-progress-track--vertical {
+      width: 56px;
+      height: 240px;
+      margin: 0 auto;
+      border-radius: 28px;
+    }
     .dna-progress-fill {
       position: relative;
       height: 100%;
@@ -786,6 +817,12 @@
       background: linear-gradient(90deg, rgba(124, 13, 45, 0.95), rgba(209, 31, 79, 0.96), rgba(255, 128, 128, 0.94));
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
       transition: width 320ms ease;
+    }
+    .dna-progress-fill[data-loading-axis="vertical"] {
+      width: 100%;
+      height: 0%;
+      transition: height 320ms ease;
+      background: linear-gradient(180deg, rgba(124, 13, 45, 0.95), rgba(209, 31, 79, 0.96), rgba(255, 128, 128, 0.94));
     }
     .dna-progress-fill::before,
     .dna-progress-fill::after {
@@ -819,6 +856,235 @@
       color: var(--accent-3);
       font-size: 0.9rem;
       line-height: 1.5;
+    }
+    .preprocess-status-stage {
+      gap: 16px;
+    }
+    .preprocess-status-grid {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      gap: 16px;
+      align-items: stretch;
+      min-height: 0;
+    }
+    .preprocess-progress-column {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 100%;
+    }
+    .preprocess-progress-title {
+      text-align: center;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .preprocess-vertical-track {
+      position: relative;
+      align-self: stretch;
+      min-height: 100%;
+      border-radius: 999px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(161, 20, 61, 0.08), rgba(124, 13, 45, 0.04)),
+        rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(118, 19, 45, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    }
+    .preprocess-vertical-track::before,
+    .preprocess-vertical-track::after {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      border-radius: 999px;
+      background: rgba(255, 233, 238, 0.90);
+      opacity: 0.82;
+      z-index: 2;
+    }
+    .preprocess-vertical-track::before {
+      left: calc(50% - 10px);
+    }
+    .preprocess-vertical-track::after {
+      right: calc(50% - 10px);
+    }
+    .preprocess-vertical-fill {
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 0%;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(124, 13, 45, 0.95), rgba(209, 31, 79, 0.96), rgba(255, 128, 128, 0.94));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      transition: height 320ms ease;
+    }
+    .preprocess-vertical-fill::before,
+    .preprocess-vertical-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.72;
+      animation: dnaShift 1.1s linear infinite;
+    }
+    .preprocess-vertical-fill::before {
+      background:
+        repeating-linear-gradient(
+          180deg,
+          transparent 0 14px,
+          rgba(255, 240, 244, 0.92) 14px 17px,
+          transparent 17px 28px
+        ),
+        linear-gradient(45deg, transparent 34%, rgba(255, 240, 244, 0.92) 35%, rgba(255, 240, 244, 0.92) 42%, transparent 43%);
+      background-size: 100% 28px, 24px 24px;
+    }
+    .preprocess-vertical-fill::after {
+      background:
+        repeating-linear-gradient(
+          180deg,
+          transparent 0 14px,
+          rgba(255, 215, 224, 0.88) 14px 17px,
+          transparent 17px 28px
+        ),
+        linear-gradient(-45deg, transparent 34%, rgba(255, 215, 224, 0.88) 35%, rgba(255, 215, 224, 0.88) 42%, transparent 43%);
+      background-size: 100% 28px, 24px 24px;
+      animation-direction: reverse;
+    }
+    .preprocess-progress-caption {
+      text-align: center;
+      color: var(--accent-3);
+      font-family: "Aptos Display", "Segoe UI Variable Display", "Franklin Gothic Medium", sans-serif;
+      font-size: 1.35rem;
+      letter-spacing: -0.04em;
+    }
+    .preprocess-step-stack {
+      display: grid;
+      grid-template-rows: repeat(2, minmax(130px, 1fr));
+      gap: 14px;
+      min-height: 0;
+    }
+    .preprocess-step-card {
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(118, 19, 45, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: space-between;
+      min-height: 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+    .preprocess-step-card.is-complete {
+      background:
+        radial-gradient(circle at top right, rgba(209, 31, 79, 0.14), transparent 14rem),
+        rgba(255, 251, 252, 0.94);
+      border-color: rgba(161, 20, 61, 0.26);
+    }
+    .preprocess-step-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .preprocess-step-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.2rem;
+      height: 2.2rem;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent);
+      font-weight: 800;
+    }
+    .preprocess-step-state {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(124, 13, 45, 0.07);
+      color: var(--accent-3);
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .preprocess-step-card.is-complete .preprocess-step-state {
+      background: rgba(209, 31, 79, 0.10);
+      color: var(--accent);
+    }
+    .preprocess-step-card h4 {
+      margin: 0;
+      font-size: 1.02rem;
+    }
+    .preprocess-step-copy {
+      display: grid;
+      gap: 6px;
+    }
+    .preprocess-step-copy p {
+      margin: 0;
+    }
+    .preprocess-step-details {
+      display: grid;
+      gap: 6px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .preprocess-step-details code {
+      word-break: break-all;
+    }
+    .preprocess-artifacts {
+      display: grid;
+      gap: 12px;
+    }
+    .preprocess-artifacts .field-details {
+      margin-top: 0;
+      padding-top: 12px;
+    }
+    .preprocess-artifacts .field-details summary {
+      font-size: 0.92rem;
+    }
+    .preprocess-console-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+      flex: 1;
+    }
+    .preprocess-console {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at top right, rgba(209, 31, 79, 0.18), transparent 14rem),
+        linear-gradient(180deg, rgba(39, 8, 13, 0.98), rgba(66, 11, 24, 0.98));
+      border: 1px solid rgba(255, 158, 175, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+    .preprocess-console pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #ffe1e5;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.84rem;
+      line-height: 1.65;
+    }
+    .preprocess-console.is-empty pre {
+      color: rgba(255, 225, 229, 0.72);
+    }
+    .preprocess-console-hint {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
     }
     .subtab-nav {
       display: inline-flex;
@@ -1142,6 +1408,9 @@
       .diagram-grid {
         grid-template-columns: 1fr;
       }
+      .preprocess-sidebar {
+        grid-template-rows: minmax(320px, auto) minmax(220px, auto);
+      }
       .analysis-panel-inner {
         min-height: auto;
       }
@@ -1156,6 +1425,9 @@
       }
       .metrics {
         grid-template-columns: 1fr;
+      }
+      .preprocess-status-grid {
+        grid-template-columns: 60px minmax(0, 1fr);
       }
       .insight-grid,
       .stat-grid,
@@ -1186,6 +1458,20 @@
       }
       .architecture-title {
         font-size: clamp(2rem, 10vw, 3rem);
+      }
+      .preprocess-status-grid {
+        grid-template-columns: 1fr;
+      }
+      .preprocess-progress-column {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-rows: 1fr;
+        align-items: center;
+      }
+      .preprocess-vertical-track {
+        min-height: 64px;
+      }
+      .preprocess-step-stack {
+        grid-template-rows: none;
       }
     }
   </style>
@@ -1255,7 +1541,7 @@
 
       <section class="frame tab-panel preprocess-panel" data-tab-panel="preprocessing">
         <div class="preprocess-shell">
-          <section class="analysis-panel-inner">
+          <section class="analysis-panel-inner preprocess-main-panel">
             <div class="panel-head">
               <div>
                 <h2>Preprocessing</h2>
@@ -1284,7 +1570,14 @@
                   <div class="field-card">
                     <label for="preprocess_region">Gene Region</label>
                     <p class="field-example">Current value: <code>{{ preprocess_field_info.region.example }}</code></p>
-                    <input id="preprocess_region" name="preprocess_region" type="text" value="{{ preprocess_state.region }}" placeholder="Gene interval will appear here">
+                    <input
+                      id="preprocess_region"
+                      name="preprocess_region"
+                      type="text"
+                      value="{{ preprocess_state.region }}"
+                      placeholder="Gene interval will appear here"
+                      class="{% if preprocess_state.region_recently_updated %}input-autofilled{% endif %}"
+                    >
                     <details class="field-details">
                       <summary>What this means biologically</summary>
                       <p>{{ preprocess_field_info.region.details }}</p>
@@ -1320,72 +1613,120 @@
             </div>
           </section>
 
-          <section class="analysis-panel-inner">
-            <div class="panel-head">
-              <div>
-                <h2>Preprocessing Status</h2>
-                <p>The lower panel tracks region lookup, manifest filtering, and whether the analysis tab is unlocked.</p>
-              </div>
-              <span class="panel-chip">{{ "Analysis unlocked" if analysis_unlocked else "Waiting for preprocessing" }}</span>
-            </div>
-
-            <div class="viewer-stage" id="preprocess-viewer-stage">
-              <div class="loading-overlay" data-preprocess-loading-overlay hidden>
-                <div class="loading-shell">
-                  <h3>Running preprocessing</h3>
-                  <p data-preprocess-loading-note>Preparing the preprocessing workspace</p>
-                  <div class="loading-readout">
-                    <div class="loading-label" data-preprocess-loading-label>Preparing preprocessing workspace</div>
-                    <div class="loading-percent" data-preprocess-loading-percent>0%</div>
-                  </div>
-                  <div class="dna-progress-track" aria-hidden="true">
-                    <div class="dna-progress-fill" data-preprocess-loading-fill></div>
-                  </div>
-                  <div class="loading-steps">
-                    <div class="loading-step">1. Resolve the gene name to a genome interval.</div>
-                    <div class="loading-step">2. Filter the EPIC manifest down to the selected region.</div>
-                    <div class="loading-step">3. Save the subset and unlock the analysis workspace.</div>
-                  </div>
+          <div class="preprocess-sidebar">
+            <section class="analysis-panel-inner preprocess-status-panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Preprocessing Status</h2>
+                  <p>The status column mirrors the two preprocessing steps and fills downward as each one completes.</p>
                 </div>
+                <span class="panel-chip">{{ "Analysis unlocked" if analysis_unlocked else "Waiting for preprocessing" }}</span>
               </div>
 
-              <div class="loading-hideable results-stack">
-                <div class="metrics">
-                  <article class="metric">
-                    <span>Gene</span>
-                    <strong>{{ preprocess_state.gene_name }}</strong>
-                  </article>
-                  <article class="metric">
-                    <span>Region ready</span>
-                    <strong>{{ "Yes" if preprocess_state.region_ready else "No" }}</strong>
-                  </article>
-                  <article class="metric">
-                    <span>Manifest subset</span>
-                    <strong>{{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</strong>
-                  </article>
+              <div class="viewer-stage preprocess-status-stage" id="preprocess-viewer-stage">
+                <div class="loading-overlay" data-preprocess-loading-overlay hidden>
+                  <div class="loading-shell">
+                    <h3>Running preprocessing</h3>
+                    <p data-preprocess-loading-note>Preparing the preprocessing workspace</p>
+                    <div class="loading-readout">
+                      <div class="loading-label" data-preprocess-loading-label>Preparing preprocessing workspace</div>
+                      <div class="loading-percent" data-preprocess-loading-percent>0%</div>
+                    </div>
+                    <div class="dna-progress-track dna-progress-track--vertical" aria-hidden="true">
+                      <div class="dna-progress-fill" data-preprocess-loading-fill data-loading-axis="vertical"></div>
+                    </div>
+                    <div class="loading-steps">
+                      <div class="loading-step">1. Resolve the gene name to a genome interval.</div>
+                      <div class="loading-step">2. Filter the EPIC manifest down to the selected region.</div>
+                      <div class="loading-step">3. Save the subset and unlock the analysis workspace.</div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="results-viewer">
-                  <div class="viewer-scroll">
-                    {% if preprocess_notice %}
-                    <p class="status-note">{{ preprocess_notice }}</p>
-                    {% endif %}
+                <div class="loading-hideable results-stack">
+                  <div class="preprocess-status-grid">
+                    <div class="preprocess-progress-column">
+                      <div class="preprocess-progress-title">Step Flow</div>
+                      <div class="preprocess-vertical-track" aria-hidden="true">
+                        <div
+                          class="preprocess-vertical-fill"
+                          style="height: {{ preprocess_result.progress_percent if preprocess_result else 0 }}%;"
+                        ></div>
+                      </div>
+                      <div class="preprocess-progress-caption">{{ preprocess_result.progress_percent if preprocess_result else 0 }}%</div>
+                    </div>
 
-                    {% if preprocess_result %}
-                    <div class="insight-stack">
-                      <div class="insight-card">
-                        <span class="insight-kicker">Resolved interval</span>
-                        <h4>{{ preprocess_result.gene_name }}</h4>
-                        <p><strong>Active region:</strong> <code>{{ preprocess_result.region }}</code></p>
-                        {% if preprocess_result.selected_sources %}
-                        <div class="badge-row">
-                          {% for source in preprocess_result.selected_sources %}
-                          <span class="muted-badge">{{ source }}</span>
-                          {% endfor %}
+                    <div class="preprocess-step-stack">
+                      <article class="preprocess-step-card {% if preprocess_state.region_ready %}is-complete{% endif %}">
+                        <div class="preprocess-step-meta">
+                          <span class="preprocess-step-index">01</span>
+                          <span class="preprocess-step-state">{{ "Complete" if preprocess_state.region_ready else "Pending" }}</span>
                         </div>
-                        {% endif %}
+                        <div class="preprocess-step-copy">
+                          <h4>Find Region from Gene Name</h4>
+                          <p>{{ preprocess_result.steps[0].summary if preprocess_result else "Enter a gene symbol, then resolve it to a genome interval." }}</p>
+                        </div>
+                        <div class="preprocess-step-details">
+                          <div><strong>Gene:</strong> <code>{{ preprocess_state.gene_name }}</code></div>
+                          <div><strong>Region field:</strong> <code>{{ preprocess_state.region or "Waiting for lookup" }}</code></div>
+                          {% if preprocess_result and preprocess_result.selected_sources %}
+                          <div>
+                            <strong>Sources:</strong>
+                            {% for source in preprocess_result.selected_sources %}
+                            <span class="muted-badge">{{ source }}</span>
+                            {% endfor %}
+                          </div>
+                          {% endif %}
+                        </div>
+                      </article>
+
+                      <article class="preprocess-step-card {% if preprocess_state.manifest_ready %}is-complete{% endif %}">
+                        <div class="preprocess-step-meta">
+                          <span class="preprocess-step-index">02</span>
+                          <span class="preprocess-step-state">{{ "Complete" if preprocess_state.manifest_ready else "Pending" }}</span>
+                        </div>
+                        <div class="preprocess-step-copy">
+                          <h4>Select Methylation Data</h4>
+                          <p>{{ preprocess_result.steps[1].summary if preprocess_result else "Choose the full EPIC manifest and create the gene-specific subset." }}</p>
+                        </div>
+                        <div class="preprocess-step-details">
+                          <div><strong>Manifest source:</strong> <code>{{ preprocess_state.manifest_source or "Waiting for source file" }}</code></div>
+                          <div><strong>Saved subset:</strong> <code>{{ preprocess_state.filtered_manifest or "Not created yet" }}</code></div>
+                          <div><strong>Probe count:</strong> {{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</div>
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+
+                  <div class="metrics">
+                    <article class="metric">
+                      <span>Gene</span>
+                      <strong>{{ preprocess_state.gene_name }}</strong>
+                    </article>
+                    <article class="metric">
+                      <span>Current region</span>
+                      <strong>{{ preprocess_state.region if preprocess_state.region_ready else "Pending" }}</strong>
+                    </article>
+                    <article class="metric">
+                      <span>Subset probes</span>
+                      <strong>{{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</strong>
+                    </article>
+                  </div>
+
+                  {% if preprocess_notice %}
+                  <p class="status-note">{{ preprocess_notice }}</p>
+                  {% endif %}
+
+                  {% if preprocess_result %}
+                  <div class="preprocess-artifacts">
+                    <details class="field-details">
+                      <summary>Inspect preprocessing artifacts</summary>
+                      <div class="preprocess-step-details" style="margin-top: 10px;">
+                        <div><strong>Manifest source:</strong> <code>{{ preprocess_result.manifest_source or "Not selected yet" }}</code></div>
+                        <div><strong>Filtered subset:</strong> <code>{{ preprocess_result.filtered_manifest or "Not generated yet" }}</code></div>
+                        <div><strong>Genome build:</strong> {{ preprocess_result.build }}</div>
                         {% if preprocess_result.region_candidates %}
-                        <h4>Candidate coordinates returned by public sources</h4>
+                        <div><strong>Candidate coordinates returned by public sources:</strong></div>
                         <ul class="insight-list">
                           {% for item in preprocess_result.region_candidates %}
                           <li><strong>{{ item.source }}</strong>: <code>{{ item.region }}</code></li>
@@ -1393,46 +1734,50 @@
                         </ul>
                         {% endif %}
                       </div>
+                    </details>
 
-                      <div class="insight-card">
-                        <span class="insight-kicker">Methylation subset</span>
-                        <h4>Gene-specific EPIC manifest output</h4>
-                        <p><strong>Manifest source:</strong> <code>{{ preprocess_result.manifest_source or "Not selected yet" }}</code></p>
-                        <p><strong>Filtered subset:</strong> <code>{{ preprocess_result.filtered_manifest or "Not generated yet" }}</code></p>
-                        <p><strong>Probe count:</strong> {{ preprocess_result.probe_count }}</p>
-                        <p><strong>Genome build:</strong> {{ preprocess_result.build }}</p>
-                        {% if preprocess_result.preview_html %}
-                        <div class="table-shell">
-                          {{ preprocess_result.preview_html | safe }}
-                        </div>
-                        {% endif %}
+                    {% if preprocess_result.preview_html %}
+                    <details class="field-details">
+                      <summary>Preview filtered manifest rows</summary>
+                      <div class="table-shell" style="margin-top: 12px;">
+                        {{ preprocess_result.preview_html | safe }}
                       </div>
+                    </details>
+                    {% endif %}
 
-                      {% if analysis_unlocked %}
-                      <div class="insight-card">
-                        <span class="insight-kicker">Next step</span>
-                        <h4>Analysis workspace unlocked</h4>
-                        <p>The region and manifest subset are ready. You can now move to the Run Analysis tab with the prepared settings prefilled.</p>
-                        <div class="overview-actions">
-                          <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
-                        </div>
-                      </div>
-                      {% endif %}
+                    {% if analysis_unlocked %}
+                    <div class="path-chip">
+                      <strong>Next step</strong>
+                      <span>The region and gene-specific manifest subset are ready.</span>
+                      <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
                     </div>
-                    {% else %}
-                    <section class="empty-state">
-                      <div class="empty-state-inner">
-                        <h3>Preprocessing output will appear here</h3>
-                        <p>Start by entering a gene symbol and resolving its region. Then filter the EPIC manifest to that interval so the analysis workspace can open with gene-specific methylation data.</p>
-                        <p>If needed, the full manifest file should usually be inside <code>{{ data_dir }}</code>.</p>
-                      </div>
-                    </section>
                     {% endif %}
                   </div>
+                  {% endif %}
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+
+            <section class="analysis-panel-inner preprocess-console-panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Preprocessing Console</h2>
+                  <p>Developer-facing stdout and stderr from the helper scripts are streamed here after each preprocessing action.</p>
+                </div>
+                <span class="panel-chip">Debug output</span>
+              </div>
+
+              <div class="preprocess-console-shell">
+                <p class="preprocess-console-hint">Use this panel to confirm what the lookup and manifest-filter scripts processed, including warnings and tracebacks.</p>
+                <div class="preprocess-console {% if not preprocess_result or not preprocess_result.logs %}is-empty{% endif %}">
+                  <pre>{% if preprocess_result and preprocess_result.logs %}{% for line in preprocess_result.logs %}{{ line }}
+{% endfor %}{% else %}[stdout] Preprocessing script output will appear here.
+[stderr] Errors and tracebacks will appear here if a step fails.
+{% endif %}</pre>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
 
@@ -2709,7 +3054,11 @@
           elements.percent.textContent = `${percentValue}%`;
         }
         if (elements.fill) {
-          elements.fill.style.width = `${percentValue}%`;
+          if ((elements.fill.dataset.loadingAxis || "").toLowerCase() === "vertical") {
+            elements.fill.style.height = `${percentValue}%`;
+          } else {
+            elements.fill.style.width = `${percentValue}%`;
+          }
         }
         if (elements.label) {
           elements.label.textContent = currentStep.label;
