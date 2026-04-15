@@ -51,6 +51,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _candidate_gene_database_paths(gene_name: str, suffix: str) -> list[Path]:
+    """Return likely per-gene knowledge-base paths in priority order."""
+    sanitized_gene_name = sanitize_gene_name_for_filename(gene_name)
+    candidates = [
+        GENE_DATA_DIR / f"{sanitized_gene_name.lower()}_{suffix}",
+        GENE_DATA_DIR / f"{sanitized_gene_name}_{suffix}",
+        GENE_DATA_DIR / f"{sanitized_gene_name.upper()}_{suffix}",
+    ]
+
+    unique_candidates: list[Path] = []
+    seen_paths: set[Path] = set()
+    for path in candidates:
+        if path in seen_paths:
+            continue
+        seen_paths.add(path)
+        unique_candidates.append(path)
+    return unique_candidates
+
+
+def find_gene_database_path(gene_name: str, suffix: str) -> Path | None:
+    """Locate a bundled per-gene database when one is available."""
+    for candidate in _candidate_gene_database_paths(gene_name, suffix):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 class AnalysisError(RuntimeError):
     """Raised when the DRD4 workflow cannot complete successfully."""
 
@@ -221,6 +248,22 @@ def load_population_database(database_path: str | Path = POPULATION_DB_PATH) -> 
         raise AnalysisError(f"Population database is not valid JSON: {payload_path}") from exc
 
 
+def load_gene_interpretation_database(gene_name: str) -> dict[str, Any] | None:
+    """Load a bundled gene-specific interpretation database when one exists."""
+    database_path = find_gene_database_path(gene_name, "interpretation_db.json")
+    if database_path is None:
+        return None
+    return load_interpretation_database(database_path)
+
+
+def load_gene_population_database(gene_name: str) -> dict[str, Any] | None:
+    """Load a bundled gene-specific population database when one exists."""
+    database_path = find_gene_database_path(gene_name, "population_db.json")
+    if database_path is None:
+        return None
+    return load_population_database(database_path)
+
+
 def _decode_scalar(value: Any) -> Any:
     """Decode byte-valued VCF fields into plain Python strings when needed."""
     if isinstance(value, (bytes, bytearray)):
@@ -369,6 +412,8 @@ def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
 def _build_observed_variant_summary(
     row: pd.Series,
     matched_record: dict[str, Any] | None,
+    *,
+    gene_name: str = DEFAULT_GENE_NAME,
 ) -> dict[str, Any]:
     """Render an observed variant plus whatever curated significance is available."""
     chrom = str(row.get("chrom", "")).removeprefix("chr")
@@ -382,8 +427,13 @@ def _build_observed_variant_summary(
             "position": _format_point(chrom, position),
             "quality": quality_display,
             "matched_variant": None,
-            "clinical_significance": "No curated clinical significance available in the local DRD4 database for this observed site.",
-            "summary": "Observed inside the selected DRD4 search window, but not one of the seeded common DRD4 promoter or gene variants.",
+            "clinical_significance": (
+                f"No curated clinical significance available in the local {gene_name} database for this observed site."
+            ),
+            "summary": (
+                f"Observed inside the selected {gene_name} search window, but not one of the seeded "
+                f"common {gene_name} promoter or gene variants."
+            ),
             "functional_effects": [],
             "associated_conditions": [],
             "research_context": [],
@@ -436,6 +486,7 @@ def _summarize_observed_region_variants(
     chrom: str,
     start: int,
     end: int,
+    gene_name: str,
     limit: int = 12,
 ) -> list[dict[str, Any]]:
     """Summarize observed PASS variants in a given region for UI display."""
@@ -447,7 +498,13 @@ def _summarize_observed_region_variants(
 
     summaries: list[dict[str, Any]] = []
     for _, row in observed.head(limit).iterrows():
-        summaries.append(_build_observed_variant_summary(row, _match_variant_record(row, variant_records)))
+        summaries.append(
+            _build_observed_variant_summary(
+                row,
+                _match_variant_record(row, variant_records),
+                gene_name=gene_name,
+            )
+        )
     return summaries
 
 
@@ -457,6 +514,7 @@ def _build_region_variant_analysis(
     search_region: dict[str, Any],
     variants: pd.DataFrame,
     curated_records: list[dict[str, Any]],
+    gene_name: str,
     inclusion_hint: str,
 ) -> dict[str, Any]:
     """Build a structured analysis block for promoter or gene-body coverage."""
@@ -468,6 +526,7 @@ def _build_region_variant_analysis(
             chrom=region_record["chrom"],
             start=region_record["start"],
             end=region_record["end"],
+            gene_name=gene_name,
         )
         if included
         else []
@@ -588,11 +647,12 @@ def _build_sample_variant_highlights(
     matched_records: list[dict[str, Any]],
     promoter_analysis: dict[str, Any],
     gene_analysis: dict[str, Any],
+    gene_name: str,
 ) -> dict[str, Any]:
     """Summarize the most visible sample-specific variant findings first."""
     if matched_records:
         summary = (
-            f"This sample matched {len(matched_records)} curated DRD4 research variant(s). "
+            f"This sample matched {len(matched_records)} curated {gene_name} research variant(s). "
             "Those direct sample hits are shown first below."
         )
         items = [
@@ -630,12 +690,12 @@ def _build_sample_variant_highlights(
 
     if found_items:
         summary = (
-            "This sample did not hit one of the curated named DRD4 markers, but it did contain "
+            f"This sample did not hit one of the curated named {gene_name} markers, but it did contain "
             f"{len(found_items)} observed PASS variant(s) inside the reviewed promoter or gene intervals."
         )
     else:
         summary = (
-            "This sample did not yield a visible DRD4 promoter or gene-body PASS variant in the current preview slice."
+            f"This sample did not yield a visible {gene_name} promoter or gene-body PASS variant in the current preview slice."
         )
 
     return {
@@ -648,23 +708,32 @@ def _build_region_recommendations(
     promoter_region_record: dict[str, Any],
     gene_region_record: dict[str, Any],
     combined_region: str,
+    *,
+    gene_name: str,
 ) -> list[dict[str, str]]:
     """Return practical region-span recommendations for common DRD4 review goals."""
     return [
         {
             "title": "Promoter only",
             "region": promoter_region_record["display"],
-            "purpose": "Use this when you want to focus on the upstream promoter-review window and the classic DRD4 promoter polymorphism hotspot without loading the transcribed gene body.",
+            "purpose": (
+                "Use this when you want to focus on the upstream promoter-review window "
+                f"and the classically studied {gene_name} promoter hotspot without loading the transcribed gene body."
+            ),
         },
         {
             "title": "Gene body only",
             "region": gene_region_record["display"],
-            "purpose": "Use this when you want the canonical DRD4 transcribed interval but do not need the upstream promoter review window.",
+            "purpose": (
+                f"Use this when you want the canonical {gene_name} transcribed interval but do not need the upstream promoter review window."
+            ),
         },
         {
             "title": "Promoter plus gene body",
             "region": combined_region,
-            "purpose": "Use this when you want the full audit: upstream promoter context plus the canonical DRD4 gene interval in one search.",
+            "purpose": (
+                f"Use this when you want the full audit: upstream promoter context plus the canonical {gene_name} gene interval in one search."
+            ),
         },
     ]
 
@@ -688,6 +757,7 @@ def build_variant_interpretations(
     """Build a structured DRD4 locus audit for the observed PASS variants."""
     variant_records = knowledge_base.get("variant_records", [])
     gene_context = knowledge_base.get("gene_context", {})
+    gene_name = str(gene_context.get("gene_name", DEFAULT_GENE_NAME))
     chrom = str(gene_context.get("chromosome", "11")).removeprefix("chr")
     gene_region_source = gene_context.get("gene_region", {})
     promoter_region_source = gene_context.get("promoter_review_region", {})
@@ -702,7 +772,7 @@ def build_variant_interpretations(
         "Exact interval used to pull PASS variants from the selected VCF.",
     )
     gene_region_record = _build_interval_record(
-        gene_region_source.get("label", "DRD4 transcribed interval"),
+        gene_region_source.get("label", f"{gene_name} transcribed interval"),
         chrom,
         int(gene_region_source["start"]),
         int(gene_region_source["end"]),
@@ -771,10 +841,11 @@ def build_variant_interpretations(
         search_region=search_region,
         variants=variants,
         curated_records=promoter_records,
+        gene_name=gene_name,
         inclusion_hint=(
             "Use the promoter-plus-gene interval "
             f"{gene_context.get('recommended_promoter_plus_gene_region', _format_interval(chrom, promoter_region_record['start'], gene_region_record['end']))} "
-            "if you want the upstream DRD4 promoter reviewed alongside the gene."
+            f"if you want the upstream {gene_name} promoter reviewed alongside the gene."
         ),
     )
     gene_analysis = _build_region_variant_analysis(
@@ -782,7 +853,8 @@ def build_variant_interpretations(
         search_region=search_region,
         variants=variants,
         curated_records=gene_records,
-        inclusion_hint="Choose a region that overlaps the canonical DRD4 gene interval if you want gene-body variants interpreted.",
+        gene_name=gene_name,
+        inclusion_hint=f"Choose a region that overlaps the canonical {gene_name} gene interval if you want gene-body variants interpreted.",
     )
 
     promoter_phrase = "overlaps" if promoter_analysis["included"] else "does not overlap"
@@ -792,10 +864,10 @@ def build_variant_interpretations(
         _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
     )
     summary = (
-        f"DRD4 is located at {gene_region_record['display']} on {gene_context.get('cytoband', '11p15.5')} "
+        f"{gene_name} is located at {gene_region_record['display']} on {gene_context.get('cytoband', 'the reported cytoband')} "
         f"and spans {gene_region_record['length_bp']:,} bp on the {gene_context.get('assembly', 'GRCh37 / hg19')} assembly. "
         f"The current search interval {search_region_record['display']} {promoter_phrase} the operational promoter review window "
-        f"{promoter_region_record['display']} and {gene_phrase} the DRD4 transcribed interval {gene_region_record['display']}. "
+        f"{promoter_region_record['display']} and {gene_phrase} the {gene_name} transcribed interval {gene_region_record['display']}. "
         f"In the current preview, {promoter_analysis['found_variant_count']} promoter-window variant(s) and "
         f"{gene_analysis['found_variant_count']} gene-interval variant(s) were surfaced."
     )
@@ -805,8 +877,8 @@ def build_variant_interpretations(
         "matched_records": matched_records,
         "unclassified_variant_count": max(len(variants) - len(matched_records), 0),
         "gene_summary": gene_context.get("gene_summary", ""),
-        "database_name": knowledge_base.get("database_name", "Local DRD4 interpretation database"),
-        "gene_name": gene_context.get("gene_name", "DRD4"),
+        "database_name": knowledge_base.get("database_name", f"Local {gene_name} interpretation database"),
+        "gene_name": gene_name,
         "clinical_context": gene_context.get("clinical_context", ""),
         "variant_effect_overview": gene_context.get("variant_effect_overview", []),
         "condition_research_overview": gene_context.get("condition_research_overview", []),
@@ -814,11 +886,13 @@ def build_variant_interpretations(
             matched_records=matched_records,
             promoter_analysis=promoter_analysis,
             gene_analysis=gene_analysis,
+            gene_name=gene_name,
         ),
         "region_recommendations": _build_region_recommendations(
             promoter_region_record,
             gene_region_record,
             combined_region,
+            gene_name=gene_name,
         ),
         "gene_region": gene_region_record,
         "promoter_region": promoter_region_record,
@@ -835,8 +909,9 @@ def build_population_insights(
     knowledge_base: dict[str, Any],
     population_database: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build geography-aware population summaries for common curated DRD4 variants."""
+    """Build geography-aware population summaries for common curated gene variants."""
     variant_records = knowledge_base.get("variant_records", [])
+    gene_name = str(knowledge_base.get("gene_context", {}).get("gene_name", DEFAULT_GENE_NAME))
     curated_record_map = {record["variant"]: record for record in variant_records}
 
     observed_variant_map: dict[str, list[str]] = {}
@@ -897,22 +972,37 @@ def build_population_insights(
     else:
         overlap_note = (
             "The current run did not directly hit one of the curated SNPs with built-in population frequencies, "
-            "so this section provides reference context for commonly studied DRD4 variants."
+            f"so this section provides reference context for commonly studied {gene_name} variants."
         )
 
-    summary = (
-        f"Population reference data are available for {len(population_variant_records)} curated DRD4 SNPs "
-        f"across {', '.join(sorted(location_groups))} panels, plus literature-based geographic patterns for the "
-        "exon III VNTR. "
-        f"{overlap_note}"
-    )
+    if population_variant_records:
+        location_summary = ", ".join(sorted(location_groups)) if location_groups else "available reference panels"
+        summary = (
+            f"Population reference data are available for {len(population_variant_records)} curated {gene_name} SNPs "
+            f"across {location_summary} panels. "
+            f"{overlap_note}"
+        )
+    elif population_database.get("gene_population_patterns"):
+        summary = (
+            f"No embedded allele-frequency panel is bundled for {gene_name} yet, but literature-backed gene-level "
+            f"population notes are available. {overlap_note}"
+        )
+    else:
+        summary = (
+            f"No curated population reference panel is bundled for {gene_name} yet. "
+            "The app is therefore showing raw variant and methylation results without population-frequency overlays."
+        )
 
     return {
-        "database_name": population_database.get("database_name", "Local DRD4 population database"),
+        "database_name": population_database.get("database_name", f"Local {gene_name} population database"),
         "summary": summary,
         "location_groups": sorted(location_groups),
         "variant_population_records": population_variant_records,
         "gene_population_patterns": population_database.get("gene_population_patterns", []),
+        "gene_population_patterns_intro": population_database.get(
+            "gene_population_patterns_intro",
+            f"Broader population patterns curated from the {gene_name} literature.",
+        ),
         "sources": population_database.get("sources", []),
     }
 
@@ -922,6 +1012,7 @@ def build_methylation_insights(
 ) -> dict[str, Any]:
     """Build a gene-level methylation interpretation from the current probe table."""
     gene_context = knowledge_base.get("gene_context", {})
+    gene_name = str(gene_context.get("gene_name", DEFAULT_GENE_NAME))
     relevant_probe_ids = list(gene_context.get("relevant_methylation_probe_ids", []))
     relevant_probe_lookup = set(relevant_probe_ids)
 
@@ -947,14 +1038,14 @@ def build_methylation_insights(
         group_summary = "annotation breakdown unavailable"
 
     summary_prefix = (
-        f"The current run captured {len(observed_relevant)} curated DRD4 probe(s) "
+        f"The current run captured {len(observed_relevant)} curated {gene_name} probe(s) "
         f"with a mean beta of {mean_beta:.2f}, which sits in the {beta_band} range. "
         if mean_beta is not None
-        else "The current run did not yield a mean beta estimate for the curated DRD4 probes. "
+        else f"The current run did not yield a mean beta estimate for the curated {gene_name} probes. "
     )
 
     summary = (
-        f"{summary_prefix}The bundled DRD4 array subset is dominated by {group_summary}. "
+        f"{summary_prefix}The bundled {gene_name} array subset is dominated by {group_summary}. "
         f"{gene_context.get('methylation_interpretation', '')}"
     ).strip()
 
@@ -970,7 +1061,7 @@ def build_methylation_insights(
     ]
 
     return {
-        "gene_name": gene_context.get("gene_name", "DRD4"),
+        "gene_name": gene_name,
         "clinical_context": gene_context.get("clinical_context", ""),
         "summary": summary,
         "mean_beta": round(mean_beta, 3) if mean_beta is not None else None,
@@ -1004,7 +1095,7 @@ def build_generic_variant_interpretations(
     )
 
     observed_summaries = [
-        _build_observed_variant_summary(row, None)
+        _build_observed_variant_summary(row, None, gene_name=gene_name)
         for _, row in variants.sort_values("pos").head(12).iterrows()
     ]
     highlight_items = [
@@ -1190,6 +1281,7 @@ def build_empty_population_insights(*, gene_name: str) -> dict[str, Any]:
         "sources": [],
         "variant_population_records": [],
         "gene_population_patterns": [],
+        "gene_population_patterns_intro": "",
         "database_name": f"No curated {gene_name} population database loaded",
         "database_version": "generic",
     }
@@ -1306,6 +1398,16 @@ def _prepare_gene_manifest_subset(
     return output_path
 
 
+def _run_methylprep_pipeline(data_dir: str, *, manifest_filepath: str | None) -> pd.DataFrame:
+    """Run methylprep with the requested manifest override, if any."""
+    return run_pipeline(
+        data_dir,
+        export=True,
+        betas=True,
+        manifest_filepath=manifest_filepath,
+    )
+
+
 def load_methylation(
     idat_base: str,
     manifest_filepath: str | None = None,
@@ -1365,6 +1467,7 @@ def load_methylation(
         / "gene_data"
         / _gene_manifest_filename(normalized_gene_name)
     )
+    pipeline_manifest_path = manifest_filepath
     if manifest_filepath:
         region_manifest_file = _prepare_gene_manifest_subset(
             manifest_filepath=manifest_filepath,
@@ -1374,16 +1477,30 @@ def load_methylation(
 
     try:
         logger.info("Running methylprep pipeline with betas=True")
-        beta_values = run_pipeline(
+        beta_values = _run_methylprep_pipeline(
             data_dir,
-            export=True,
-            betas=True,
-            manifest_filepath=manifest_filepath,
+            manifest_filepath=pipeline_manifest_path,
         )
         logger.debug("Beta-values DataFrame loaded, shape = %s", beta_values.shape)
     except Exception as exc:
-        logger.exception("run_pipeline failed")
-        raise AnalysisError(f"methylprep failed for sample '{sample_name}': {exc}") from exc
+        if pipeline_manifest_path:
+            logger.warning(
+                "methylprep rejected custom manifest '%s'; retrying with methylprep's default manifest.",
+                pipeline_manifest_path,
+                exc_info=True,
+            )
+            try:
+                beta_values = _run_methylprep_pipeline(data_dir, manifest_filepath=None)
+                logger.debug("Beta-values DataFrame loaded, shape = %s", beta_values.shape)
+            except Exception as retry_exc:
+                logger.exception("run_pipeline failed even after retrying without a custom manifest")
+                raise AnalysisError(
+                    f"methylprep failed for sample '{sample_name}' with custom manifest "
+                    f"'{pipeline_manifest_path}', and the retry without that manifest also failed: {retry_exc}"
+                ) from retry_exc
+        else:
+            logger.exception("run_pipeline failed")
+            raise AnalysisError(f"methylprep failed for sample '{sample_name}': {exc}") from exc
 
     if sample_name not in beta_values.columns:
         raise AnalysisError(f"No beta column named '{sample_name}' in methylprep output")
@@ -1770,12 +1887,10 @@ def run_analysis(
         region=region,
     )
 
-    if normalized_gene_name == DEFAULT_GENE_NAME:
-        knowledge_base = load_interpretation_database()
-        population_database = load_population_database()
+    knowledge_base = load_gene_interpretation_database(normalized_gene_name)
+    if knowledge_base is not None:
         variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
         methylation_insights = build_methylation_insights(methylation, knowledge_base)
-        population_insights = build_population_insights(variants, knowledge_base, population_database)
     else:
         knowledge_base = {
             "database_name": f"No curated {normalized_gene_name} interpretation database loaded",
@@ -1795,6 +1910,15 @@ def run_analysis(
             methylation,
             gene_name=normalized_gene_name,
         )
+
+    population_database = load_gene_population_database(normalized_gene_name)
+    if population_database is not None and knowledge_base.get("version") != "generic":
+        population_insights = build_population_insights(variants, knowledge_base, population_database)
+    else:
+        population_database = {
+            "database_name": f"No curated {normalized_gene_name} population database loaded",
+            "version": "generic",
+        }
         population_insights = build_empty_population_insights(gene_name=normalized_gene_name)
 
     report_path = Path(output_path)

@@ -70,7 +70,44 @@ def discover_population_stats_files() -> list[str]:
     """Find optional CSV and JSON population statistics files in ``data/``."""
     if not DATA_DIR.exists():
         return []
-    matches = sorted(DATA_DIR.rglob("*.csv")) + sorted(DATA_DIR.rglob("*.json"))
+
+    include_tokens = (
+        "population",
+        "popstats",
+        "allele",
+        "frequency",
+        "gnomad",
+        "topmed",
+        "ancestry",
+        "cohort",
+        "reference",
+    )
+    exclude_tokens = (
+        "manifest",
+        "sample_sheet",
+        "samplesheet",
+        "processed",
+        "methylation",
+        "beta_values",
+        "control_probes",
+        "noob_",
+    )
+
+    matches: list[Path] = []
+    for path in sorted(DATA_DIR.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".csv", ".json"}:
+            continue
+
+        relative_display = _as_relative_display(path).lower()
+        file_name = path.name.lower()
+        if any(token in relative_display or token in file_name for token in exclude_tokens):
+            continue
+        if not any(token in relative_display or token in file_name for token in include_tokens):
+            continue
+        matches.append(path)
+
     return [_as_relative_display(path) for path in matches]
 
 
@@ -233,10 +270,6 @@ def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[s
     """Propagate preprocessing results into the analysis form defaults."""
     if preprocess_state.get("region"):
         form["region"] = str(preprocess_state["region"])
-    if preprocess_state.get("manifest_source"):
-        form["manifest_file"] = str(preprocess_state["manifest_source"])
-    elif preprocess_state.get("filtered_manifest"):
-        form["manifest_file"] = str(preprocess_state["filtered_manifest"])
 
     default_output = f"results/{DEFAULT_REPORT_NAME}"
     if form["out"] == default_output and preprocess_state.get("gene_name"):
@@ -298,9 +331,10 @@ def _build_field_info(
             "example": form["manifest_file"]
             or str(preprocess_state.get("manifest_source", "data/infinium-methylationepic-manifest-file.csv")),
             "details": (
-                "This should point to the full EPIC manifest source file. During analysis the app saves a "
-                "gene-specific subset like src/gene_data/GENE_epigenetics_hg19.csv before methylprep runs, "
-                "and that saved subset is then reused for the probe annotation join."
+                "Optional override. Leave this empty unless you specifically want to force methylprep to use "
+                "a custom vendor manifest file. The preprocessing workflow already saves a gene-specific subset "
+                "like src/gene_data/GENE_epigenetics_hg19.csv, and that saved subset is reused for the probe "
+                "annotation join after methylprep finishes."
             ),
         },
     }

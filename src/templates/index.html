@@ -2448,7 +2448,7 @@
                               <div class="expandable-copy">
                                 <span class="insight-kicker">Gene-wide population patterns</span>
                                 <h4>{{ result.variant_interpretations.gene_name }} population structure beyond the curated SNP set</h4>
-                                <p>Broader population patterns from the exon III VNTR literature.</p>
+                                <p>{{ result.population_insights.gene_population_patterns_intro }}</p>
                               </div>
                             </summary>
                             <div class="expandable-body">
@@ -3169,8 +3169,36 @@
           activateTab(targetTab);
           startLoadingExperience(stage, elements, steps);
           formElement.dataset.submitting = "true";
+          const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
           window.requestAnimationFrame(() => {
-            window.setTimeout(() => formElement.submit(), 40);
+            window.setTimeout(() => {
+              try {
+                if (typeof formElement.requestSubmit === "function") {
+                  if (submitter) {
+                    formElement.requestSubmit(submitter);
+                  } else {
+                    formElement.requestSubmit();
+                  }
+                  return;
+                }
+
+                let temporarySubmitterInput = null;
+                if (submitter && submitter.name) {
+                  temporarySubmitterInput = document.createElement("input");
+                  temporarySubmitterInput.type = "hidden";
+                  temporarySubmitterInput.name = submitter.name;
+                  temporarySubmitterInput.value = submitter.value;
+                  formElement.appendChild(temporarySubmitterInput);
+                }
+                formElement.submit();
+                if (temporarySubmitterInput) {
+                  temporarySubmitterInput.remove();
+                }
+              } catch (error) {
+                delete formElement.dataset.submitting;
+                throw error;
+              }
+            }, 40);
           });
         });
       }

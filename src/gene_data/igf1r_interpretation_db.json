@@ -1,0 +1,262 @@
+{
+  "database_name": "NophiGene IGF1R Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "IGF1R",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "15q26.3",
+    "chromosome": "15",
+    "gene_region": {
+      "label": "IGF1R transcribed interval",
+      "start": 99191768,
+      "end": 99507759,
+      "definition": "Canonical IGF1R genomic interval on GRCh37 / hg19 reported by ClinGen dosage curation and NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 99190768,
+      "end": 99191767,
+      "definition": "A practical 1 kb upstream window used by this app to flag promoter-adjacent IGF1R coverage before the canonical gene interval begins."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG island window",
+      "start": 99190446,
+      "end": 99194559,
+      "definition": "Promoter-proximal CpG-island span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "15:99190768-99507759",
+    "gene_summary": "IGF1R encodes the insulin-like growth factor 1 receptor, a receptor tyrosine kinase that activates PI3K-AKT and MAPK signaling after binding IGF1. The locus is central to growth, survival, developmental signaling, and cancer biology, and has also been studied in aging-related human cohorts.",
+    "clinical_context": "The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow.",
+    "variant_effect_overview": [
+      "Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "Because IGF1R is a signaling receptor with broad downstream effects, published associations are often tissue-, sex-, or cohort-dependent and should not be over-generalized from a single study.",
+      "Observed PASS variants inside the IGF1R interval should therefore be interpreted as locus context unless they directly match a curated research SNP or have independent clinical evidence outside this bundled database."
+    ],
+    "condition_research_overview": [
+      "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
+      "Human cohort work has also linked common IGF1R polymorphisms to aging-related phenotypes, hypertensive-pregnancy follow-up outcomes, cardiovascular traits, and selected birth or growth phenotypes.",
+      "The strongest methylation evidence in the local database is regulatory and biomarker-oriented rather than diagnostic on its own."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg19620752",
+      "cg17375167",
+      "cg20479870",
+      "cg14568338",
+      "cg07779120",
+      "cg17297216",
+      "cg27438980",
+      "cg12562232",
+      "cg26329756",
+      "cg10507754"
+    ],
+    "methylation_interpretation": "IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay.",
+    "methylation_effects": [
+      "Higher promoter-proximal methylation is usually interpreted as a potential reduction in transcriptional accessibility or an altered signaling set point, not as a diagnosis by itself.",
+      "IGF1R methylation measurements can vary substantially by tissue and disease context, so cancer, placenta, blood, and developmental studies should not be treated as interchangeable.",
+      "When promoter-proximal methylation and common IGF1R polymorphisms are discussed together, the most defensible interpretation is a pathway-level regulatory interaction rather than a direct deterministic effect."
+    ],
+    "methylation_condition_research": [
+      "Cancer biology and prognosis research: IGF1R epigenetic regulation is studied because receptor expression influences proliferation, survival signaling, and treatment sensitivity.",
+      "Growth and developmental programming research: IGF-axis epigenetics has been examined in fetal growth, birth-weight, and endocrine contexts where IGF1R signaling shapes developmental outcomes.",
+      "Aging and metabolic signaling reviews: broader IGF-pathway epigenetic regulation is discussed as part of longevity, endocrine signaling, and age-related disease biology."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 3480: IGF1R gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene?Cmd=DetailsSearch&Db=gene&Term=3480"
+      },
+      {
+        "label": "ClinGen dosage curation: IGF1R coordinates on GRCh37 / hg19",
+        "url": "https://search.clinicalgenome.org/kb/gene-dosage/IGF1R"
+      },
+      {
+        "label": "PubMed 28981462: review of IGF-axis epigenetics",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/28981462/"
+      },
+      {
+        "label": "PubMed 26901531: IGF1R proteostasis and tumor-suppressor context",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/26901531/"
+      },
+      {
+        "label": "PubMed 19460140 / PMCID PMC2692840: IGF1R rs2229765 and male longevity",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+      },
+      {
+        "label": "PubMed 28213921: IGF1R rs2229765 and spontaneous preterm birth risk",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+      },
+      {
+        "label": "PubMed 31687025: IGF1R rs2016347 and breast involution after hypertensive pregnancy",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+      },
+      {
+        "label": "PubMed 36331687: IGF1R rs2016347 and later-life breast cancer risk after preeclampsia",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "gene_name": "IGF1R",
+      "variant": "rs2229765",
+      "display_name": "rs2229765",
+      "common_name": "G3174A / p.Glu1043Glu synonymous variant",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / common pathway marker",
+      "lookup_keys": [
+        "rs2229765",
+        "igf1r:rs2229765"
+      ],
+      "clinical_interpretation": "rs2229765 is a common synonymous IGF1R polymorphism that has been studied as a signaling-set-point or haplotype marker in aging, pregnancy, endocrine, and cancer cohorts. The local database does not treat it as a pathogenic diagnostic variant; instead it is curated as a research association marker with context-dependent effects.",
+      "clinical_significance": "Research-level association; no pathogenic or likely pathogenic classification is seeded for this SNP in the local database.",
+      "functional_effects": [
+        "Synonymous coding change usually interpreted as a marker of subtle regulatory or linkage effects rather than a protein-altering lesion.",
+        "Most reported phenotype associations are modest and cohort-specific, consistent with pathway tuning rather than monogenic causality."
+      ],
+      "associated_conditions": [
+        "Male longevity and healthy-aging cohorts",
+        "Spontaneous preterm birth and pregnancy-outcome studies",
+        "Selected thyroid and lung cancer association or prognosis studies"
+      ],
+      "research_context": [
+        "This SNP is often used as a common IGF1R pathway marker in cohort studies rather than as a direct causal coding event.",
+        "Published effects differ across sex, ancestry, and disease context, so replication and cohort matching matter."
+      ],
+      "usual_variant_note": "Usually discussed as a common IGF1R pathway polymorphism rather than a high-impact clinical variant.",
+      "relevant_methylation_probe_ids": [
+        "cg19620752",
+        "cg17375167",
+        "cg20479870",
+        "cg14568338",
+        "cg07779120",
+        "cg17297216",
+        "cg27438980",
+        "cg12562232",
+        "cg26329756",
+        "cg10507754"
+      ],
+      "methylation_interpretation": "This variant is not curated as a direct methylation biomarker, but it belongs to an IGF1R regulatory context where promoter accessibility and pathway activity are biologically relevant. In this workbench, methylation should therefore be read as supportive regulatory context rather than as a one-to-one consequence of rs2229765.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 19460140 / PMCID PMC2692840: rs2229765 and male longevity",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+        },
+        {
+          "label": "PubMed 28213921: rs2229765 and spontaneous preterm birth risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+        },
+        {
+          "label": "PubMed 34527927: rs2229765 distribution in inflammatory arthritides and controls",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34527927/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Bonafè et al., 2009 (PMID 19460140)",
+          "genotypes": "GG, GA, and AA",
+          "phenotype": "Male longevity and circulating free IGF-1 in an elderly Italian cohort",
+          "finding": "The A allele was enriched in older male participants and AA men in the 85+ group had the lowest free IGF-1 levels, supporting a sex-specific pathway-association signal rather than a diagnostic effect.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+        },
+        {
+          "paper": "He et al., 2017 (PMID 28213921)",
+          "genotypes": "GG, GA, and AA",
+          "phenotype": "Spontaneous preterm birth risk in a Chinese pregnancy cohort",
+          "finding": "Women carrying GA or GA/AA genotypes had a reduced spontaneous preterm birth risk relative to GG carriers in this study, consistent with a modest context-dependent association.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+        },
+        {
+          "paper": "Ivanova et al., 2021 (PMID 34527927)",
+          "genotypes": "GG, GA, and AA",
+          "phenotype": "Healthy-control and inflammatory-arthritis cohort distributions",
+          "finding": "Healthy-control and disease-cohort genotype distributions supported the interpretation of rs2229765 as a common population polymorphism whose effect size depends on the phenotype being modeled.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34527927/"
+        }
+      ]
+    },
+    {
+      "gene_name": "IGF1R",
+      "variant": "rs2016347",
+      "display_name": "rs2016347",
+      "common_name": "functional 3' regulatory IGF1R SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / regulatory marker",
+      "lookup_keys": [
+        "rs2016347",
+        "igf1r:rs2016347"
+      ],
+      "clinical_interpretation": "rs2016347 is curated here as a functional common IGF1R regulatory polymorphism that has been associated with altered breast involution, breast-cancer risk modification after hypertensive pregnancy, and selected cardiovascular or cancer outcomes in women with specific reproductive histories. The local database does not seed it as a pathogenic clinical allele.",
+      "clinical_significance": "Research-level association; no pathogenic or likely pathogenic classification is seeded for this SNP.",
+      "functional_effects": [
+        "Used as a common regulatory marker in studies proposing reduced IGF1R expression or attenuated IGF-axis signaling in T-allele carriers.",
+        "Best interpreted as a context-dependent pathway modifier rather than a stand-alone disease determinant."
+      ],
+      "associated_conditions": [
+        "Breast involution and breast-cancer risk after hypertensive disorders of pregnancy",
+        "Non-breast cancer and cardiovascular risk stratification in women with reproductive-endocrine risk factors",
+        "Selected sarcoma and cancer-prognosis cohorts"
+      ],
+      "research_context": [
+        "The strongest bundled evidence concerns effect modification in women with hypertensive pregnancy histories, not an unconditional risk effect across all populations.",
+        "This SNP is frequently discussed as a functional IGF1R regulatory background allele in epidemiologic analyses."
+      ],
+      "usual_variant_note": "Usually discussed as a functional common variant that modulates IGF-axis context in specific cohorts.",
+      "relevant_methylation_probe_ids": [
+        "cg19620752",
+        "cg17375167",
+        "cg20479870",
+        "cg14568338",
+        "cg07779120",
+        "cg17297216",
+        "cg27438980",
+        "cg12562232",
+        "cg26329756",
+        "cg10507754"
+      ],
+      "methylation_interpretation": "rs2016347 is not curated as a direct methylation-QTL in this local dataset, but it belongs to a broader IGF1R regulatory framework where reduced signaling and altered tissue involution are recurring themes. Treat paired methylation readouts as supportive locus context rather than as deterministic proof of the SNP effect.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 31687025 / PMCID PMC6800903: rs2016347 and mammary gland involution",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+        },
+        {
+          "label": "PubMed 33168159: rs2016347, cancer, and cardiovascular risk after hypertensive pregnancy",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33168159/"
+        },
+        {
+          "label": "PubMed 36331687: rs2016347 and later-life breast cancer risk after preeclampsia",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+        },
+        {
+          "label": "PubMed 35362533: rs2016347 and cardiovascular risk in endometriosis or PCOS cohorts",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35362533/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Powell et al., 2019 (PMID 31687025)",
+          "genotypes": "GG, GT, and TT",
+          "phenotype": "Terminal duct lobular unit counts and breast involution after hypertensive disorders of pregnancy",
+          "finding": "Among women with prior hypertensive pregnancy, increasing rs2016347 T-allele dosage was associated with lower terminal duct lobular unit counts, consistent with greater breast involution and reduced epithelial target burden.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+        },
+        {
+          "paper": "Powell et al., 2020 (PMID 33168159)",
+          "genotypes": "T-allele carriers versus GG",
+          "phenotype": "Non-breast cancer and cardiovascular outcomes in UK Biobank women with hypertensive disorders of pregnancy",
+          "finding": "Women with prior hypertensive pregnancy who carried at least one T allele had lower non-breast cancer risk and lower systolic blood pressure than GG carriers in this cohort.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33168159/"
+        },
+        {
+          "paper": "Powell et al., 2023 (PMID 36331687)",
+          "genotypes": "T-allele carriers versus GG",
+          "phenotype": "Later-life hormone receptor-positive breast cancer risk after preeclampsia",
+          "finding": "In the Nurses' Health Study 2 follow-up analysis, women with preeclampsia carrying at least one T allele had lower later-life hormone receptor-positive breast cancer risk than comparable GG carriers.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+        }
+      ]
+    }
+  ]
+}

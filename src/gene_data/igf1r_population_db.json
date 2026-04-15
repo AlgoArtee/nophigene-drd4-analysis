@@ -1,0 +1,410 @@
+{
+  "database_name": "NophiGene IGF1R Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This IGF1R population database uses Ensembl GRCh37 variation frequencies as the main reference layer for the bundled common SNPs, with cohort-focused literature notes kept separately for context.",
+  "gene_population_patterns_intro": "Broader population patterns curated from cohort-focused IGF1R aging, pregnancy, and disease-association literature.",
+  "population_categories": [
+    {
+      "key": "Global reference",
+      "label": "Global reference panels"
+    },
+    {
+      "key": "Africa",
+      "label": "Africa"
+    },
+    {
+      "key": "Americas",
+      "label": "Americas"
+    },
+    {
+      "key": "East Asia",
+      "label": "East Asia"
+    },
+    {
+      "key": "Europe",
+      "label": "Europe"
+    },
+    {
+      "key": "South Asia",
+      "label": "South Asia"
+    },
+    {
+      "key": "Japan",
+      "label": "Japan"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease or outcome-focused cohorts"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and aging cohorts"
+    },
+    {
+      "key": "Pregnancy cohorts",
+      "label": "Pregnancy and reproductive cohorts"
+    }
+  ],
+  "sources": [
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs2229765 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs2229765?pops=1"
+    },
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs2016347 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs2016347?pops=1"
+    },
+    {
+      "label": "PubMed 19460140 / PMCID PMC2692840: rs2229765 in an Italian longevity cohort",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+    },
+    {
+      "label": "PubMed 28213921: rs2229765 in spontaneous preterm birth",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+    },
+    {
+      "label": "PubMed 31687025: rs2016347 after hypertensive disorders of pregnancy",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+    },
+    {
+      "label": "PubMed 36331687: rs2016347 and later-life breast cancer risk after preeclampsia",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+    },
+    {
+      "label": "PubMed 35362533: rs2016347 and cardiovascular risk in endometriosis or PCOS cohorts",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35362533/"
+    }
+  ],
+  "variant_population_records": [
+    {
+      "variant": "rs2229765",
+      "display_name": "rs2229765",
+      "common_name": "G3174A / p.Glu1043Glu synonymous variant",
+      "effect_allele": "A",
+      "focus_alleles": [
+        "G",
+        "A"
+      ],
+      "effect_summary": "Common IGF1R coding-region SNP usually interpreted as a pathway-modifying marker, with the A allele highlighted most often in longevity and pregnancy-outcome cohort studies.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs2229765?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.664337,
+            "A": 0.335663
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "G": 0.644481,
+            "A": 0.355519
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.744327,
+            "A": 0.255673
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.635447,
+            "A": 0.364553
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.653770,
+            "A": 0.346230
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.570577,
+            "A": 0.429423
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.684049,
+            "A": 0.315951
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "G": 0.730800,
+            "A": 0.269200
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:YRI",
+          "location_group": "Africa",
+          "label": "Yoruba in Ibadan, Nigeria",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.759259,
+            "A": 0.240741
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:MXL",
+          "location_group": "Americas",
+          "label": "Mexican ancestry in Los Angeles, USA",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.687500,
+            "A": 0.312500
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CHB",
+          "location_group": "East Asia",
+          "label": "Han Chinese in Beijing, China",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.563107,
+            "A": 0.436893
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.580808,
+            "A": 0.419192
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PJL",
+          "location_group": "South Asia",
+          "label": "Punjabi in Lahore, Pakistan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.682292,
+            "A": 0.317708
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:JPT",
+          "location_group": "Japan",
+          "label": "Japanese in Tokyo, Japan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.721154,
+            "A": 0.278846
+          }
+        }
+      ]
+    },
+    {
+      "variant": "rs2016347",
+      "display_name": "rs2016347",
+      "common_name": "functional 3' regulatory IGF1R SNP",
+      "effect_allele": "T",
+      "focus_alleles": [
+        "G",
+        "T"
+      ],
+      "effect_summary": "Common regulatory IGF1R SNP where the T allele is the literature-facing effect allele in several reproductive and breast-cancer follow-up cohorts.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs2016347?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.516773,
+            "T": 0.483227
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "G": 0.575658,
+            "T": 0.424342
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.695915,
+            "T": 0.304085
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.556196,
+            "T": 0.443804
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.477183,
+            "T": 0.522817
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.429423,
+            "T": 0.570577
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "G": 0.377301,
+            "T": 0.622699
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "G": 0.418900,
+            "T": 0.581100
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:YRI",
+          "location_group": "Africa",
+          "label": "Yoruba in Ibadan, Nigeria",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.717593,
+            "T": 0.282407
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:MXL",
+          "location_group": "Americas",
+          "label": "Mexican ancestry in Los Angeles, USA",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.562500,
+            "T": 0.437500
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CHB",
+          "location_group": "East Asia",
+          "label": "Han Chinese in Beijing, China",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.543689,
+            "T": 0.456311
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.439394,
+            "T": 0.560606
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:PJL",
+          "location_group": "South Asia",
+          "label": "Punjabi in Lahore, Pakistan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.442708,
+            "T": 0.557292
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:JPT",
+          "location_group": "Japan",
+          "label": "Japanese in Tokyo, Japan",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "G": 0.447115,
+            "T": 0.552885
+          }
+        }
+      ]
+    }
+  ],
+  "gene_population_patterns": [
+    {
+      "variant": "rs2229765",
+      "location_group": "Longevity cohorts",
+      "summary": "The rs2229765 A allele has been reported as enriched in older male participants in an Italian longevity cohort, but that signal should be treated as a cohort-specific aging association rather than a universal ancestry-frequency rule."
+    },
+    {
+      "variant": "rs2229765",
+      "location_group": "Pregnancy cohorts",
+      "summary": "Pregnancy-outcome studies use rs2229765 as a common pathway marker, with phenotype interpretation driven more by cohort design and covariates than by striking between-population allele-frequency contrasts."
+    },
+    {
+      "variant": "rs2016347",
+      "location_group": "Disease cohorts",
+      "summary": "The local literature for rs2016347 focuses on effect modification in breast-cancer, cardiovascular, and reproductive-endocrine cohorts rather than on broad global allele-frequency contrasts."
+    }
+  ]
+}

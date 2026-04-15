@@ -3,6 +3,7 @@
   "version": "2026-04-12",
   "assembly": "GRCh37 / hg19",
   "coverage_note": "This population database keeps the broad regional panels and a representative-country layer that are most useful in the UI. Source URLs point to the underlying reference datasets used for curation.",
+  "gene_population_patterns_intro": "Broader population patterns curated from the DRD4 exon III VNTR and promoter-haplotype literature.",
   "population_categories": [
     {
       "key": "Global reference",
