@@ -1,0 +1,169 @@
+{
+  "database_name": "NophiGene SIRT6 Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "SIRT6",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "19p13.3",
+    "chromosome": "19",
+    "gene_region": {
+      "label": "SIRT6 transcribed interval",
+      "start": 4174106,
+      "end": 4182560,
+      "definition": "Canonical SIRT6 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 4182561,
+      "end": 4183560,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 4181854,
+      "end": 4182521,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "19:4182561-4182560",
+    "gene_summary": "SIRT6 encodes a nuclear NAD-dependent deacylase and mono-ADP-ribosyltransferase that supports DNA repair, telomere maintenance, transposon suppression, inflammation control, and energy homeostasis.",
+    "clinical_context": "The bundled SIRT6 knowledge base is centered on aging and genome-maintenance biology. Most currently relevant human variants are interpreted as research-grade longevity or regulatory signals rather than as routine pathogenic clinical alleles.",
+    "variant_effect_overview": [
+      "SIRT6 is a core longevity and genome-stability gene, so common and rare human variants are mainly interpreted through aging and cellular-maintenance phenotypes.",
+      "Many effects are subtle or cohort specific; the strongest current evidence pairs genetic variation with mechanistic functional follow-up."
+    ],
+    "condition_research_overview": [
+      "SIRT6 is heavily studied in aging, genome stability, inflammation, lipid and glucose metabolism, and cardiovascular disease.",
+      "Rare centenarian-enriched alleles and selected common SNPs are being used to connect human genetics with SIRT6 functional biochemistry."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg15635336",
+      "cg09936839"
+    ],
+    "methylation_interpretation": "SIRT6 methylation should be interpreted as chromatin and transcriptional context around an NAD-dependent longevity enzyme. Because SIRT6 function is closely tied to chromatin regulation, methylation can be informative, but not as a one-to-one biomarker.",
+    "methylation_effects": [
+      "Promoter methylation may reflect altered SIRT6 transcriptional accessibility and should be integrated with broader NAD and stress-response biology.",
+      "Functional inference still depends more on enzyme activity and downstream chromatin effects than on methylation alone."
+    ],
+    "methylation_condition_research": [
+      "Aging and longevity research.",
+      "Genome-stability and DNA-repair studies.",
+      "Cardiometabolic and inflammatory disease biology."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 51548: SIRT6 gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/51548"
+      },
+      {
+        "label": "PubMed 28032059: rs350846 and human longevity",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/28032059/"
+      },
+      {
+        "label": "PubMed 36215696: centenarian SIRT6 variant",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/36215696/"
+      },
+      {
+        "label": "PubMed 36465178: SIRT6 review in aging and metabolism",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/36465178/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs350846",
+      "common_name": "longevity-associated SIRT6 SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / longevity marker",
+      "clinical_interpretation": "rs350846 is a common SIRT6 polymorphism curated here as a research-grade human longevity marker. The local database does not treat it as a diagnostic allele, but as a cohort-dependent aging association.",
+      "clinical_significance": "Research-level longevity association.",
+      "functional_effects": [
+        "Reported as a human longevity-associated marker at the SIRT6 locus.",
+        "Likely reflects pathway-level modulation of SIRT6 expression or linked regulatory state rather than a deterministic coding lesion."
+      ],
+      "associated_conditions": [
+        "Human longevity and healthy aging",
+        "Genome-maintenance and metabolic-aging biology"
+      ],
+      "research_context": [
+        "This SNP is best interpreted through cohort and population context rather than as a stand-alone predictive marker."
+      ],
+      "usual_variant_note": "Most cited common SIRT6 longevity SNP.",
+      "methylation_interpretation": "SIRT6 methylation provides broader chromatin context and should not be treated as a direct biomarker of rs350846 status.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 28032059: rs350846 and human longevity",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28032059/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Li et al., 2016 (PMID 28032059)",
+          "genotypes": "CC, CG, and GG",
+          "phenotype": "Human longevity in long-lived versus control cohorts",
+          "finding": "The study identified rs350846 as a SIRT6 locus polymorphism associated with human longevity, supporting its use as a research-grade aging marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28032059/"
+        }
+      ],
+      "gene_name": "SIRT6",
+      "chromosome": "19",
+      "display_name": "rs350846",
+      "lookup_keys": [
+        "rs350846",
+        "sirt6:rs350846"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg15635336",
+        "cg09936839"
+      ]
+    },
+    {
+      "variant": "centSIRT6 (N308K/A313S)",
+      "display_name": "centSIRT6 (N308K/A313S)",
+      "common_name": "centenarian-enriched SIRT6 linked missense allele",
+      "region_class": "gene_body",
+      "interpretation_scope": "Rare functional longevity variant",
+      "clinical_interpretation": "The linked SIRT6 missense substitutions N308K and A313S define a rare centenarian-enriched allele with enhanced genome-maintenance functions in experimental follow-up. It is curated as a rare functional longevity variant, not as a routine clinical diagnostic allele.",
+      "clinical_significance": "Rare functional longevity-associated research allele.",
+      "functional_effects": [
+        "Enhanced mono-ADP-ribosylase activity and stronger interaction with Lamin A/C were reported in functional studies.",
+        "The allele improved LINE1 suppression and DNA double-strand break repair in experimental systems."
+      ],
+      "associated_conditions": [
+        "Exceptional longevity",
+        "Genome stability and stress-resistance biology"
+      ],
+      "research_context": [
+        "This is a rare mechanistic allele of high interest because it links centenarian enrichment to direct SIRT6 functional changes."
+      ],
+      "usual_variant_note": "Rare centenarian SIRT6 functional allele.",
+      "methylation_interpretation": "Methylation provides broad chromatin context for SIRT6 but does not directly substitute for sequencing or functional assessment of the centSIRT6 allele.",
+      "is_assayable_in_snp_vcf": false,
+      "evidence": [
+        {
+          "label": "PubMed 36215696: centenarian SIRT6 variant",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36215696/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Simon et al., 2022 (PMID 36215696)",
+          "genotypes": "Rare linked missense carrier state",
+          "phenotype": "Centenarian enrichment and genome-stability phenotypes",
+          "finding": "The centSIRT6 allele was enriched in Ashkenazi Jewish centenarians and displayed enhanced DNA repair, LINE1 suppression, and cancer-cell killing in functional assays.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36215696/"
+        }
+      ],
+      "gene_name": "SIRT6",
+      "chromosome": "19",
+      "lookup_keys": [
+        "centSIRT6 (N308K/A313S)",
+        "sirt6:centsirt6 (n308k/a313s)"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg15635336",
+        "cg09936839"
+      ]
+    }
+  ]
+}

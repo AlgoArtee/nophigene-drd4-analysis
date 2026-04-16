@@ -6,11 +6,12 @@ import io
 import os
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, send_from_directory, session, url_for
 
 try:
     from .analysis import (
@@ -40,6 +41,70 @@ SESSION_PREPROCESS_KEY = "preprocess_state"
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
+
+
+def _build_app_structure_qa_items() -> list[dict[str, object]]:
+    """Return general app-structure Q&A content for the static architecture page."""
+    return [
+        {
+            "question": "How are the local databases built from literature, and how does a probe get mapped to a locus or variant?",
+            "answer_lines": [
+                (
+                    "The bundled interpretation and population databases are curated manually from literature first. "
+                    "For each supported gene, the app stores a local interpretation JSON, a population JSON, and a "
+                    "filtered EPIC manifest CSV in `src/gene_data/`."
+                ),
+                (
+                    "During curation, papers are reviewed and converted into structured entries such as gene-level "
+                    "context, curated variant records, bundled evidence links, and a gene-level methylation review area."
+                ),
+                (
+                    "Important clarification: the current whitelist probes are usually not stored as 'these exact EPIC probe IDs were individually named in a paper.' "
+                    "Instead, the current generator builds a gene-level shortlist from the bundled EPIC manifest subset for that gene."
+                ),
+                (
+                    "That shortlist is produced in `scripts/generate_curated_gene_knowledge_bases.py` by taking the gene's filtered manifest subset, preferring probes annotated as "
+                    "`TSS`, `5'UTR`, or `1stExon`, ranking them by distance to the transcription start site, and then keeping up to the first 10 probe IDs."
+                ),
+                (
+                    "Concrete example: in `src/gene_data/sirt6_interpretation_db.json`, the SIRT6 whitelist contains "
+                    "`cg15635336` and `cg09936839`. Those probes come from the bundled SIRT6 EPIC subset and are promoter-proximal/TSS-facing probes chosen by that ranking rule, "
+                    "not because the JSON currently records that each exact probe ID was explicitly cited in a publication."
+                ),
+                (
+                    "For SIRT6 on the reverse strand, the transcription start is near genomic position 4,182,560. "
+                    "`cg15635336` is at 4,182,521 with a distance of 39 bp and a `1stExon;TSS1500` annotation, while `cg09936839` is at 4,181,854 with a distance of 706 bp and a `Body;TSS1500` annotation. "
+                    "That is why those two probes rise to the top of the bundled whitelist."
+                ),
+                (
+                    "After the shortlist exists, the app opens the bundled manifest subset CSV for the same gene. For SIRT6, it reads "
+                    "`src/gene_data/SIRT6_epigenetics_hg19.csv`, normalizes `IlmnID`, `CHR`, and `MAPINFO` to "
+                    "`probe_id`, `chrom`, and `pos`, and uses those fields to format the probe locus."
+                ),
+                (
+                    "Concrete locus example: the `cg15635336` manifest row carries `CHR=19` and `MAPINFO=4182521`, "
+                    "so the UI shows that probe at `chr19:4,182,521`."
+                ),
+                (
+                    "The same manifest row may also carry nearby SNP annotations. For `cg15635336`, the bundled SIRT6 "
+                    "manifest subset lists `SNP_ID=rs201182672` and `SNP_DISTANCE=50`, so the UI shows that as a nearby "
+                    "manifest locus. That nearby-locus column is purely manifest-derived proximity annotation, not a literature claim."
+                ),
+                (
+                    "There is a second important clarification for the current code: when the local bundles are generated, that same gene-level whitelist is copied into each curated variant record for the gene. "
+                    "So the current 'probe to variant' table should be read as 'this variant is being discussed against the same bundled gene-level methylation hotspot' rather than 'this paper proved this exact probe belongs to this exact variant.'"
+                ),
+                (
+                    "The paper column is gathered only from the linked curated variant records' `literature_findings` and `evidence` entries. "
+                    "In the SIRT6 example, the table can show Li et al., 2016 for `rs350846` and Simon et al., 2022 for `centSIRT6`, but those papers support the curated variant entries, not necessarily a direct publication-specific assay of `cg15635336` or `cg09936839`."
+                ),
+                (
+                    "In short: literature creates the gene record and the variant records; the whitelist probes are currently a bundled promoter/TSS-focused EPIC subset chosen from the manifest for that gene; "
+                    "nearby SNPs come from manifest proximity fields; and the current probe-to-variant links are gene-level bundled associations unless a future bundle adds probe-specific evidence explicitly."
+                ),
+            ],
+        }
+    ]
 
 
 def _as_relative_display(path: Path) -> str:
@@ -152,6 +217,75 @@ def discover_idat_prefixes() -> list[str]:
             seen.add(display)
             prefixes.append(display)
     return prefixes
+
+
+def _format_artifact_size(num_bytes: int) -> str:
+    """Render a compact file-size string for history cards."""
+    thresholds = (
+        (1024**3, "GB"),
+        (1024**2, "MB"),
+        (1024, "KB"),
+    )
+    for threshold, suffix in thresholds:
+        if num_bytes >= threshold:
+            return f"{num_bytes / threshold:.1f} {suffix}"
+    return f"{num_bytes} B"
+
+
+def _infer_report_label(report_path: Path) -> str:
+    """Derive a short, user-facing label from a generated report filename."""
+    stem = report_path.stem
+    if stem.endswith("_report"):
+        gene_name = stem[: -len("_report")]
+        if gene_name:
+            return gene_name.upper()
+    return stem.replace("_", " ").strip() or report_path.name
+
+
+def discover_report_history() -> list[dict[str, str]]:
+    """List previously generated reports under ``results/`` for the History tab."""
+    if not RESULTS_DIR.exists():
+        return []
+
+    sortable_entries: list[tuple[float, dict[str, str]]] = []
+    for path in RESULTS_DIR.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".html", ".json", ".csv"}:
+            continue
+        if path.name.endswith("_methylation.csv"):
+            continue
+
+        stats = path.stat()
+        methylation_output = path.with_name(f"{path.stem}_methylation.csv")
+        sortable_entries.append(
+            (
+                stats.st_mtime,
+                {
+                    "label": _infer_report_label(path),
+                    "report_name": path.name,
+                    "report_path": _as_relative_display(path),
+                    "report_url": url_for("result_artifact", artifact_path=path.relative_to(RESULTS_DIR).as_posix()),
+                    "report_type": path.suffix.removeprefix(".").upper() or "FILE",
+                    "modified_display": datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                    "size_display": _format_artifact_size(stats.st_size),
+                    "methylation_path": (
+                        _as_relative_display(methylation_output) if methylation_output.exists() else ""
+                    ),
+                    "methylation_url": (
+                        url_for(
+                            "result_artifact",
+                            artifact_path=methylation_output.relative_to(RESULTS_DIR).as_posix(),
+                        )
+                        if methylation_output.exists()
+                        else ""
+                    ),
+                },
+            )
+        )
+
+    sortable_entries.sort(key=lambda item: item[0], reverse=True)
+    return [entry for _, entry in sortable_entries]
 
 
 def _render_table(df: pd.DataFrame, rows: int = 12) -> str:
@@ -439,6 +573,30 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def _build_population_context_status(
+    *,
+    popstats: Any | None,
+    population_database: dict[str, Any],
+    population_insights: dict[str, Any],
+) -> str:
+    """Summarize which population context sources were available for the current run."""
+    has_sidecar_file = popstats is not None
+    has_curated_database = str(population_database.get("version", "")).lower() != "generic"
+    if not has_curated_database:
+        has_curated_database = bool(
+            population_insights.get("variant_population_records")
+            or population_insights.get("gene_population_patterns")
+        )
+
+    if has_sidecar_file and has_curated_database:
+        return "File + DB"
+    if has_curated_database:
+        return "Database"
+    if has_sidecar_file:
+        return "File"
+    return "None"
+
+
 @app.get("/api/human-proteins")
 def human_proteins_api() -> Any:
     """Return a page of the live human protein catalog for the UI tab."""
@@ -464,6 +622,12 @@ def human_proteins_api() -> Any:
     return jsonify(payload)
 
 
+@app.get("/results/<path:artifact_path>")
+def result_artifact(artifact_path: str) -> Any:
+    """Serve a generated artifact from the results directory."""
+    return send_from_directory(str(RESULTS_DIR), artifact_path, as_attachment=False)
+
+
 @app.route("/", methods=["GET", "POST"])
 def index() -> str:
     """Render the landing page and handle preprocessing and analysis submissions."""
@@ -478,7 +642,11 @@ def index() -> str:
     popstats_files = discover_population_stats_files()
     manifest_files = discover_manifest_files()
 
-    preprocess_state = _load_preprocess_state(manifest_files)
+    if request.method == "GET":
+        session.pop(SESSION_PREPROCESS_KEY, None)
+        preprocess_state = _empty_preprocess_state(manifest_files)
+    else:
+        preprocess_state = _load_preprocess_state(manifest_files)
     analysis_unlocked = bool(preprocess_state.get("analysis_ready", False))
 
     form = _empty_form_state()
@@ -668,12 +836,20 @@ def index() -> str:
                         "variant_preview": _render_table(analysis_result.variants),
                         "methylation_preview": _render_table(analysis_result.methylation),
                         "popstats_present": analysis_result.popstats is not None,
+                        "population_context_status": _build_population_context_status(
+                            popstats=analysis_result.popstats,
+                            population_database=analysis_result.population_database,
+                            population_insights=analysis_result.population_insights,
+                        ),
                         "variant_interpretations": analysis_result.variant_interpretations,
                         "population_insights": analysis_result.population_insights,
                         "methylation_insights": {
                             **analysis_result.methylation_insights,
                             "probe_preview": (
-                                _render_table(methylation_probe_preview, rows=10)
+                                _render_table(
+                                    methylation_probe_preview,
+                                    rows=max(len(methylation_probe_preview), 12),
+                                )
                                 if isinstance(methylation_probe_preview, pd.DataFrame)
                                 and not methylation_probe_preview.empty
                                 else None
@@ -694,7 +870,8 @@ def index() -> str:
                     analysis_error = str(exc)
 
     preprocess_result = _build_preprocess_result(preprocess_state)
-    available_tabs = ["overview", "preprocessing", "proteins", "structure"]
+    report_history = discover_report_history()
+    available_tabs = ["overview", "preprocessing", "history", "proteins", "structure"]
     if analysis_unlocked:
         available_tabs.insert(2, "analysis")
     if initial_tab not in available_tabs:
@@ -728,7 +905,9 @@ def index() -> str:
         idat_prefixes=idat_prefixes,
         popstats_files=popstats_files,
         manifest_files=manifest_files,
+        report_history=report_history,
         featured_protein_queries=FEATURED_HUMAN_PROTEIN_QUERIES,
+        app_structure_qa_items=_build_app_structure_qa_items(),
     )
 
 

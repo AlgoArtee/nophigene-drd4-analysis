@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene MTOR Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "The bundled MTOR population database is literature oriented. It currently summarizes cohort patterns and pathway interpretation rather than shipping a full allele-frequency reference panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from MTOR cancer-association, therapeutic-response, and signaling literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 2475: MTOR gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/2475"
+    },
+    {
+      "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+    },
+    {
+      "label": "PubMed 29978580: rs2536 survival study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29978580/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs2295080 and rs2536",
+      "location_group": "Cancer cohorts",
+      "summary": "Most common-SNP MTOR literature comes from cancer cohorts in East Asian populations, where promoter and 3'UTR markers are interpreted as modest expression or prognosis modifiers."
+    },
+    {
+      "variant": "Common MTOR polymorphisms",
+      "location_group": "Global pattern",
+      "summary": "Because mTOR biology is heavily pathway driven, cross-population interpretation should emphasize signaling context and cohort design rather than assuming a universal effect from one common SNP."
+    }
+  ]
+}

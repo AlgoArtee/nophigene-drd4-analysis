@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene PRKAA1 Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This PRKAA1 population database emphasizes cohort-level association patterns instead of a full embedded allele-frequency panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from PRKAA1 gastric-cancer, metabolic, and AMPK-pathway literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 5562: PRKAA1 gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/5562"
+    },
+    {
+      "label": "PubMed 26485766: PRKAA1 rs13361707 and gastric-cancer risk",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26485766/"
+    },
+    {
+      "label": "PubMed 37670284: PRKAA1 polymorphism follow-up",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/37670284/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs13361707",
+      "location_group": "Cancer cohorts",
+      "summary": "PRKAA1 common-variant literature is strongest in East Asian gastric-cancer cohorts, where rs13361707 is interpreted as a low-penetrance risk marker at the AMPK pathway locus."
+    },
+    {
+      "variant": "PRKAA1 pathway context",
+      "location_group": "Metabolic cohorts",
+      "summary": "Across populations, PRKAA1 interpretation benefits from energy-stress and nutrient-signaling context rather than from assuming a uniform common-SNP effect across phenotypes."
+    }
+  ]
+}

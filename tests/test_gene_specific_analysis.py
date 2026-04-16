@@ -14,7 +14,12 @@ from src.analysis import (
     load_gene_population_database,
     load_methylation,
 )
-from src.webapp import _apply_preprocessing_defaults, _build_field_info, discover_population_stats_files
+from src.webapp import (
+    _apply_preprocessing_defaults,
+    _build_field_info,
+    _build_population_context_status,
+    discover_population_stats_files,
+)
 
 
 def test_igf1r_gene_databases_load_from_gene_data() -> None:
@@ -85,6 +90,20 @@ def test_igf1r_curated_copy_replaces_drd4_text() -> None:
     assert "DRD4" not in interpretation["summary"]
     assert interpretation["matched_records"][0]["variant"] == "rs2229765"
     assert interpretation["sample_highlights"]["summary"].startswith("This sample matched 1 curated IGF1R")
+    assert interpretation["curated_named_markers_summary"].startswith(
+        "The local IGF1R bundle seeds 2 curated named marker(s)."
+    )
+    assert len(interpretation["curated_named_markers"]) == 2
+
+    matched_marker = next(
+        item for item in interpretation["curated_named_markers"] if item["variant"] == "rs2229765"
+    )
+    assert matched_marker["observed_in_run"] is True
+    assert matched_marker["observed_variants"] == ["rs2229765"]
+    assert any(
+        item["variant"] == "rs2016347" and item["observed_in_run"] is False
+        for item in interpretation["curated_named_markers"]
+    )
 
     assert methylation_insights["gene_name"] == "IGF1R"
     assert methylation_insights["observed_probe_count"] == 2
@@ -251,3 +270,20 @@ def test_population_stats_suggestions_ignore_processed_sample_outputs(
     )
 
     assert field_info["popstats"]["example"] == "data/reference_population.json"
+
+
+def test_population_context_status_reports_curated_database_without_sidecar() -> None:
+    """The result viewer should treat the built-in population DB as loaded context."""
+    status = _build_population_context_status(
+        popstats=None,
+        population_database={
+            "database_name": "NophiGene IGF1R Population Database",
+            "version": "2026-04-15",
+        },
+        population_insights={
+            "variant_population_records": [{"variant": "rs2229765"}],
+            "gene_population_patterns": [],
+        },
+    )
+
+    assert status == "Database"

@@ -1,0 +1,136 @@
+{
+  "database_name": "NophiGene FLCN Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "FLCN",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "17p11.2",
+    "chromosome": "17",
+    "gene_region": {
+      "label": "FLCN transcribed interval",
+      "start": 17115526,
+      "end": 17140482,
+      "definition": "Canonical FLCN genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 17140483,
+      "end": 17141482,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 17139986,
+      "end": 17140463,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "17:17140483-17140482",
+    "gene_summary": "FLCN encodes folliculin, a tumor suppressor involved in lysosomal signaling, AMPK-mTOR regulation, TFEB-TFE3 control, and renal and pulmonary homeostasis.",
+    "clinical_context": "The strongest clinical interpretation for FLCN is rare-disease oriented. Germline loss-of-function variants cause Birt-Hogg-Dube syndrome, so the local database emphasizes rare pathogenic and tumor-suppressor biology rather than common-SNP association signals.",
+    "variant_effect_overview": [
+      "The clinically important FLCN variants are usually rare truncating, splice, or deletion events rather than common polymorphisms.",
+      "Observed PASS variants in the FLCN interval should therefore be treated as locus context unless they overlap a known rare pathogenic event or have independent clinical curation."
+    ],
+    "condition_research_overview": [
+      "FLCN is the canonical gene for Birt-Hogg-Dube syndrome with renal-tumor, pulmonary-cyst, and pneumothorax risk.",
+      "The gene is also studied in lysosome signaling, TFEB/TFE3 regulation, and AMPK-mTOR pathway cross-talk."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg25564901",
+      "cg21369870",
+      "cg25448636",
+      "cg22257099",
+      "cg04863514",
+      "cg13890779",
+      "cg05523839",
+      "cg20679849",
+      "cg02239833",
+      "cg11580422"
+    ],
+    "methylation_interpretation": "FLCN methylation is best read as tumor-suppressor regulatory context. It can help frame whether the locus appears transcriptionally restrained or accessible, but it does not replace rare-variant interpretation in Birt-Hogg-Dube syndrome.",
+    "methylation_effects": [
+      "For FLCN, rare coding or structural variants usually carry more clinical weight than methylation patterns.",
+      "Methylation can still provide useful context in renal-tumor and tumor-suppressor regulation studies."
+    ],
+    "methylation_condition_research": [
+      "Birt-Hogg-Dube syndrome tumor-suppressor biology.",
+      "Renal neoplasia and pneumothorax predisposition research."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 201163: FLCN gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/201163"
+      },
+      {
+        "label": "PubMed 21538689: BHD-associated FLCN mutations disrupt protein stability",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/21538689/"
+      },
+      {
+        "label": "PubMed 22146830: renal cancer and pneumothorax risk in FLCN mutation carriers",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/22146830/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "FLCN c.1285dupC",
+      "display_name": "FLCN c.1285dupC",
+      "common_name": "Birt-Hogg-Dube frameshift hotspot",
+      "region_class": "gene_body",
+      "interpretation_scope": "Rare pathogenic tumor-suppressor variant",
+      "clinical_interpretation": "c.1285dupC is one of the best-known recurrent FLCN frameshift variants in Birt-Hogg-Dube syndrome and is interpreted as a pathogenic rare-disease allele. It is bundled here as a named clinical hotspot for context, although the SNP-oriented VCF preview is not optimized to call it directly.",
+      "clinical_significance": "Pathogenic loss-of-function hotspot in Birt-Hogg-Dube syndrome.",
+      "functional_effects": [
+        "Frameshift loss of folliculin function with tumor-suppressor consequences.",
+        "Expected to disrupt lysosomal and AMPK-mTOR regulatory roles of FLCN."
+      ],
+      "associated_conditions": [
+        "Birt-Hogg-Dube syndrome",
+        "Renal tumors, lung cysts, and spontaneous pneumothorax"
+      ],
+      "research_context": [
+        "This is a rare pathogenic hotspot rather than a common association marker."
+      ],
+      "usual_variant_note": "Classic recurrent BHD loss-of-function variant.",
+      "methylation_interpretation": "FLCN methylation can add tumor-suppressor context, but it does not substitute for direct rare-variant testing when Birt-Hogg-Dube syndrome is suspected.",
+      "is_assayable_in_snp_vcf": false,
+      "evidence": [
+        {
+          "label": "PubMed 21538689: BHD-associated FLCN mutations",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21538689/"
+        },
+        {
+          "label": "PubMed 22146830: phenotype risk in FLCN carriers",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22146830/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Nahorski et al., 2011 (PMID 21538689)",
+          "genotypes": "Rare germline loss-of-function carrier state",
+          "phenotype": "Birt-Hogg-Dube syndrome protein-stability consequences",
+          "finding": "The study framed recurrent FLCN truncating mutations as protein-destabilizing tumor-suppressor events central to BHD pathogenesis.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21538689/"
+        }
+      ],
+      "gene_name": "FLCN",
+      "chromosome": "17",
+      "lookup_keys": [
+        "FLCN c.1285dupC",
+        "flcn:flcn c.1285dupc"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg25564901",
+        "cg21369870",
+        "cg25448636",
+        "cg22257099",
+        "cg04863514",
+        "cg13890779",
+        "cg05523839",
+        "cg20679849",
+        "cg02239833",
+        "cg11580422"
+      ]
+    }
+  ]
+}

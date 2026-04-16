@@ -1,0 +1,154 @@
+{
+  "database_name": "NophiGene TERT Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "TERT",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "5p15.33",
+    "chromosome": "5",
+    "gene_region": {
+      "label": "TERT transcribed interval",
+      "start": 1253282,
+      "end": 1295183,
+      "definition": "Canonical TERT genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 1295184,
+      "end": 1296183,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 1295073,
+      "end": 1295073,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "5:1295184-1295183",
+    "gene_summary": "TERT encodes telomerase reverse transcriptase, the catalytic core of telomerase that maintains telomere repeats and influences replicative lifespan, genome stability, stem-cell function, and oncogenesis.",
+    "clinical_context": "The local TERT knowledge base spans telomere biology, cancer susceptibility, and promoter regulation. Common TERT variants are interpreted as research and risk-modifier signals, while the strongest clinical events often involve promoter mutations or rare high-impact pathogenic alleles.",
+    "variant_effect_overview": [
+      "Common TERT polymorphisms are often interpreted through telomere-length, cancer-risk, or promoter-activity frameworks rather than as stand-alone diagnostic variants.",
+      "TERT biology is highly tissue and phenotype specific, so common-variant effects should be read in the context of telomere maintenance and cohort design."
+    ],
+    "condition_research_overview": [
+      "TERT is central to telomere biology, cellular senescence, stem-cell maintenance, and oncogenesis.",
+      "Common germline SNPs and somatic promoter mutations are both heavily studied in cancer biology, but they represent different interpretive layers."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg04145555"
+    ],
+    "methylation_interpretation": "TERT methylation is best interpreted as promoter and chromatin context around telomerase regulation. It can inform whether the locus appears permissive or repressed, but it is not a direct substitute for telomere-length or promoter-mutation testing.",
+    "methylation_effects": [
+      "Promoter-proximal methylation can contribute to TERT expression modeling, especially in cancer biology.",
+      "Interpret methylation alongside telomere biology, promoter mutation status, and tissue context."
+    ],
+    "methylation_condition_research": [
+      "Cancer and telomerase-reactivation studies.",
+      "Aging and cellular-senescence research.",
+      "Stem-cell and tissue-renewal biology."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 7015: TERT gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/7015"
+      },
+      {
+        "label": "PMCID PMC3329415: rs2736100 and cancer risk",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3329415/"
+      },
+      {
+        "label": "PubMed 22994782: rs2736098 meta-analysis",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/22994782/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs2736100",
+      "common_name": "intronic TERT cancer- and telomere-associated SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / telomere biology marker",
+      "clinical_interpretation": "rs2736100 is one of the best-known common TERT SNPs and is curated here as a telomere-biology and cancer-susceptibility marker. It is not treated as a pathogenic diagnostic allele in the local database.",
+      "clinical_significance": "Research-level telomere and cancer association marker.",
+      "functional_effects": [
+        "Commonly interpreted through telomere-maintenance and cancer-risk frameworks.",
+        "Likely reflects regulatory or linked-locus effects on TERT biology rather than a direct truncating lesion."
+      ],
+      "associated_conditions": [
+        "Lung and other cancer susceptibility studies",
+        "Telomere-length and telomerase-biology research"
+      ],
+      "research_context": [
+        "This is the canonical common inherited TERT association SNP in many cancer and telomere studies."
+      ],
+      "usual_variant_note": "Most cited common TERT intronic association SNP.",
+      "methylation_interpretation": "TERT methylation adds promoter and chromatin context but is not a direct biomarker of rs2736100 genotype.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PMCID PMC3329415: rs2736100 meta-analysis",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3329415/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Zhu et al., 2012 (PMCID PMC3329415)",
+          "genotypes": "Common rs2736100 genotypes",
+          "phenotype": "Cancer risk across pooled case-control studies",
+          "finding": "The pooled analysis supported rs2736100 as a recurrent TERT cancer-risk marker, reinforcing its role as a common inherited telomere-biology signal.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3329415/"
+        }
+      ],
+      "gene_name": "TERT",
+      "chromosome": "5",
+      "display_name": "rs2736100",
+      "lookup_keys": [
+        "rs2736100",
+        "tert:rs2736100"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg04145555"
+      ]
+    },
+    {
+      "variant": "rs2853669",
+      "common_name": "promoter regulatory TERT SNP",
+      "region_class": "promoter",
+      "interpretation_scope": "Research association / promoter modifier",
+      "clinical_interpretation": "rs2853669 is a promoter-region TERT polymorphism frequently discussed as a modifier of promoter activity and cancer outcomes. The local database treats it as a research-level promoter modifier rather than as a pathogenic allele.",
+      "clinical_significance": "Research-level promoter modifier.",
+      "functional_effects": [
+        "Promoter-facing regulatory variant often modeled as a transcription-factor binding modifier.",
+        "Frequently interpreted together with broader TERT promoter biology in oncology studies."
+      ],
+      "associated_conditions": [
+        "Cancer-risk and prognosis studies",
+        "Telomerase-promoter regulatory biology"
+      ],
+      "research_context": [
+        "This SNP is commonly discussed as a modifier of TERT promoter effects, especially in cancer cohorts."
+      ],
+      "usual_variant_note": "Common TERT promoter modifier SNP.",
+      "methylation_interpretation": "Promoter methylation and rs2853669 should be interpreted as complementary layers of TERT promoter context.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "NCBI Gene 7015: TERT gene summary",
+          "url": "https://www.ncbi.nlm.nih.gov/gene/7015"
+        }
+      ],
+      "literature_findings": [],
+      "gene_name": "TERT",
+      "chromosome": "5",
+      "display_name": "rs2853669",
+      "lookup_keys": [
+        "rs2853669",
+        "tert:rs2853669"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg04145555"
+      ]
+    }
+  ]
+}

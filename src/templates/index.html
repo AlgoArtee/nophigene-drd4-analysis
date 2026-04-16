@@ -1088,6 +1088,7 @@
     }
     .subtab-nav {
       display: inline-flex;
+      flex-wrap: wrap;
       gap: 10px;
       padding: 6px;
       border-radius: 999px;
@@ -1095,6 +1096,7 @@
       border: 1px solid rgba(161, 20, 61, 0.08);
       margin-bottom: 12px;
       align-self: flex-start;
+      max-width: 100%;
     }
     .subtab-nav--nested {
       margin-bottom: 14px;
@@ -1492,6 +1494,7 @@
         {% if analysis_unlocked %}
         <button type="button" class="tab-button" data-tab-target="analysis" aria-selected="false">Run Analysis</button>
         {% endif %}
+        <button type="button" class="tab-button" data-tab-target="history" aria-selected="false">History</button>
         <button type="button" class="tab-button" data-tab-target="proteins" aria-selected="false">Human Proteins</button>
         <button type="button" class="tab-button" data-tab-target="structure" aria-selected="false">App Structure</button>
       </nav>
@@ -1793,6 +1796,53 @@
         </div>
       </section>
 
+      <section class="frame tab-panel overview-panel" data-tab-panel="history">
+        <span class="overview-badge">Generated artifacts</span>
+        <h2 class="architecture-title">Report History</h2>
+        <p class="overview-copy">
+          Previous reports stay available here even when the preprocessing workspace resets to a fresh gene. Use this tab to reopen older analyses without carrying their prepared region back into the active workspace.
+        </p>
+
+        {% if report_history %}
+        <div class="overview-grid">
+          {% for item in report_history %}
+          <article class="overview-card">
+            <h3>{{ item.label }}</h3>
+            <p>
+              <strong>{{ item.report_type }} report</strong> saved as <code>{{ item.report_path }}</code>.
+              Updated {{ item.modified_display }} and sized {{ item.size_display }}.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>{{ item.report_name }}</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>{{ item.modified_display }}</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>{{ item.size_display }}</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="{{ item.report_url }}" target="_blank" rel="noreferrer">Open report</a>
+              {% if item.methylation_url %}
+              <a href="{{ item.methylation_url }}" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <article class="overview-card">
+          <h3>No reports yet</h3>
+          <p>Run an analysis to generate the first report artifact. Generated HTML, JSON, and CSV reports in <code>{{ results_dir }}</code> will appear here automatically.</p>
+        </article>
+        {% endif %}
+      </section>
+
       <section class="frame tab-panel protein-panel" data-tab-panel="proteins">
         <div class="protein-shell">
           <section class="analysis-panel-inner">
@@ -1870,7 +1920,12 @@
           while the Docker path wraps the same Flask UI and Python pipeline inside a container with mounted input and
           output folders.
         </p>
+        <div class="subtab-nav subtab-nav--nested" aria-label="App structure details">
+          <button type="button" class="subtab-button" data-detail-group="structure" data-detail-target="runtime" aria-selected="false">Runtime Map</button>
+          <button type="button" class="subtab-button" data-detail-group="structure" data-detail-target="qa" aria-selected="false">Q&amp;A</button>
+        </div>
 
+        <section class="subtab-panel is-active" data-detail-group-panel="structure" data-detail-panel="runtime">
         <div class="diagram-grid">
           <article class="diagram-card">
             <span class="diagram-kicker">Local runtime flow</span>
@@ -1963,6 +2018,32 @@
             </div>
           </article>
         </div>
+        </section>
+
+        <section class="subtab-panel" data-detail-group-panel="structure" data-detail-panel="qa">
+          <div class="viewer-scroll">
+            <div class="insight-stack">
+              {% for item in app_structure_qa_items %}
+              <details class="insight-card expandable-card" open>
+                <summary class="expandable-summary">
+                  <div class="expandable-copy">
+                    <span class="insight-kicker">App Structure Q&amp;A</span>
+                    <h4>{{ item.question }}</h4>
+                    <p>This section explains the general literature-to-database-to-UI path used by the app.</p>
+                  </div>
+                </summary>
+                <div class="expandable-body">
+                  <ul class="insight-list">
+                    {% for line in item.answer_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              </details>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
       </section>
 
       {% if analysis_unlocked %}
@@ -2123,8 +2204,8 @@
                     <strong>{{ result.methylation_count }}</strong>
                   </article>
                   <article class="metric">
-                    <span>Population stats</span>
-                    <strong>{{ "Loaded" if result.popstats_present else "None" }}</strong>
+                    <span>Population context</span>
+                    <strong>{{ result.population_context_status }}</strong>
                   </article>
                 </div>
 
@@ -2185,6 +2266,41 @@
                               </ul>
                               {% else %}
                               <p>No direct sample-specific {{ result.variant_interpretations.gene_name }} finding is visible in the current preview slice.</p>
+                              {% endif %}
+                            </div>
+                          </details>
+
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Curated marker catalog</span>
+                                <h4>Bundled named {{ result.variant_interpretations.gene_name }} markers</h4>
+                                <p>{{ result.variant_interpretations.curated_named_markers_summary }}</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              {% if result.variant_interpretations.curated_named_markers %}
+                              <ul class="insight-list">
+                                {% for item in result.variant_interpretations.curated_named_markers %}
+                                <li>
+                                  <strong>{{ item.variant }}</strong>
+                                  {% if item.common_name %}({{ item.common_name }}){% endif %}
+                                  {% if item.observed_in_run %}
+                                  matched in this run as {{ item.observed_variants | join(", ") }}.
+                                  {% else %}
+                                  was not directly observed in this run.
+                                  {% endif %}
+                                  {% if item.region_class %} Curated class: {{ item.region_class | replace("_", " ") }}.{% endif %}
+                                  {{ item.clinical_significance }} {{ item.summary }}
+                                  {% if item.assay_note %} {{ item.assay_note }}{% endif %}
+                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
+                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
+                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
+                                </li>
+                                {% endfor %}
+                              </ul>
+                              {% else %}
+                              <p>No curated named markers are bundled for {{ result.variant_interpretations.gene_name }} yet.</p>
                               {% endif %}
                             </div>
                           </details>
@@ -2583,27 +2699,58 @@
                               {% endif %}
                               <div class="stat-grid">
                                 <div class="stat-card">
-                                  <span>Observed probes</span>
-                                  <strong>{{ result.methylation_insights.observed_probe_count }}</strong>
+                                  <span>Observed whitelist probes</span>
+                                  <strong>{{ result.methylation_insights.whitelist_observed_probe_count }}</strong>
                                 </div>
                                 <div class="stat-card">
-                                  <span>Curated probe set</span>
-                                  <strong>{{ result.methylation_insights.curated_probe_count }}</strong>
+                                  <span>{{ result.methylation_insights.gene_name }}-named rows</span>
+                                  <strong>{{ result.methylation_insights.gene_name_row_count }}</strong>
+                                </div>
+                                <div class="stat-card">
+                                  <span>Numeric rows overall</span>
+                                  <strong>{{ result.methylation_insights.all_numeric_mean_beta_probe_count }}</strong>
                                 </div>
                                 <div class="stat-card">
                                   <span>Mean beta band</span>
                                   <strong>{{ result.methylation_insights.beta_band }}</strong>
+                                  <small>{{ result.methylation_insights.beta_band_source_label }}</small>
                                 </div>
                               </div>
-                              {% if result.methylation_insights.mean_beta is not none %}
-                              <div class="badge-row">
-                                <span class="muted-badge">Average beta: {{ result.methylation_insights.mean_beta }}</span>
-                              </div>
+                              <ul class="insight-list">
+                                <li>
+                                  <strong>{{ result.methylation_insights.whitelist_mean_beta_label }}:</strong>
+                                  {% if result.methylation_insights.whitelist_mean_beta is not none %}
+                                  {{ result.methylation_insights.whitelist_mean_beta }} from {{ result.methylation_insights.whitelist_mean_beta_probe_count }} numeric whitelist probe value(s).
+                                  {% else %}
+                                  No numeric observed whitelist probes were available in this run.
+                                  {% endif %}
+                                </li>
+                                <li>
+                                  <strong>{{ result.methylation_insights.gene_name_mean_beta_label }}:</strong>
+                                  {% if result.methylation_insights.gene_name_mean_beta is not none %}
+                                  {{ result.methylation_insights.gene_name_mean_beta }} from {{ result.methylation_insights.gene_name_mean_beta_probe_count }} numeric row(s) where the gene name was explicitly annotated.
+                                  {% else %}
+                                  No numeric row explicitly annotated {{ result.methylation_insights.gene_name }} in the available gene-name columns.
+                                  {% endif %}
+                                </li>
+                                <li>
+                                  <strong>{{ result.methylation_insights.all_numeric_mean_beta_label }}:</strong>
+                                  {% if result.methylation_insights.all_numeric_mean_beta is not none %}
+                                  {{ result.methylation_insights.all_numeric_mean_beta }} from {{ result.methylation_insights.all_numeric_mean_beta_probe_count }} numeric row(s) across the full raw table.
+                                  {% else %}
+                                  No numeric beta values were available in the raw methylation table.
+                                  {% endif %}
+                                </li>
+                              </ul>
+                              <p>{{ result.methylation_insights.whitelist_explanation }}</p>
+                              {% if result.methylation_insights.whitelist_literature_context %}
+                              <p>{{ result.methylation_insights.whitelist_literature_context }}</p>
                               {% endif %}
-                              {% if result.methylation_insights.probe_ids %}
+                              <p>{{ result.methylation_insights.gene_name_match_rule }}</p>
+                              {% if result.methylation_insights.whitelist_probe_statuses %}
                               <div class="badge-row">
-                                {% for probe_id in result.methylation_insights.probe_ids %}
-                                <span class="probe-tag">{{ probe_id }}</span>
+                                {% for probe in result.methylation_insights.whitelist_probe_statuses %}
+                                <span class="probe-tag">{{ probe.probe_id }}{% if probe.observed_in_run %} (observed){% else %} (not observed){% endif %}</span>
                                 {% endfor %}
                               </div>
                               {% endif %}
@@ -2617,13 +2764,87 @@
                             </div>
                           </details>
 
+                          {% if result.methylation_insights.whitelist_probe_reference_rows %}
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Whitelist probe reference map</span>
+                                <h4>Curated probe-to-variant and paper links</h4>
+                                <p>{{ result.methylation_insights.whitelist_probe_reference_summary }}</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              <div class="table-shell">
+                                <table class="preview-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Whitelist probe</th>
+                                      <th>Corresponding loci or variants</th>
+                                      <th>Bundled papers</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {% for row in result.methylation_insights.whitelist_probe_reference_rows %}
+                                    <tr>
+                                      <td>
+                                        <strong>{{ row.probe_id }}</strong>
+                                        <div>{% if row.observed_in_run %}Observed in current run{% else %}Not observed in current run{% endif %}</div>
+                                        {% if row.beta is not none %}
+                                        <div>Observed beta: {{ row.beta }}</div>
+                                        {% endif %}
+                                        {% if row.probe_locus %}
+                                        <div>{{ row.probe_locus }}</div>
+                                        {% endif %}
+                                      </td>
+                                      <td>
+                                        {% if row.linked_variants %}
+                                          {% for variant in row.linked_variants %}
+                                          <div>
+                                            <strong>{{ variant.label }}</strong>
+                                            {% if variant.common_name %}<span> - {{ variant.common_name }}</span>{% endif %}
+                                            {% if variant.locus %}<span> ({{ variant.locus }})</span>{% endif %}
+                                          </div>
+                                          {% endfor %}
+                                        {% else %}
+                                        <div>No curated variant record in the local bundle explicitly cites this probe.</div>
+                                        {% endif %}
+                                        {% if row.nearby_manifest_variants %}
+                                        <div><strong>Nearby manifest SNPs</strong></div>
+                                          {% for variant in row.nearby_manifest_variants %}
+                                          <div>{{ variant.variant }}{% if variant.distance %} ({{ variant.distance }} bp){% endif %}</div>
+                                          {% endfor %}
+                                        {% endif %}
+                                      </td>
+                                      <td>
+                                        {% if row.papers %}
+                                        <ul class="source-list">
+                                          {% for paper in row.papers %}
+                                          <li>
+                                            <a href="{{ paper.url }}" target="_blank" rel="noreferrer">{{ paper.label }}</a>
+                                            {% if paper.source_variant %}<span> (via {{ paper.source_variant }})</span>{% endif %}
+                                          </li>
+                                          {% endfor %}
+                                        </ul>
+                                        {% else %}
+                                        <div>No bundled paper is mapped directly to this whitelist probe yet.</div>
+                                        {% endif %}
+                                      </td>
+                                    </tr>
+                                    {% endfor %}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </details>
+                          {% endif %}
+
                           {% if result.methylation_insights.probe_preview %}
                           <details class="insight-card expandable-card">
                             <summary class="expandable-summary">
                               <div class="expandable-copy">
                                 <span class="insight-kicker">Relevant {{ result.methylation_insights.gene_name }} probe subset</span>
-                                <h4>Curated probes used for interpretation</h4>
-                                <p>Probe-level subset from the current sample used to build the methylation summary.</p>
+                                <h4>Observed whitelist probes used for interpretation</h4>
+                                <p>These are the exact observed whitelist probe rows used to build the whitelist mean beta shown above.</p>
                               </div>
                             </summary>
                             <div class="expandable-body">
@@ -3218,6 +3439,7 @@
       if (detailButtons.length) {
         activateDetailTab("variant", "interpretation");
         activateDetailTab("methylation", "interpretation");
+        activateDetailTab("structure", "runtime");
       }
     }());
   </script>

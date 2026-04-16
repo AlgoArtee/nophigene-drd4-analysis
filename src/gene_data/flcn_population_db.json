@@ -1,0 +1,56 @@
+{
+  "database_name": "NophiGene FLCN Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "FLCN population interpretation is primarily family and rare-variant driven. The current database therefore emphasizes rare-disease patterns rather than common allele-frequency panels.",
+  "gene_population_patterns_intro": "Broader population patterns curated from FLCN rare-disease, renal-tumor, and pneumothorax literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 201163: FLCN gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/201163"
+    },
+    {
+      "label": "PubMed 22146830: FLCN carrier phenotype analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22146830/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "Rare FLCN loss-of-function variants",
+      "location_group": "Rare disease families",
+      "summary": "FLCN clinical interpretation is dominated by rare germline truncating or deletion events that segregate in Birt-Hogg-Dube families rather than by common population markers."
+    },
+    {
+      "variant": "Birt-Hogg-Dube syndrome",
+      "location_group": "Global pattern",
+      "summary": "Across populations, the major interpretation question for FLCN is whether a rare loss-of-function event is present and whether renal and pulmonary surveillance is warranted, not whether a common SNP modestly shifts risk."
+    }
+  ]
+}

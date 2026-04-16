@@ -1,0 +1,197 @@
+{
+  "database_name": "NophiGene MTOR Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "MTOR",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "1p36.22",
+    "chromosome": "1",
+    "gene_region": {
+      "label": "MTOR transcribed interval",
+      "start": 11166592,
+      "end": 11322608,
+      "definition": "Canonical MTOR genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 11322609,
+      "end": 11323608,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 11322191,
+      "end": 11322531,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "1:11322609-11322608",
+    "gene_summary": "MTOR encodes the catalytic kinase shared by mTORC1 and mTORC2, integrating nutrient availability, growth-factor signaling, stress cues, and cellular energy state to regulate protein synthesis, autophagy, survival, and cytoskeletal programs.",
+    "clinical_context": "The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context.",
+    "variant_effect_overview": [
+      "Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "The strongest disease literature around MTOR centers on pathway dysregulation, drug response, and rare activating or inactivating variants rather than on one universal common SNP.",
+      "Observed variants in this region should therefore be read as pathway-context markers unless they directly overlap a curated research SNP or have outside clinical curation."
+    ],
+    "condition_research_overview": [
+      "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
+      "Clinical research links MTOR to immunosuppression, targeted oncology, developmental syndromes, and neurodevelopmental disease.",
+      "Common regulatory SNP work is mostly cancer-risk or outcome oriented rather than diagnostic on its own."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg08854313",
+      "cg06632353",
+      "cg07029998",
+      "cg21223353",
+      "cg08798726",
+      "cg14410102",
+      "cg03956606",
+      "cg04508649",
+      "cg23672425",
+      "cg04240362"
+    ],
+    "methylation_interpretation": "MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific.",
+    "methylation_effects": [
+      "Promoter-focused methylation may reflect altered MTOR expression potential, but it is not a stand-alone disease classifier.",
+      "Given the size of the locus and multiple transcripts, methylation should be interpreted as a broad regulatory view rather than a one-site assay.",
+      "MTOR methylation is most meaningful when read alongside AMPK, nutrient-sensing, and growth-signaling biology."
+    ],
+    "methylation_condition_research": [
+      "Cancer and targeted-therapy studies that frame mTOR activity as a proliferation and drug-response axis.",
+      "Aging and nutrient-signaling research focused on mTORC1 inhibition, autophagy, and proteostasis.",
+      "Neurodevelopmental and cortical dysplasia research in which mTOR pathway dysregulation is a major mechanistic theme."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 2475: MTOR gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/2475"
+      },
+      {
+        "label": "PubMed 24816861: meta-analysis of MTOR polymorphisms and cancer risk",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+      },
+      {
+        "label": "PubMed 29978580: rs2536 and gastric-cancer survival",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/29978580/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs2295080",
+      "common_name": "promoter regulatory MTOR SNP",
+      "region_class": "promoter",
+      "interpretation_scope": "Research association / regulatory marker",
+      "clinical_interpretation": "rs2295080 is a promoter-proximal MTOR polymorphism studied as a transcriptional and cancer-risk modifier. The local database treats it as a regulatory research marker rather than as a pathogenic clinical allele.",
+      "clinical_significance": "Research-level regulatory association; not seeded as pathogenic.",
+      "functional_effects": [
+        "Promoter variation at rs2295080 has been discussed as a potential modifier of MTOR transcriptional output.",
+        "Reported effects are strongest in cancer-association studies and remain cohort dependent."
+      ],
+      "associated_conditions": [
+        "Cancer susceptibility and clinical outcome studies",
+        "Pathway-level growth and survival signaling research"
+      ],
+      "research_context": [
+        "This SNP is commonly bundled with other MTOR polymorphisms in association meta-analyses.",
+        "Interpret it as a modest signaling modifier rather than a stand-alone disease determinant."
+      ],
+      "usual_variant_note": "Common promoter-facing MTOR regulatory SNP.",
+      "methylation_interpretation": "Promoter methylation and rs2295080 should be read together only as shared transcriptional context.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Xu et al., 2014 (PMID 24816861)",
+          "genotypes": "TT versus GT/GG",
+          "phenotype": "Cancer risk across pooled association studies",
+          "finding": "The meta-analysis reported that the rs2295080 TT genotype was associated with higher cancer risk in the Chinese studies included, supporting a modest context-specific regulatory effect.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+        }
+      ],
+      "gene_name": "MTOR",
+      "chromosome": "1",
+      "display_name": "rs2295080",
+      "lookup_keys": [
+        "rs2295080",
+        "mtor:rs2295080"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg08854313",
+        "cg06632353",
+        "cg07029998",
+        "cg21223353",
+        "cg08798726",
+        "cg14410102",
+        "cg03956606",
+        "cg04508649",
+        "cg23672425",
+        "cg04240362"
+      ]
+    },
+    {
+      "variant": "rs2536",
+      "common_name": "3'UTR functional MTOR SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / outcome modifier",
+      "clinical_interpretation": "rs2536 is a commonly discussed MTOR 3'UTR polymorphism curated here as a research association marker for cancer susceptibility and outcome, not as a diagnostic or pathogenic allele.",
+      "clinical_significance": "Research-level association; best interpreted in cohort context.",
+      "functional_effects": [
+        "The variant is discussed as a post-transcriptional regulatory marker in the MTOR pathway.",
+        "Outcome studies suggest it may stratify prognosis in selected cancer cohorts."
+      ],
+      "associated_conditions": [
+        "Gastric cancer risk and survival studies",
+        "Broader oncology association meta-analyses"
+      ],
+      "research_context": [
+        "This is one of the most frequently cited common MTOR SNPs in outcome-oriented cancer literature."
+      ],
+      "usual_variant_note": "Common MTOR 3'UTR association SNP.",
+      "methylation_interpretation": "No one-to-one methylation consequence is bundled for rs2536; treat methylation as broader MTOR locus context.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 29978580: rs2536 and gastric-cancer survival",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29978580/"
+        },
+        {
+          "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Cheng et al., 2019 (PMID 29978580)",
+          "genotypes": "Common rs2536 genotypes",
+          "phenotype": "Survival of Chinese gastric-cancer patients",
+          "finding": "The study reported that rs2536 was functionally relevant in survival modeling for gastric-cancer patients, reinforcing its use as a regulatory and prognostic research marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29978580/"
+        }
+      ],
+      "gene_name": "MTOR",
+      "chromosome": "1",
+      "display_name": "rs2536",
+      "lookup_keys": [
+        "rs2536",
+        "mtor:rs2536"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg08854313",
+        "cg06632353",
+        "cg07029998",
+        "cg21223353",
+        "cg08798726",
+        "cg14410102",
+        "cg03956606",
+        "cg04508649",
+        "cg23672425",
+        "cg04240362"
+      ]
+    }
+  ]
+}

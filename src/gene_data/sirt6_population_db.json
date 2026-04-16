@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene SIRT6 Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "The bundled SIRT6 population database emphasizes longevity cohorts and rare centenarian alleles instead of a full general-population allele-frequency reference panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from SIRT6 longevity, genome-stability, and metabolic-aging literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 51548: SIRT6 gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/51548"
+    },
+    {
+      "label": "PubMed 28032059: rs350846 and longevity",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28032059/"
+    },
+    {
+      "label": "PubMed 36215696: centenarian SIRT6 variant",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36215696/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs350846",
+      "location_group": "Longevity cohorts",
+      "summary": "Common SIRT6 longevity signals such as rs350846 are cohort dependent and are best interpreted as probabilistic aging markers rather than universally penetrant alleles."
+    },
+    {
+      "variant": "centSIRT6 (N308K/A313S)",
+      "location_group": "Rare disease families",
+      "summary": "The most compelling current SIRT6 human-genetics result is a rare centenarian-enriched functional allele, underscoring that the locus is shaped by both common regulatory and rare mechanistic variation."
+    }
+  ]
+}

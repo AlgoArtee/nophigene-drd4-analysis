@@ -1,0 +1,127 @@
+{
+  "database_name": "NophiGene PRKAA1 Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "PRKAA1",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "5p13.1",
+    "chromosome": "5",
+    "gene_region": {
+      "label": "PRKAA1 transcribed interval",
+      "start": 40759491,
+      "end": 40798476,
+      "definition": "Canonical PRKAA1 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 40798477,
+      "end": 40799476,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 40798196,
+      "end": 40798458,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "5:40798477-40798476",
+    "gene_summary": "PRKAA1 encodes the alpha-1 catalytic subunit of AMPK, the major cellular energy sensor that restrains anabolic signaling, supports metabolic adaptation, and suppresses mTORC1 under low-energy conditions.",
+    "clinical_context": "The local PRKAA1 knowledge base is built around metabolic and cancer-association literature. Common PRKAA1 variants are best interpreted as pathway modifiers rather than as highly penetrant clinical alleles.",
+    "variant_effect_overview": [
+      "Common PRKAA1 variants are typically interpreted as low-penetrance metabolic or cancer-risk modifiers.",
+      "Because PRKAA1 acts inside the AMPK-mTOR energy-stress axis, published associations often reflect pathway state and environmental context."
+    ],
+    "condition_research_overview": [
+      "PRKAA1 is central to AMPK signaling, nutrient sensing, mitochondrial stress responses, and mTOR restraint.",
+      "The strongest common-variant literature centers on gastric-cancer susceptibility and metabolic-endocrine phenotypes."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg00431545",
+      "cg00301775",
+      "cg15277873",
+      "cg22327282",
+      "cg24728477",
+      "cg05851420",
+      "cg10786880"
+    ],
+    "methylation_interpretation": "PRKAA1 methylation should be read as energy-sensing pathway context. Promoter-proximal methylation may suggest altered catalytic-subunit expression, but interpretation remains broader than any one common SNP.",
+    "methylation_effects": [
+      "Promoter methylation may help contextualize PRKAA1 transcriptional tone in metabolism-focused tissues.",
+      "Integrate methylation with AMPK-mTOR signaling, energy stress, and nutritional context."
+    ],
+    "methylation_condition_research": [
+      "Energy-stress and nutrient-sensing biology.",
+      "Cancer, especially gastric-cancer association work.",
+      "Metabolic and endocrine signaling research."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 5562: PRKAA1 gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/5562"
+      },
+      {
+        "label": "PubMed 26485766: PRKAA1 rs13361707 and gastric-cancer risk",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/26485766/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs13361707",
+      "common_name": "gastric-cancer-associated PRKAA1 SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / low-penetrance risk marker",
+      "clinical_interpretation": "rs13361707 is the best-established common PRKAA1 marker in gastric-cancer association literature. The local database treats it as a low-penetrance pathway-associated risk marker rather than as a pathogenic clinical allele.",
+      "clinical_significance": "Research-level low-penetrance association marker.",
+      "functional_effects": [
+        "Likely acts through regulatory or linked-locus effects on AMPK-pathway signaling rather than as a direct protein-disrupting lesion.",
+        "Effect sizes reported in cancer cohorts are modest and ancestry specific."
+      ],
+      "associated_conditions": [
+        "Gastric-cancer susceptibility",
+        "Metabolic and stress-signaling pathway context"
+      ],
+      "research_context": [
+        "This is the canonical common PRKAA1 association SNP in East Asian gastric-cancer studies."
+      ],
+      "usual_variant_note": "Most cited common PRKAA1 association SNP.",
+      "methylation_interpretation": "PRKAA1 methylation should be read as broader energy-sensing locus context rather than as a direct biomarker of rs13361707.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 26485766: PRKAA1 rs13361707 and gastric-cancer risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26485766/"
+        },
+        {
+          "label": "PubMed 37670284: PRKAA1 polymorphisms and gastric cancer",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/37670284/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Chen et al., 2015 (PMID 26485766)",
+          "genotypes": "TT, CT, and CC",
+          "phenotype": "Gastric-cancer susceptibility in an eastern Chinese population",
+          "finding": "The study reported that the rs13361707 C allele increased gastric-cancer risk, consistent with its use as a low-penetrance PRKAA1 research marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26485766/"
+        }
+      ],
+      "gene_name": "PRKAA1",
+      "chromosome": "5",
+      "display_name": "rs13361707",
+      "lookup_keys": [
+        "rs13361707",
+        "prkaa1:rs13361707"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg00431545",
+        "cg00301775",
+        "cg15277873",
+        "cg22327282",
+        "cg24728477",
+        "cg05851420",
+        "cg10786880"
+      ]
+    }
+  ]
+}

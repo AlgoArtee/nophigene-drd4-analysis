@@ -1,0 +1,134 @@
+{
+  "database_name": "NophiGene CDKN2A Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "CDKN2A",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "9p21.3",
+    "chromosome": "9",
+    "gene_region": {
+      "label": "CDKN2A transcribed interval",
+      "start": 21967751,
+      "end": 21995323,
+      "definition": "Canonical CDKN2A genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 21995324,
+      "end": 21996323,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 21974514,
+      "end": 21995312,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "9:21995324-21995323",
+    "gene_summary": "CDKN2A encodes multiple tumor-suppressor products, including p16INK4A and p14ARF, that regulate the RB and p53 pathways, G1 cell-cycle control, senescence, and oncogenic stress responses.",
+    "clinical_context": "The bundled CDKN2A knowledge base is tumor-suppressor focused. Clinically important CDKN2A events are often rare germline variants, deletions, or promoter methylation changes rather than common low-effect polymorphisms.",
+    "variant_effect_overview": [
+      "For CDKN2A, rare germline and somatic loss-of-function events usually carry more weight than common SNPs.",
+      "Promoter methylation and deletion are central recurring mechanisms in cancer biology and senescence research at this locus.",
+      "Observed PASS variants in the interval should therefore be treated as locus context unless they match a seeded research SNP or have outside clinical curation."
+    ],
+    "condition_research_overview": [
+      "CDKN2A is a major tumor-suppressor locus in melanoma, pancreatic cancer predisposition, glioma, and many additional tumors.",
+      "The locus is also central to aging and senescence research because p16INK4A expression is a canonical cellular-senescence marker."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg00718440",
+      "cg05303981",
+      "cg00587003",
+      "cg26673943",
+      "cg23668793",
+      "cg09776804",
+      "cg23426614",
+      "cg07562918",
+      "cg03079681",
+      "cg23322868"
+    ],
+    "methylation_interpretation": "CDKN2A methylation is often biologically meaningful because promoter hypermethylation is a recurrent mode of tumor-suppressor silencing. In this workbench it should still be read as regulatory context rather than as a stand-alone diagnosis.",
+    "methylation_effects": [
+      "Promoter hypermethylation can be consistent with reduced p16INK4A pathway accessibility and is widely studied in cancer cohorts.",
+      "At the same time, CDKN2A expression itself is a senescence biomarker, so methylation should be integrated with tissue and disease context."
+    ],
+    "methylation_condition_research": [
+      "Cancer-associated promoter methylation studies.",
+      "Aging and cellular-senescence research.",
+      "Tumor-suppressor silencing and biomarker development."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 1029: CDKN2A gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/1029"
+      },
+      {
+        "label": "PubMed 26557774: CDKN2A 3'UTR sequence variants in melanoma",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/26557774/"
+      },
+      {
+        "label": "PubMed 31270053: CDKN2A methylation and aging",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/31270053/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs11515",
+      "common_name": "CDKN2A 3'UTR regulatory SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / regulatory marker",
+      "clinical_interpretation": "rs11515 is a 3'UTR CDKN2A polymorphism curated here as a research-level regulatory marker. It has been discussed in melanoma and cancer-risk literature but is not treated as a pathogenic stand-alone allele in this local database.",
+      "clinical_significance": "Research-level regulatory association marker.",
+      "functional_effects": [
+        "Likely reflects post-transcriptional regulatory context at the CDKN2A locus.",
+        "Any disease signal is modest relative to rare truncating, deletion, or methylation-mediated CDKN2A loss."
+      ],
+      "associated_conditions": [
+        "Melanoma and cancer-association studies",
+        "Tumor-suppressor regulatory biology"
+      ],
+      "research_context": [
+        "Common CDKN2A SNP work should be interpreted cautiously because the major clinical burden at this locus is usually rare loss of function or promoter silencing."
+      ],
+      "usual_variant_note": "Common research-facing CDKN2A 3'UTR SNP.",
+      "methylation_interpretation": "CDKN2A methylation and rs11515 should be read as different layers of regulatory context, not as interchangeable biomarkers.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 26557774: CDKN2A 3'UTR sequence variants in melanoma",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26557774/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Przybyla et al., 2015 (PMID 26557774)",
+          "genotypes": "Common 3'UTR variant carrier states",
+          "phenotype": "Melanoma-focused sequence-variant analysis",
+          "finding": "The study examined CDKN2A 3'UTR variation including rs11515 as part of melanoma-focused regulatory sequence analysis, reinforcing its use as a research-level rather than high-penetrance marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/26557774/"
+        }
+      ],
+      "gene_name": "CDKN2A",
+      "chromosome": "9",
+      "display_name": "rs11515",
+      "lookup_keys": [
+        "rs11515",
+        "cdkn2a:rs11515"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg00718440",
+        "cg05303981",
+        "cg00587003",
+        "cg26673943",
+        "cg23668793",
+        "cg09776804",
+        "cg23426614",
+        "cg07562918",
+        "cg03079681",
+        "cg23322868"
+      ]
+    }
+  ]
+}

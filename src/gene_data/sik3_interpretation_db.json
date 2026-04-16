@@ -1,0 +1,133 @@
+{
+  "database_name": "NophiGene SIK3 Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "SIK3",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "11q23.3",
+    "chromosome": "11",
+    "gene_region": {
+      "label": "SIK3 transcribed interval",
+      "start": 116714118,
+      "end": 116969144,
+      "definition": "Canonical SIK3 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 116969145,
+      "end": 116970144,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 116968963,
+      "end": 116969101,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "11:116969145-116969144",
+    "gene_summary": "SIK3 encodes a salt-inducible serine-threonine kinase in the AMPK-related kinase family that participates in metabolic control, sleep regulation, transcriptional programs, and TOR-linked signaling.",
+    "clinical_context": "The local SIK3 knowledge base focuses on emerging functional and sleep-trait biology. The locus has a growing GWAS and mechanistic literature, but interpretation is still mainly research grade for most variants.",
+    "variant_effect_overview": [
+      "SIK3 is better characterized through pathway studies, sleep phenotypes, and selected rare functional variants than through a mature clinical common-SNP catalog.",
+      "Observed variants in the SIK3 interval should be interpreted as research context unless they match a seeded functional record or have outside clinical curation."
+    ],
+    "condition_research_overview": [
+      "Human and model-organism studies link SIK3 to sleep need, circadian or sleep-duration biology, and neuronal regulation.",
+      "Additional research connects SIK3 to metabolism, adiposity, and oncogenic or transcriptional signaling programs."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg18432864",
+      "cg26341268",
+      "cg21633359",
+      "cg26987564",
+      "cg27126310",
+      "cg27397721",
+      "cg06700076",
+      "cg01116484",
+      "cg09068129",
+      "cg11642283"
+    ],
+    "methylation_interpretation": "SIK3 methylation is best treated as regulatory context around an emerging signaling gene. Interpret any promoter-proximal patterns as supportive evidence rather than as a direct proxy for sleep or metabolic phenotype.",
+    "methylation_effects": [
+      "Methylation may help contextualize transcriptional accessibility in tissues where SIK3 is active, but functional interpretation remains pathway level.",
+      "Sleep-trait and signaling phenotypes should not be inferred from methylation alone."
+    ],
+    "methylation_condition_research": [
+      "Sleep and circadian-biology studies.",
+      "Metabolic-signaling and adiposity research.",
+      "Transcriptional-control and leukemia-dependency studies involving SIK kinases."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 23387: SIK3 gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/23387"
+      },
+      {
+        "label": "DOI 10.1073/pnas.2500356122: SIK3-N783Y and natural short sleep",
+        "url": "https://doi.org/10.1073/pnas.2500356122"
+      },
+      {
+        "label": "PubMed 32126566: SIK3 haplotypes and noise-induced hearing loss",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/32126566/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "SIK3 p.Asn783Tyr",
+      "display_name": "SIK3 p.Asn783Tyr (N783Y)",
+      "common_name": "natural short sleep-associated missense variant",
+      "region_class": "gene_body",
+      "interpretation_scope": "Rare functional sleep-trait variant",
+      "clinical_interpretation": "SIK3 p.Asn783Tyr is a rare functional missense variant reported in association with the human natural short sleep trait. It is curated here as a mechanistic sleep-biology variant, not as a routine pathogenic diagnostic allele.",
+      "clinical_significance": "Rare functional research variant with emerging human sleep-trait evidence.",
+      "functional_effects": [
+        "The variant is discussed as a gain-of-function or altered-function SIK3 allele in sleep regulation.",
+        "Its interpretation is primarily mechanistic and research facing at present."
+      ],
+      "associated_conditions": [
+        "Human natural short sleep trait",
+        "Sleep-need and neuronal signaling research"
+      ],
+      "research_context": [
+        "This record captures a rare high-interest functional variant rather than a common population marker."
+      ],
+      "usual_variant_note": "Emerging rare SIK3 human sleep variant.",
+      "methylation_interpretation": "SIK3 methylation provides broad locus context but does not directly read out the functional consequence of p.Asn783Tyr.",
+      "is_assayable_in_snp_vcf": false,
+      "evidence": [
+        {
+          "label": "DOI 10.1073/pnas.2500356122: SIK3-N783Y and natural short sleep",
+          "url": "https://doi.org/10.1073/pnas.2500356122"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "PNAS, 2025 (DOI 10.1073/pnas.2500356122)",
+          "genotypes": "Rare missense carrier state",
+          "phenotype": "Human natural short sleep",
+          "finding": "The report linked SIK3 N783Y to the human natural short sleep trait and framed the variant as a direct functional probe of sleep-need biology.",
+          "url": "https://doi.org/10.1073/pnas.2500356122"
+        }
+      ],
+      "gene_name": "SIK3",
+      "chromosome": "11",
+      "lookup_keys": [
+        "SIK3 p.Asn783Tyr",
+        "sik3:sik3 p.asn783tyr"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg18432864",
+        "cg26341268",
+        "cg21633359",
+        "cg26987564",
+        "cg27126310",
+        "cg27397721",
+        "cg06700076",
+        "cg01116484",
+        "cg09068129",
+        "cg11642283"
+      ]
+    }
+  ]
+}

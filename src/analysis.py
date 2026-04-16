@@ -400,6 +400,7 @@ def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
         "clinical_significance": record.get("clinical_significance", "Clinical significance not specified."),
         "summary": record.get("clinical_interpretation", ""),
         "interpretation_scope": record.get("interpretation_scope", "Research context"),
+        "region_class": record.get("region_class", "research_marker"),
         "functional_effects": record.get("functional_effects", []),
         "associated_conditions": record.get("associated_conditions", []),
         "research_context": record.get("research_context", []),
@@ -407,6 +408,32 @@ def _build_known_variant_summary(record: dict[str, Any]) -> dict[str, Any]:
         "assay_note": assay_note,
         "evidence": record.get("evidence", []),
     }
+
+
+def _build_curated_named_marker_catalog(
+    variants: pd.DataFrame,
+    variant_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return all curated named markers with run-specific observation flags."""
+    observed_marker_map: dict[str, list[str]] = {}
+    for _, row in variants.iterrows():
+        matched_record = _match_variant_record(row, variant_records)
+        if matched_record is None:
+            continue
+        observed_marker_map.setdefault(matched_record["variant"], []).append(_format_variant_display(row))
+
+    marker_catalog: list[dict[str, Any]] = []
+    for record in variant_records:
+        summary = _build_known_variant_summary(record)
+        observed_variants = observed_marker_map.get(record["variant"], [])
+        marker_catalog.append(
+            {
+                **summary,
+                "observed_in_run": bool(observed_variants),
+                "observed_variants": observed_variants,
+            }
+        )
+    return marker_catalog
 
 
 def _build_observed_variant_summary(
@@ -751,6 +778,279 @@ def _categorize_beta(mean_beta: float | None) -> str:
     return "high"
 
 
+def _coerce_numeric_beta_values(df: pd.DataFrame) -> pd.Series:
+    """Return non-null numeric beta values from a methylation table."""
+    if "beta" not in df.columns or df.empty:
+        return pd.Series(dtype="float64")
+    return pd.to_numeric(df["beta"], errors="coerce").dropna()
+
+
+def _mean_beta_or_none(beta_values: pd.Series) -> float | None:
+    """Return the mean beta value for a numeric series or ``None`` when empty."""
+    if beta_values.empty:
+        return None
+    return float(beta_values.mean())
+
+
+def _round_beta(mean_beta: float | None) -> float | None:
+    """Round a mean beta value for UI display while preserving ``None``."""
+    return round(mean_beta, 3) if mean_beta is not None else None
+
+
+def _select_gene_named_methylation_rows(
+    methylation: pd.DataFrame, gene_name: str
+) -> tuple[pd.DataFrame, list[str]]:
+    """Return rows whose gene-annotation columns explicitly mention ``gene_name``."""
+    if methylation.empty:
+        return methylation.iloc[0:0].copy(), []
+
+    normalized_gene_name = gene_name.strip().upper()
+    if not normalized_gene_name:
+        return methylation.iloc[0:0].copy(), []
+
+    annotation_columns = [
+        column
+        for column in ("GencodeBasicV12_NAME", "gene", "UCSC_RefGene_Name")
+        if column in methylation.columns
+    ]
+    if not annotation_columns:
+        return methylation.iloc[0:0].copy(), []
+
+    match_pattern = rf"(?:^|;)\s*{re.escape(normalized_gene_name)}\s*(?:;|$)"
+    combined_mask = pd.Series(False, index=methylation.index, dtype="bool")
+    matched_columns: list[str] = []
+
+    for column in annotation_columns:
+        mask = (
+            methylation[column]
+            .fillna("")
+            .astype(str)
+            .str.upper()
+            .str.contains(match_pattern, regex=True, na=False)
+        )
+        if bool(mask.any()):
+            matched_columns.append(column)
+            combined_mask = combined_mask | mask
+
+    return methylation.loc[combined_mask].copy(), matched_columns
+
+
+def _build_whitelist_explanation(gene_name: str, relevant_probe_ids: list[str]) -> str:
+    """Explain how the curated methylation whitelist is assembled."""
+    if not relevant_probe_ids:
+        return (
+            f"No curated {gene_name} methylation whitelist is bundled yet, so whitelist-only "
+            "statistics are unavailable for this gene."
+        )
+    return (
+        f"The curated {gene_name} methylation whitelist is bundled manually in the local "
+        "interpretation database under `relevant_methylation_probe_ids`. It is a literature-guided "
+        "hotspot subset used for interpretation, not an automatic list of every probe row in the "
+        "current manifest slice."
+    )
+
+
+def _split_semicolon_tokens(value: Any) -> list[str]:
+    """Split a semicolon-delimited annotation field into unique non-empty tokens."""
+    if value is None or pd.isna(value):
+        return []
+    tokens = [token.strip() for token in str(value).split(";")]
+    unique_tokens: list[str] = []
+    seen_tokens: set[str] = set()
+    for token in tokens:
+        if not token or token in seen_tokens:
+            continue
+        seen_tokens.add(token)
+        unique_tokens.append(token)
+    return unique_tokens
+
+
+def _load_gene_manifest_probe_lookup(
+    gene_name: str, probe_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    """Load bundled manifest annotations for the requested whitelist probes."""
+    if not probe_ids:
+        return {}
+
+    manifest_path = GENE_DATA_DIR / _gene_manifest_filename(gene_name)
+    if not manifest_path.exists():
+        logger.warning("Bundled manifest subset is missing for %s: %s", gene_name, manifest_path)
+        return {}
+
+    try:
+        manifest = pd.read_csv(manifest_path)
+    except Exception:
+        logger.exception("Failed to read bundled manifest subset for %s", gene_name)
+        return {}
+
+    manifest = manifest.rename(columns={"IlmnID": "probe_id", "CHR": "chrom", "MAPINFO": "pos"})
+    if "probe_id" not in manifest.columns:
+        return {}
+
+    subset = manifest[manifest["probe_id"].isin(set(probe_ids))].copy()
+    if subset.empty:
+        return {}
+
+    subset = subset.drop_duplicates(subset=["probe_id"], keep="first")
+    return {str(row["probe_id"]): row.to_dict() for _, row in subset.iterrows()}
+
+
+def _format_probe_locus(annotation: dict[str, Any]) -> str | None:
+    """Format a probe genomic locus from manifest or observed-row annotations."""
+    chrom = annotation.get("chrom")
+    pos = annotation.get("pos")
+    if chrom is None or pos is None or pd.isna(chrom) or pd.isna(pos):
+        return None
+    chrom_text = str(chrom).removeprefix("chr")
+    try:
+        pos_value = int(float(pos))
+    except (TypeError, ValueError):
+        return None
+    return f"chr{chrom_text}:{pos_value:,}"
+
+
+def _build_nearby_manifest_variant_rows(annotation: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return nearby manifest SNP annotations paired with their reported distances."""
+    variant_ids = _split_semicolon_tokens(annotation.get("SNP_ID"))
+    distance_tokens = _split_semicolon_tokens(annotation.get("SNP_DISTANCE"))
+    nearby_rows: list[dict[str, Any]] = []
+    for index, variant_id in enumerate(variant_ids):
+        distance = distance_tokens[index] if index < len(distance_tokens) else ""
+        nearby_rows.append(
+            {
+                "variant": variant_id,
+                "distance": distance,
+            }
+        )
+    return nearby_rows
+
+
+def _collect_variant_record_papers(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect deduplicated papers and evidence links for one curated variant record."""
+    papers: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+
+    for finding in _build_literature_findings(record):
+        label = str(finding.get("paper", "")).strip()
+        url = str(finding.get("url", "")).strip()
+        if not label and not url:
+            continue
+        dedupe_key = (label, url)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        papers.append(
+            {
+                "label": label or url,
+                "url": url,
+                "source_variant": record.get("display_name", record.get("variant", "")),
+            }
+        )
+
+    for source in record.get("evidence", []):
+        label = str(source.get("label", "")).strip()
+        url = str(source.get("url", "")).strip()
+        if not label and not url:
+            continue
+        dedupe_key = (label, url)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        papers.append(
+            {
+                "label": label or url,
+                "url": url,
+                "source_variant": record.get("display_name", record.get("variant", "")),
+            }
+        )
+
+    return papers
+
+
+def _build_whitelist_probe_reference_rows(
+    methylation: pd.DataFrame, knowledge_base: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Map each whitelist probe to curated variants, nearby loci, and supporting papers."""
+    gene_context = knowledge_base.get("gene_context", {})
+    gene_name = str(gene_context.get("gene_name", DEFAULT_GENE_NAME))
+    relevant_probe_ids = list(gene_context.get("relevant_methylation_probe_ids", []))
+    if not relevant_probe_ids:
+        return []
+
+    observed_rows = (
+        methylation.drop_duplicates(subset=["probe_id"], keep="first")
+        if "probe_id" in methylation.columns
+        else methylation.iloc[0:0].copy()
+    )
+    observed_lookup = (
+        {str(row["probe_id"]): row.to_dict() for _, row in observed_rows.iterrows()}
+        if "probe_id" in observed_rows.columns
+        else {}
+    )
+    manifest_lookup = _load_gene_manifest_probe_lookup(gene_name, relevant_probe_ids)
+    variant_records = knowledge_base.get("variant_records", [])
+
+    reference_rows: list[dict[str, Any]] = []
+    for probe_id in relevant_probe_ids:
+        observed_annotation = observed_lookup.get(probe_id, {})
+        manifest_annotation = manifest_lookup.get(probe_id, {})
+        merged_annotation = {**manifest_annotation, **observed_annotation}
+        observed_beta = pd.to_numeric(observed_annotation.get("beta"), errors="coerce")
+
+        linked_variant_records = [
+            record
+            for record in variant_records
+            if probe_id in record.get("relevant_methylation_probe_ids", [])
+        ]
+        linked_variants = []
+        for record in linked_variant_records:
+            label = str(record.get("display_name", record.get("variant", probe_id))).strip()
+            common_name = str(record.get("common_name", "")).strip()
+            locus = None
+            position = record.get("position")
+            chromosome = record.get("chromosome")
+            if chromosome is not None and position is not None and not pd.isna(position):
+                try:
+                    locus = f"chr{str(chromosome).removeprefix('chr')}:{int(position):,}"
+                except (TypeError, ValueError):
+                    locus = None
+            linked_variants.append(
+                {
+                    "label": label,
+                    "common_name": common_name,
+                    "locus": locus,
+                }
+            )
+
+        papers: list[dict[str, Any]] = []
+        seen_papers: set[tuple[str, str, str]] = set()
+        for record in linked_variant_records:
+            for paper in _collect_variant_record_papers(record):
+                dedupe_key = (
+                    paper.get("label", ""),
+                    paper.get("url", ""),
+                    paper.get("source_variant", ""),
+                )
+                if dedupe_key in seen_papers:
+                    continue
+                seen_papers.add(dedupe_key)
+                papers.append(paper)
+
+        reference_rows.append(
+            {
+                "probe_id": probe_id,
+                "observed_in_run": probe_id in observed_lookup,
+                "beta": _round_beta(float(observed_beta)) if pd.notna(observed_beta) else None,
+                "probe_locus": _format_probe_locus(merged_annotation),
+                "linked_variants": linked_variants,
+                "nearby_manifest_variants": _build_nearby_manifest_variant_rows(merged_annotation),
+                "papers": papers,
+            }
+        )
+
+    return reference_rows
+
+
 def build_variant_interpretations(
     variants: pd.DataFrame, knowledge_base: dict[str, Any], *, region: str
 ) -> dict[str, Any]:
@@ -871,6 +1171,17 @@ def build_variant_interpretations(
         f"In the current preview, {promoter_analysis['found_variant_count']} promoter-window variant(s) and "
         f"{gene_analysis['found_variant_count']} gene-interval variant(s) were surfaced."
     )
+    curated_named_markers = _build_curated_named_marker_catalog(variants, variant_records)
+    observed_named_marker_count = sum(1 for item in curated_named_markers if item["observed_in_run"])
+    if curated_named_markers:
+        curated_named_markers_summary = (
+            f"The local {gene_name} bundle seeds {len(curated_named_markers)} curated named marker(s). "
+            f"The current run directly matched {observed_named_marker_count} of them."
+        )
+    else:
+        curated_named_markers_summary = (
+            f"No curated named markers are bundled for {gene_name} yet."
+        )
 
     return {
         "summary": summary,
@@ -898,6 +1209,8 @@ def build_variant_interpretations(
         "promoter_region": promoter_region_record,
         "promoter_hotspot_region": promoter_hotspot_record,
         "search_region": search_region_record,
+        "curated_named_markers": curated_named_markers,
+        "curated_named_markers_summary": curated_named_markers_summary,
         "promoter_analysis": promoter_analysis,
         "gene_analysis": gene_analysis,
         "recommended_promoter_plus_gene_region": combined_region,
@@ -1016,12 +1329,38 @@ def build_methylation_insights(
     relevant_probe_ids = list(gene_context.get("relevant_methylation_probe_ids", []))
     relevant_probe_lookup = set(relevant_probe_ids)
 
-    observed_relevant = methylation[methylation["probe_id"].isin(relevant_probe_lookup)].copy()
-    if observed_relevant.empty:
-        observed_relevant = methylation.copy()
+    observed_relevant = (
+        methylation[methylation["probe_id"].isin(relevant_probe_lookup)].copy()
+        if relevant_probe_lookup
+        else methylation.iloc[0:0].copy()
+    )
+    gene_named_rows, gene_named_match_columns = _select_gene_named_methylation_rows(
+        methylation, gene_name
+    )
 
-    mean_beta = float(observed_relevant["beta"].mean()) if not observed_relevant.empty else None
-    beta_band = _categorize_beta(mean_beta)
+    whitelist_beta_values = _coerce_numeric_beta_values(observed_relevant)
+    gene_named_beta_values = _coerce_numeric_beta_values(gene_named_rows)
+    full_table_beta_values = _coerce_numeric_beta_values(methylation)
+
+    whitelist_mean_beta = _mean_beta_or_none(whitelist_beta_values)
+    gene_name_mean_beta = _mean_beta_or_none(gene_named_beta_values)
+    raw_mean_beta = _mean_beta_or_none(full_table_beta_values)
+
+    primary_mean_beta = (
+        whitelist_mean_beta
+        if whitelist_mean_beta is not None
+        else gene_name_mean_beta
+        if gene_name_mean_beta is not None
+        else raw_mean_beta
+    )
+    beta_band = _categorize_beta(primary_mean_beta)
+    beta_band_source_label = (
+        "Whitelist mean beta"
+        if whitelist_mean_beta is not None
+        else f"{gene_name}-named row mean beta"
+        if gene_name_mean_beta is not None
+        else "All numeric-row mean beta"
+    )
 
     if "UCSC_RefGene_Group" in observed_relevant.columns:
         group_breakdown = (
@@ -1037,15 +1376,28 @@ def build_methylation_insights(
     if not group_summary:
         group_summary = "annotation breakdown unavailable"
 
-    summary_prefix = (
-        f"The current run captured {len(observed_relevant)} curated {gene_name} probe(s) "
-        f"with a mean beta of {mean_beta:.2f}, which sits in the {beta_band} range. "
-        if mean_beta is not None
-        else f"The current run did not yield a mean beta estimate for the curated {gene_name} probes. "
+    whitelist_summary = (
+        f"the whitelist mean beta is {whitelist_mean_beta:.2f} from {len(whitelist_beta_values)} numeric whitelist probe(s)"
+        if whitelist_mean_beta is not None
+        else "the whitelist mean beta is unavailable because no observed whitelist probe carried a numeric beta value"
+    )
+    gene_named_summary = (
+        f"the {gene_name}-named row mean beta is {gene_name_mean_beta:.2f} from {len(gene_named_beta_values)} numeric row(s)"
+        if gene_name_mean_beta is not None
+        else f"the {gene_name}-named row mean beta is unavailable because no numeric row explicitly mentioned {gene_name}"
+    )
+    raw_summary = (
+        f"the all-numeric-row mean beta is {raw_mean_beta:.2f} from {len(full_table_beta_values)} numeric row(s)"
+        if raw_mean_beta is not None
+        else "the all-numeric-row mean beta is unavailable because the table did not contain any numeric beta values"
     )
 
     summary = (
-        f"{summary_prefix}The bundled {gene_name} array subset is dominated by {group_summary}. "
+        f"The current run observed {len(observed_relevant)} of {len(relevant_probe_ids)} curated whitelist probe(s), "
+        f"{len(gene_named_rows)} row(s) whose gene annotation explicitly mentions {gene_name}, "
+        f"and {len(methylation)} row(s) in the full methylation table. "
+        f"Across those views, {whitelist_summary}; {gene_named_summary}; and {raw_summary}. "
+        f"The observed whitelist subset is dominated by {group_summary}. "
         f"{gene_context.get('methylation_interpretation', '')}"
     ).strip()
 
@@ -1059,13 +1411,52 @@ def build_methylation_insights(
     available_preview_columns = [
         column for column in preview_columns if column in observed_relevant.columns
     ]
+    observed_relevant_lookup = set(observed_relevant["probe_id"].tolist()) if "probe_id" in observed_relevant.columns else set()
+    gene_name_match_rule = (
+        f"Rows count toward the {gene_name}-named mean when {gene_name} appears as a semicolon-delimited token in "
+        + ", ".join(gene_named_match_columns)
+        + "."
+        if gene_named_match_columns
+        else f"No gene-annotation column in the current methylation table explicitly mentioned {gene_name}."
+    )
+    whitelist_probe_reference_rows = _build_whitelist_probe_reference_rows(methylation, knowledge_base)
 
     return {
         "gene_name": gene_name,
         "clinical_context": gene_context.get("clinical_context", ""),
         "summary": summary,
-        "mean_beta": round(mean_beta, 3) if mean_beta is not None else None,
+        "mean_beta": _round_beta(whitelist_mean_beta),
+        "mean_beta_label": "Whitelist mean beta",
+        "mean_beta_probe_count": int(len(whitelist_beta_values)),
+        "whitelist_mean_beta": _round_beta(whitelist_mean_beta),
+        "whitelist_mean_beta_label": "Whitelist mean beta",
+        "whitelist_mean_beta_probe_count": int(len(whitelist_beta_values)),
+        "whitelist_probe_count": len(relevant_probe_ids),
+        "whitelist_observed_probe_count": int(len(observed_relevant)),
+        "whitelist_explanation": _build_whitelist_explanation(gene_name, relevant_probe_ids),
+        "whitelist_literature_context": gene_context.get("methylation_interpretation", ""),
+        "whitelist_probe_statuses": [
+            {
+                "probe_id": probe_id,
+                "observed_in_run": probe_id in observed_relevant_lookup,
+            }
+            for probe_id in relevant_probe_ids
+        ],
+        "gene_name_mean_beta": _round_beta(gene_name_mean_beta),
+        "gene_name_mean_beta_label": f"{gene_name}-named row mean beta",
+        "gene_name_mean_beta_probe_count": int(len(gene_named_beta_values)),
+        "gene_name_row_count": int(len(gene_named_rows)),
+        "gene_name_match_columns": gene_named_match_columns,
+        "gene_name_match_rule": gene_name_match_rule,
+        "raw_mean_beta": _round_beta(raw_mean_beta),
+        "raw_mean_beta_label": "All numeric-row mean beta",
+        "raw_probe_count": int(len(methylation)),
+        "raw_mean_beta_probe_count": int(len(full_table_beta_values)),
+        "all_numeric_mean_beta": _round_beta(raw_mean_beta),
+        "all_numeric_mean_beta_label": "All numeric-row mean beta",
+        "all_numeric_mean_beta_probe_count": int(len(full_table_beta_values)),
         "beta_band": beta_band,
+        "beta_band_source_label": beta_band_source_label,
         "observed_probe_count": int(len(observed_relevant)),
         "curated_probe_count": len(relevant_probe_ids),
         "probe_ids": observed_relevant["probe_id"].tolist(),
@@ -1074,6 +1465,11 @@ def build_methylation_insights(
         "methylation_condition_research": gene_context.get("methylation_condition_research", []),
         "evidence": gene_context.get("evidence", []),
         "probe_preview": observed_relevant[available_preview_columns].copy(),
+        "whitelist_probe_reference_rows": whitelist_probe_reference_rows,
+        "whitelist_probe_reference_summary": (
+            "Each whitelist probe is cross-referenced to any curated variant records that explicitly cite it, "
+            "plus nearby manifest SNP annotations and the bundled papers behind those variant interpretations."
+        ),
     }
 
 
@@ -1178,6 +1574,10 @@ def build_generic_variant_interpretations(
             },
         ],
         "gene_region": search_region_record,
+        "curated_named_markers": [],
+        "curated_named_markers_summary": (
+            f"No curated named markers are bundled for {gene_name} yet."
+        ),
         "promoter_region": {
             "label": "Promoter model unavailable",
             "chrom": chrom,
@@ -1217,8 +1617,20 @@ def build_generic_variant_interpretations(
 
 def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: str) -> dict[str, Any]:
     """Build a generic methylation payload for genes without a curated interpretation database."""
-    mean_beta = float(methylation["beta"].mean()) if "beta" in methylation.columns and not methylation.empty else None
-    beta_band = _categorize_beta(mean_beta)
+    gene_named_rows, gene_named_match_columns = _select_gene_named_methylation_rows(
+        methylation, gene_name
+    )
+    gene_named_beta_values = _coerce_numeric_beta_values(gene_named_rows)
+    beta_values = _coerce_numeric_beta_values(methylation)
+    gene_name_mean_beta = _mean_beta_or_none(gene_named_beta_values)
+    mean_beta = _mean_beta_or_none(beta_values)
+    primary_mean_beta = gene_name_mean_beta if gene_name_mean_beta is not None else mean_beta
+    beta_band = _categorize_beta(primary_mean_beta)
+    beta_band_source_label = (
+        f"{gene_name}-named row mean beta"
+        if gene_name_mean_beta is not None
+        else "All numeric-row mean beta"
+    )
 
     if "UCSC_RefGene_Group" in methylation.columns:
         group_breakdown = (
@@ -1239,10 +1651,21 @@ def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: 
     available_preview_columns = [column for column in preview_columns if column in methylation.columns]
 
     summary_prefix = (
-        f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset "
-        f"with a mean beta of {mean_beta:.2f}. "
+        f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset, "
+        f"with a {gene_name}-named row mean beta of {gene_name_mean_beta:.2f} from {len(gene_named_beta_values)} numeric row(s) "
+        f"and an all-numeric-row mean beta of {mean_beta:.2f} from {len(beta_values)} numeric row(s). "
+        if mean_beta is not None and gene_name_mean_beta is not None
+        else f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset "
+        f"with an all-numeric-row mean beta of {mean_beta:.2f}. "
         if mean_beta is not None
         else f"The current run captured {len(methylation)} probe(s) from the selected {gene_name} manifest subset. "
+    )
+    gene_name_match_rule = (
+        f"Rows count toward the {gene_name}-named mean when {gene_name} appears as a semicolon-delimited token in "
+        + ", ".join(gene_named_match_columns)
+        + "."
+        if gene_named_match_columns
+        else f"No gene-annotation column in the current methylation table explicitly mentioned {gene_name}."
     )
 
     return {
@@ -1254,10 +1677,40 @@ def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: 
             summary_prefix
             + "These values are shown as gene-focused methylation context rather than as a curated clinical interpretation."
         ),
-        "mean_beta": round(mean_beta, 3) if mean_beta is not None else None,
+        "mean_beta": _round_beta(gene_name_mean_beta if gene_name_mean_beta is not None else mean_beta),
+        "mean_beta_label": (
+            f"{gene_name}-named row mean beta"
+            if gene_name_mean_beta is not None
+            else "All numeric-row mean beta"
+        ),
+        "mean_beta_probe_count": int(
+            len(gene_named_beta_values) if gene_name_mean_beta is not None else len(beta_values)
+        ),
+        "whitelist_mean_beta": None,
+        "whitelist_mean_beta_label": "Whitelist mean beta",
+        "whitelist_mean_beta_probe_count": 0,
+        "whitelist_probe_count": 0,
+        "whitelist_observed_probe_count": 0,
+        "whitelist_explanation": _build_whitelist_explanation(gene_name, []),
+        "whitelist_literature_context": "",
+        "whitelist_probe_statuses": [],
+        "gene_name_mean_beta": _round_beta(gene_name_mean_beta),
+        "gene_name_mean_beta_label": f"{gene_name}-named row mean beta",
+        "gene_name_mean_beta_probe_count": int(len(gene_named_beta_values)),
+        "gene_name_row_count": int(len(gene_named_rows)),
+        "gene_name_match_columns": gene_named_match_columns,
+        "gene_name_match_rule": gene_name_match_rule,
+        "raw_mean_beta": _round_beta(mean_beta),
+        "raw_mean_beta_label": "All numeric-row mean beta",
+        "raw_probe_count": int(len(methylation)),
+        "raw_mean_beta_probe_count": int(len(beta_values)),
+        "all_numeric_mean_beta": _round_beta(mean_beta),
+        "all_numeric_mean_beta_label": "All numeric-row mean beta",
+        "all_numeric_mean_beta_probe_count": int(len(beta_values)),
         "beta_band": beta_band,
+        "beta_band_source_label": beta_band_source_label,
         "observed_probe_count": int(len(methylation)),
-        "curated_probe_count": int(len(methylation)),
+        "curated_probe_count": 0,
         "probe_ids": methylation["probe_id"].tolist() if "probe_id" in methylation.columns else [],
         "group_breakdown": group_breakdown,
         "methylation_effects": [
@@ -1267,6 +1720,10 @@ def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: 
         "methylation_condition_research": [],
         "evidence": [],
         "probe_preview": methylation[available_preview_columns].copy() if available_preview_columns else methylation.head(12).copy(),
+        "whitelist_probe_reference_rows": [],
+        "whitelist_probe_reference_summary": (
+            f"No curated whitelist-probe reference map is bundled for {gene_name} yet."
+        ),
     }
 
 

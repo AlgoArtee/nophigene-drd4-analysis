@@ -1,0 +1,51 @@
+{
+  "database_name": "NophiGene RPS6 Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "Clinically relevant RPS6 interpretation is usually pathway and biomarker driven rather than based on common allele-frequency panels.",
+  "gene_population_patterns_intro": "Broader population patterns curated from RPS6 pathway-biomarker and translational-control literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 6194: RPS6 gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/6194"
+    },
+    {
+      "label": "PubMed 18157089: phospho-S6 biomarker paper",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/18157089/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "RPS6 pathway context",
+      "location_group": "Global pattern",
+      "summary": "RPS6 is generally interpreted through pathway activation and phospho-S6 biomarker studies rather than through a dense catalog of common inherited markers."
+    }
+  ]
+}

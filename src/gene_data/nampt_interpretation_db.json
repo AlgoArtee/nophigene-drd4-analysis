@@ -1,0 +1,129 @@
+{
+  "database_name": "NophiGene NAMPT Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "NAMPT",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "7q22.3",
+    "chromosome": "7",
+    "gene_region": {
+      "label": "NAMPT transcribed interval",
+      "start": 105888744,
+      "end": 105925429,
+      "definition": "Canonical NAMPT genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 105925430,
+      "end": 105926429,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 105925319,
+      "end": 105925381,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "7:105925430-105925429",
+    "gene_summary": "NAMPT encodes nicotinamide phosphoribosyltransferase, the rate-limiting enzyme in the major NAD salvage pathway and a key regulator of metabolic stress, inflammation, and cellular resilience.",
+    "clinical_context": "The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent.",
+    "variant_effect_overview": [
+      "Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "Because NAMPT biology spans NAD metabolism, inflammation, and secreted eNAMPT signaling, effect sizes and directions can vary substantially by phenotype."
+    ],
+    "condition_research_overview": [
+      "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
+      "The gene also links NAD salvage to sirtuin biology, stress responses, and systemic inflammatory signaling."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg16466893",
+      "cg02882624"
+    ],
+    "methylation_interpretation": "NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP.",
+    "methylation_effects": [
+      "Promoter methylation may help contextualize NAMPT transcriptional potential and systemic metabolic stress responses.",
+      "Most phenotype interpretation still depends more on pathway activity, circulating NAMPT, and cohort design than on methylation alone."
+    ],
+    "methylation_condition_research": [
+      "NAD metabolism and healthy-aging biology.",
+      "Inflammation and cardiovascular-risk studies.",
+      "Cancer and systemic stress-response research."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 10135: NAMPT gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/10135"
+      },
+      {
+        "label": "PubMed 25896907: NAMPT polymorphisms in esophageal carcinoma",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+      },
+      {
+        "label": "PubMed 33446046: NAMPT rs61330082 and cardiovascular risk after HCV clearance",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs61330082",
+      "common_name": "regulatory NAMPT SNP",
+      "region_class": "promoter",
+      "interpretation_scope": "Research association / metabolic-inflammatory marker",
+      "clinical_interpretation": "rs61330082 is a promoter-facing NAMPT variant studied in cancer, lipid, and cardiovascular-risk cohorts. The local database treats it as a research association marker for inflammatory-metabolic signaling rather than as a pathogenic clinical allele.",
+      "clinical_significance": "Research-level metabolic and inflammatory association marker.",
+      "functional_effects": [
+        "Likely regulatory or linked-locus effects on NAMPT expression and pathway tone.",
+        "Phenotypic interpretation varies by inflammatory and metabolic context."
+      ],
+      "associated_conditions": [
+        "Esophageal squamous-cell carcinoma susceptibility",
+        "Cardiovascular-event risk after chronic viral disease treatment",
+        "Lipid and metabolic biomarker studies"
+      ],
+      "research_context": [
+        "This SNP is one of the better characterized common NAMPT regulatory markers in disease-association literature."
+      ],
+      "usual_variant_note": "Most cited common regulatory NAMPT SNP.",
+      "methylation_interpretation": "Treat NAMPT methylation as broader regulatory context and not as a direct surrogate for rs61330082 genotype.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 25896907: NAMPT polymorphisms in esophageal carcinoma",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+        },
+        {
+          "label": "PubMed 33446046: NAMPT rs61330082 and cardiovascular risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Chen et al., 2015 (PMID 25896907)",
+          "genotypes": "CC, CT, and TT",
+          "phenotype": "Esophageal squamous-cell carcinoma susceptibility",
+          "finding": "The study examined rs61330082 among the main common NAMPT polymorphisms contributing to esophageal-squamous-cell-carcinoma risk modeling.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+        },
+        {
+          "paper": "Huang et al., 2021 (PMID 33446046)",
+          "genotypes": "TT versus non-TT",
+          "phenotype": "Long-term cardiovascular events after HCV clearance",
+          "finding": "The rs61330082 TT genotype was associated with a higher cumulative incidence of cardiovascular events in the treated cohort, reinforcing its value as a context-dependent metabolic-inflammatory marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+        }
+      ],
+      "gene_name": "NAMPT",
+      "chromosome": "7",
+      "display_name": "rs61330082",
+      "lookup_keys": [
+        "rs61330082",
+        "nampt:rs61330082"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg16466893",
+        "cg02882624"
+      ]
+    }
+  ]
+}

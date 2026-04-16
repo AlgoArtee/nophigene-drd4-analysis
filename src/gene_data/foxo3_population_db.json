@@ -1,0 +1,72 @@
+{
+  "database_name": "NophiGene FOXO3 Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This FOXO3 population database emphasizes cohort-level longevity patterns and ancestry-aware interpretation. It does not yet ship a full embedded allele-frequency panel for every reported FOXO3 marker.",
+  "gene_population_patterns_intro": "Broader population patterns curated from FOXO3 healthy-aging, longevity, and stress-response literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 2309: FOXO3 gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/2309"
+    },
+    {
+      "label": "PMCID PMC5403515: FOXO3 longevity review",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+    },
+    {
+      "label": "PubMed 29497356: rs2802292 enhancer mechanism",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/29497356/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs2802292",
+      "location_group": "Longevity cohorts",
+      "summary": "FOXO3 longevity signals are most often discussed in centenarian or long-lived cohort designs, where rs2802292 is treated as a modest survival-enrichment marker rather than a deterministic lifespan allele.",
+      "evidence": [
+        {
+          "label": "PMCID PMC5403515",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+        }
+      ]
+    },
+    {
+      "variant": "FOXO3 longevity haplotypes",
+      "location_group": "Global pattern",
+      "summary": "Different populations tag the FOXO3 longevity signal with different SNPs or haplotypes, so cross-cohort interpretation should focus on the locus-level signal rather than one ancestry-specific marker alone.",
+      "evidence": [
+        {
+          "label": "PMCID PMC5403515",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+        }
+      ]
+    }
+  ]
+}

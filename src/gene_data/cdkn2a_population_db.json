@@ -1,0 +1,65 @@
+{
+  "database_name": "NophiGene CDKN2A Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "The bundled CDKN2A population database emphasizes rare-disease and epigenetic patterns because common SNP frequency panels capture only a small part of CDKN2A biology.",
+  "gene_population_patterns_intro": "Broader population patterns curated from CDKN2A tumor-suppressor, methylation, and senescence literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 1029: CDKN2A gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/1029"
+    },
+    {
+      "label": "PubMed 31270053: CDKN2A methylation and aging",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/31270053/"
+    },
+    {
+      "label": "PubMed 26557774: CDKN2A 3'UTR variants in melanoma",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26557774/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "Rare CDKN2A loss-of-function variants",
+      "location_group": "Rare disease families",
+      "summary": "Across populations, the most clinically important CDKN2A events are rare germline or somatic loss-of-function alterations rather than common low-effect polymorphisms."
+    },
+    {
+      "variant": "CDKN2A promoter methylation",
+      "location_group": "Cancer cohorts",
+      "summary": "Promoter methylation is a recurring mode of CDKN2A silencing across tumor cohorts and is often more informative biologically than common inherited markers at this locus."
+    },
+    {
+      "variant": "CDKN2A methylation",
+      "location_group": "Longevity cohorts",
+      "summary": "In healthy-aging studies, CDKN2A methylation and expression are interpreted through senescence biology, which is distinct from the rare-variant cancer-predisposition literature."
+    }
+  ]
+}

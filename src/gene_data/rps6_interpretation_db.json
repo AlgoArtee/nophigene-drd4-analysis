@@ -1,0 +1,62 @@
+{
+  "database_name": "NophiGene RPS6 Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "RPS6",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "9p22.1",
+    "chromosome": "9",
+    "gene_region": {
+      "label": "RPS6 transcribed interval",
+      "start": 19375713,
+      "end": 19380234,
+      "definition": "Canonical RPS6 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 19380235,
+      "end": 19381234,
+      "definition": "A practical 1 kb upstream window relative to the reverse-strand transcription start, used to flag promoter-adjacent coverage before the canonical gene interval."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 19380225,
+      "end": 19380225,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "9:19380235-19380234",
+    "gene_summary": "RPS6 encodes the ribosomal protein S6, a core 40S subunit protein and major substrate of S6 kinases downstream of mTOR signaling. Its phosphorylation state is widely used as a readout of growth-factor and nutrient-responsive translation control.",
+    "clinical_context": "The bundled RPS6 knowledge base is pathway oriented. RPS6 is typically interpreted as a translational-control and mTOR-output node rather than as a common-SNP clinical gene in routine VCF review.",
+    "variant_effect_overview": [
+      "RPS6 is most commonly discussed as a signaling substrate and biomarker of pathway activity rather than as a locus with a broad common-variant literature.",
+      "Observed variants in the compact RPS6 interval should therefore be treated as locus context unless outside evidence supports a specific interpretation."
+    ],
+    "condition_research_overview": [
+      "RPS6 phosphorylation is a canonical downstream readout of mTORC1-S6K activity in cancer and growth biology.",
+      "The gene is relevant to translational control, cell growth, proliferation, and treatment-response biomarker work."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg05951173"
+    ],
+    "methylation_interpretation": "RPS6 methylation should be read as local chromatin context around a compact ribosomal-protein locus. Because the biology of interest is often protein phosphorylation rather than gene methylation, these values are mainly supportive context.",
+    "methylation_effects": [
+      "Promoter methylation can provide a rough view of transcriptional accessibility, but most RPS6 functional work centers on protein phosphorylation and translational output.",
+      "Interpret methylation alongside mTOR-S6K pathway activity rather than as a stand-alone biomarker."
+    ],
+    "methylation_condition_research": [
+      "Cancer biomarker studies using phospho-S6 as an mTOR-pathway activity readout.",
+      "Translational-control and growth-signaling research."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 6194: RPS6 gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/6194"
+      },
+      {
+        "label": "PubMed 18157089: phospho-S6 as a marker for targeted mTOR therapy",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/18157089/"
+      }
+    ]
+  },
+  "variant_records": []
+}

@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene NAMPT Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This NAMPT population database emphasizes cohort-specific metabolic and inflammatory patterns instead of a full embedded allele-frequency panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from NAMPT inflammatory, cardiovascular, cancer, and NAD-metabolism literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 10135: NAMPT gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/10135"
+    },
+    {
+      "label": "PubMed 25896907: NAMPT polymorphism study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+    },
+    {
+      "label": "PubMed 33446046: NAMPT rs61330082 cardiovascular study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs61330082",
+      "location_group": "Metabolic cohorts",
+      "summary": "NAMPT common-variant interpretation is highly phenotype specific, spanning lipid traits, inflammatory tone, and long-term cardiovascular outcomes rather than a single stable population pattern."
+    },
+    {
+      "variant": "NAMPT pathway context",
+      "location_group": "Global pattern",
+      "summary": "Because NAMPT sits at the center of NAD salvage and stress signaling, cross-population interpretation should emphasize disease context and metabolic state over blanket assumptions about one common allele."
+    }
+  ]
+}

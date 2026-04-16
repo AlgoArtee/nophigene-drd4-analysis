@@ -1,0 +1,145 @@
+{
+  "database_name": "NophiGene FOXO3 Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "FOXO3",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "6q21",
+    "chromosome": "6",
+    "gene_region": {
+      "label": "FOXO3 transcribed interval",
+      "start": 108881028,
+      "end": 109005977,
+      "definition": "Canonical FOXO3 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 108880028,
+      "end": 108881027,
+      "definition": "A practical 1 kb upstream window used by this app to flag promoter-adjacent coverage before the canonical gene interval begins."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 108881455,
+      "end": 108882981,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "6:108880028-109005977",
+    "gene_summary": "FOXO3 encodes a forkhead-box transcription factor that coordinates stress resistance, autophagy, apoptosis, stem-cell maintenance, and metabolic adaptation downstream of insulin-IGF and nutrient-signaling pathways.",
+    "clinical_context": "The bundled FOXO3 database is intended for pathway and longevity research context rather than for monogenic disease reporting. FOXO3 is one of the most replicated human longevity genes, but common variants are interpreted as modest effect-size healthy-aging modifiers.",
+    "variant_effect_overview": [
+      "The strongest common FOXO3 signals involve intronic enhancer or haplotype markers rather than protein-truncating alleles.",
+      "Published longevity associations are ancestry- and cohort-dependent and should be treated as probabilistic healthy-aging signals, not deterministic predictions.",
+      "Observed PASS variants in the FOXO3 interval are therefore best read as locus context unless they directly match a curated longevity-associated marker or have outside clinical evidence."
+    ],
+    "condition_research_overview": [
+      "FOXO3 is repeatedly linked to exceptional longevity and survival to advanced age across multiple cohort designs.",
+      "The gene is also studied in cardiometabolic resilience, oxidative-stress biology, immune regulation, and stem-cell maintenance.",
+      "FOXO3 sits in the broader insulin-IGF-AMPK-mTOR longevity network, so interpretation benefits from pathway-level context."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg02060698",
+      "cg08494708",
+      "cg03861593",
+      "cg19861329",
+      "cg23709117",
+      "cg23204345",
+      "cg12416929",
+      "cg12664806"
+    ],
+    "methylation_interpretation": "FOXO3 methylation is best interpreted as chromatin and regulatory context around a stress-response transcription factor. Promoter-proximal methylation or broader locus methylation can inform whether the sampled tissue appears permissive or restrained, but it should not be treated as a direct readout of any one longevity SNP.",
+    "methylation_effects": [
+      "Promoter-focused FOXO3 methylation is usually interpreted as regulatory context for transcriptional accessibility rather than as a stand-alone biomarker.",
+      "Because FOXO3 activity is highly context-dependent, methylation readouts should be integrated with pathway state, tissue type, and age-related biology.",
+      "When FOXO3 variants and methylation are discussed together, the most defensible interpretation is pathway tuning rather than one-to-one deterministic coupling."
+    ],
+    "methylation_condition_research": [
+      "Healthy-aging and lifespan studies that frame FOXO3 as a stress-response resilience factor.",
+      "Cardiometabolic and inflammatory research that interprets FOXO3 as a node linking nutrient signaling to cellular maintenance.",
+      "Epigenetic aging and chromatin-regulation studies that examine FOXO-family transcriptional accessibility."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 2309: FOXO3 gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/2309"
+      },
+      {
+        "label": "PMCID PMC5403515: FOXO3 as a major human longevity gene",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+      },
+      {
+        "label": "PubMed 29497356: rs2802292 creates a stress-responsive FOXO3 enhancer",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/29497356/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs2802292",
+      "common_name": "longevity-associated intronic enhancer SNP",
+      "region_class": "gene_body",
+      "interpretation_scope": "Research association / healthy-aging modifier",
+      "clinical_interpretation": "rs2802292 is the best-known common FOXO3 longevity marker. The G allele has been associated with survival to advanced age in multiple cohorts and is interpreted here as a research-grade healthy-aging modifier rather than as a pathogenic or diagnostic allele.",
+      "clinical_significance": "Research-level longevity association; not a monogenic disease variant.",
+      "functional_effects": [
+        "The longevity-associated allele has been linked to stress-responsive enhancer behavior and higher FOXO3 expression under cellular stress.",
+        "Any effect is best viewed as pathway tuning across stress resistance and metabolic adaptation rather than as deterministic causality."
+      ],
+      "associated_conditions": [
+        "Exceptional longevity and survival to advanced age",
+        "Cardiometabolic resilience and lower age-related disease burden in some cohorts",
+        "Stress-response and cellular-maintenance biology"
+      ],
+      "research_context": [
+        "This is the canonical common FOXO3 longevity SNP used in centenarian and healthy-aging studies.",
+        "Effect size is modest and cohort dependent, so replication and ancestry matching matter."
+      ],
+      "usual_variant_note": "Most cited common FOXO3 longevity marker.",
+      "methylation_interpretation": "Treat rs2802292 alongside FOXO3 methylation as shared regulatory context rather than as a direct methylation biomarker.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PMCID PMC5403515: FOXO3 longevity review",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+        },
+        {
+          "label": "PubMed 29497356: rs2802292 enhancer mechanism",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29497356/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Morris et al., 2015 (PMCID PMC5403515)",
+          "genotypes": "GG, GT, and TT",
+          "phenotype": "Human longevity across replicated cohort studies",
+          "finding": "The G allele is repeatedly described as enriched in long-lived individuals, supporting a modest but reproducible healthy-aging association.",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5403515/"
+        },
+        {
+          "paper": "Flachsbart et al., 2017/2018 (PMID 29497356)",
+          "genotypes": "G-allele carriers versus non-carriers",
+          "phenotype": "Stress-responsive FOXO3 expression control",
+          "finding": "Mechanistic follow-up work proposed that the rs2802292 G allele helps create or stabilize a stress-responsive enhancer element that promotes FOXO3 upregulation.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29497356/"
+        }
+      ],
+      "gene_name": "FOXO3",
+      "chromosome": "6",
+      "display_name": "rs2802292",
+      "lookup_keys": [
+        "rs2802292",
+        "foxo3:rs2802292"
+      ],
+      "relevant_methylation_probe_ids": [
+        "cg02060698",
+        "cg08494708",
+        "cg03861593",
+        "cg19861329",
+        "cg23709117",
+        "cg23204345",
+        "cg12416929",
+        "cg12664806"
+      ]
+    }
+  ]
+}

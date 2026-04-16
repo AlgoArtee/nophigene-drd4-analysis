@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene SIK3 Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "SIK3 population interpretation currently depends more on cohort-specific association studies and rare-variant reports than on a mature embedded allele-frequency panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from SIK3 sleep, hearing, and metabolic-signaling literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 23387: SIK3 gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/23387"
+    },
+    {
+      "label": "PubMed 32126566: SIK3 haplotypes and hearing-loss risk",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32126566/"
+    },
+    {
+      "label": "DOI 10.1073/pnas.2500356122: SIK3-N783Y and natural short sleep",
+      "url": "https://doi.org/10.1073/pnas.2500356122"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "SIK3 haplotypes",
+      "location_group": "Disease cohorts",
+      "summary": "Published common-variant SIK3 literature is still cohort specific, including hearing-loss and adiposity studies, so the locus is best interpreted as emerging rather than fully settled population genetics."
+    },
+    {
+      "variant": "SIK3 p.Asn783Tyr",
+      "location_group": "Rare disease families",
+      "summary": "The most striking human SIK3 result to date is a rare functional sleep-trait variant, underscoring that this gene is currently driven by mechanistic and rare-variant evidence more than by broad common-SNP panels."
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "database_name": "NophiGene TERT Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "The bundled TERT population database is literature oriented and focuses on cohort patterns in telomere and cancer studies rather than a complete allele-frequency panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from TERT telomere-biology and cancer-susceptibility literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 7015: TERT gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/7015"
+    },
+    {
+      "label": "PMCID PMC3329415: rs2736100 meta-analysis",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3329415/"
+    },
+    {
+      "label": "PubMed 22994782: rs2736098 meta-analysis",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22994782/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs2736100",
+      "location_group": "Cancer cohorts",
+      "summary": "Common TERT inherited variation is most densely studied in cancer cohorts, where rs2736100 is repeatedly used as a telomere-biology susceptibility marker."
+    },
+    {
+      "variant": "TERT promoter regulation",
+      "location_group": "Global pattern",
+      "summary": "At the TERT locus, inherited polymorphisms, promoter methylation, and somatic promoter mutations all matter, so population interpretation should distinguish among these different regulatory layers."
+    }
+  ]
+}
