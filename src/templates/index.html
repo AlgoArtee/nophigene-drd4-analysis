@@ -1304,6 +1304,91 @@
       font-size: 1.05rem;
       color: var(--accent-3);
     }
+    .predictive-panel {
+      padding: 18px;
+    }
+    .predictive-shell {
+      display: grid;
+      gap: 18px;
+    }
+    .predictive-metrics {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .predictive-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .predictive-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+    }
+    .predictive-card h3 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .predictive-card p {
+      margin: 0;
+    }
+    .predictive-table-shell {
+      min-height: 280px;
+    }
+    .predictive-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.93rem;
+    }
+    .predictive-table th,
+    .predictive-table td {
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(118, 19, 45, 0.10);
+    }
+    .predictive-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(255, 247, 247, 0.96);
+      color: var(--accent-3);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .predictive-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .predictive-tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .predictive-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.08);
+      color: var(--accent-3);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+    .predictive-empty {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(161, 20, 61, 0.05);
+      border: 1px solid rgba(161, 20, 61, 0.08);
+      color: var(--muted);
+      line-height: 1.6;
+    }
     .badge-row {
       display: flex;
       flex-wrap: wrap;
@@ -1465,7 +1550,8 @@
       .analysis-shell,
       .protein-search-grid,
       .overview-grid,
-      .diagram-grid {
+      .diagram-grid,
+      .predictive-grid {
         grid-template-columns: 1fr;
       }
       .analysis-panel-inner {
@@ -1481,6 +1567,9 @@
         overflow: visible;
       }
       .metrics {
+        grid-template-columns: 1fr;
+      }
+      .predictive-metrics {
         grid-template-columns: 1fr;
       }
       .preprocess-detail-grid {
@@ -1551,6 +1640,9 @@
         <button type="button" class="tab-button" data-tab-target="preprocessing" aria-selected="false">Preprocessing</button>
         {% if analysis_unlocked %}
         <button type="button" class="tab-button" data-tab-target="analysis" aria-selected="false">Run Analysis</button>
+        {% endif %}
+        {% if result and result.predictive_theses %}
+        <button type="button" class="tab-button" data-tab-target="predictive_theses" aria-selected="false">Predictive Theses</button>
         {% endif %}
         <button type="button" class="tab-button" data-tab-target="history" aria-selected="false">History</button>
         <button type="button" class="tab-button" data-tab-target="proteins" aria-selected="false">Human Proteins</button>
@@ -2997,6 +3089,184 @@
           </section>
         </div>
       </section>
+      {% if result and result.predictive_theses %}
+      <section class="frame tab-panel analysis-panel predictive-panel{% if initial_tab == 'predictive_theses' %} is-active{% endif %}" data-tab-panel="predictive_theses"{% if initial_tab != 'predictive_theses' %} hidden{% endif %} style="display:{% if initial_tab == 'predictive_theses' %}block{% else %}none{% endif %};">
+        <div class="predictive-shell">
+          <section class="analysis-panel-inner">
+            <div class="panel-head">
+              <div>
+                <h2>Predictive Theses</h2>
+                <p>These gene-level theses combine the observed sample variants with the three methylation summary views used by the workbench.</p>
+              </div>
+              <span class="panel-chip">{{ result.predictive_theses.matched_case_count }} matched case{{ "" if result.predictive_theses.matched_case_count == 1 else "s" }}</span>
+            </div>
+
+            <div class="results-stack">
+              <div class="metrics predictive-metrics">
+                <article class="metric">
+                  <span>Gene</span>
+                  <strong>{{ result.predictive_theses.gene_name }}</strong>
+                </article>
+                <article class="metric">
+                  <span>Variant Found</span>
+                  <strong>{{ result.predictive_theses.variant_found_label }}</strong>
+                </article>
+                <article class="metric">
+                  <span>Matched Cases</span>
+                  <strong>{{ result.predictive_theses.matched_case_count }} / {{ result.predictive_theses.case_catalog_size }}</strong>
+                </article>
+                <article class="metric">
+                  <span>Synthesis DB</span>
+                  <strong>{{ result.predictive_theses.database_version }}</strong>
+                </article>
+              </div>
+
+              <p class="status-note">{{ result.predictive_theses.summary }}</p>
+
+              <div class="predictive-grid">
+                <article class="predictive-card">
+                  <div>
+                    <span class="insight-kicker">Variant Prediction</span>
+                    <h3>Variant Prediction</h3>
+                  </div>
+                  <p>{{ result.predictive_theses.variant_summary }}</p>
+
+                  {% if result.predictive_theses.variant_prediction_rows %}
+                  <div class="table-shell predictive-table-shell">
+                    <table class="predictive-table">
+                      <thead>
+                        <tr>
+                          <th>Observed signal</th>
+                          <th>Source</th>
+                          <th>Prediction</th>
+                          <th>Research focus</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in result.predictive_theses.variant_prediction_rows %}
+                        <tr>
+                          <td>{{ row.observed_signal or "n/a" }}</td>
+                          <td>{{ row.source or "n/a" }}</td>
+                          <td>{{ row.prediction or "n/a" }}</td>
+                          <td>{{ row.research_focus or "Research context from the bundled gene database." }}</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  {% else %}
+                  <div class="predictive-empty">
+                    No sample-specific variant prediction row was available for this run.
+                  </div>
+                  {% endif %}
+                </article>
+
+                <article class="predictive-card">
+                  <div>
+                    <span class="insight-kicker">Methylation Prediction</span>
+                    <h3>Methylation Prediction</h3>
+                  </div>
+                  <p>The predictive synthesis matrix checks the curated whitelist mean, the {{ result.predictive_theses.gene_name }}-named rows, and the all-numeric methylation summary separately.</p>
+
+                  <div class="table-shell predictive-table-shell">
+                    <table class="predictive-table">
+                      <thead>
+                        <tr>
+                          <th>Metric</th>
+                          <th>Mean beta</th>
+                          <th>Band</th>
+                          <th>Prediction</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in result.predictive_theses.methylation_prediction_rows %}
+                        <tr>
+                          <td>
+                            <strong>{{ row.metric_label }}</strong>
+                            <div>{{ row.probe_count }} numeric value{{ "" if row.probe_count == 1 else "s" }}</div>
+                          </td>
+                          <td>{{ row.mean_beta_display }}</td>
+                          <td>
+                            {{ row.band_display }}
+                            {% if row.matched_case_label %}
+                            <div>{{ row.matched_case_label }}</div>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {{ row.prediction }}
+                            {% if row.research_focus %}
+                            <div style="margin-top: 8px;">{{ row.research_focus }}</div>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <article class="predictive-card">
+                  <div>
+                    <span class="insight-kicker">Synthesis</span>
+                    <h3>Synthesis</h3>
+                  </div>
+                  <p>{{ result.predictive_theses.matching_rule }}</p>
+                  <p>{{ result.predictive_theses.disclaimer }}</p>
+
+                  {% if result.predictive_theses.matched_cases %}
+                  <div class="table-shell predictive-table-shell">
+                    <table class="predictive-table">
+                      <thead>
+                        <tr>
+                          <th>Case</th>
+                          <th>Trigger</th>
+                          <th>Observed value</th>
+                          <th>Prediction</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in result.predictive_theses.matched_cases %}
+                        <tr>
+                          <td>
+                            <strong>{{ row.case_label }}</strong>
+                            <div>{{ row.source }}</div>
+                          </td>
+                          <td>{{ row.trigger }}</td>
+                          <td>
+                            {{ row.mean_beta_display }}
+                            <div>{{ row.band }}</div>
+                          </td>
+                          <td>
+                            {{ row.prediction }}
+                            {% if row.research_focus %}
+                            <div style="margin-top: 8px;">{{ row.research_focus }}</div>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  {% else %}
+                  <div class="predictive-empty">
+                    No predictive thesis case matched this sample. The synthesis database only activates after a visible promoter or gene-body variant is present for the current gene.
+                  </div>
+                  {% endif %}
+
+                  {% if result.predictive_theses.seeded_markers %}
+                  <div class="predictive-tag-row">
+                    {% for marker in result.predictive_theses.seeded_markers %}
+                    <span class="predictive-tag">{{ marker }}</span>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </article>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+      {% endif %}
       {% endif %}
     </main>
   </div>

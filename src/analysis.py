@@ -41,6 +41,7 @@ DEFAULT_GENE_NAME = "DRD4"
 GENE_DATA_DIR = Path(__file__).resolve().parent / "gene_data"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 POPULATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_population_db.json"
+SYNTHESIS_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_synthesis.json"
 
 # Configure the root logger once so both CLI and web runs stream progress.
 logging.basicConfig(
@@ -121,6 +122,10 @@ class AnalysisResult:
     population_database : dict[str, Any]
         Parsed local population database used to add location-based frequency
         context for common DRD4 variants.
+    predictive_theses : dict[str, Any]
+        Gene-level predictive synthesis payload assembled from the local
+        synthesis database plus the current sample's variant and methylation
+        results.
     """
 
     variants: pd.DataFrame
@@ -136,6 +141,7 @@ class AnalysisResult:
     knowledge_base: dict[str, Any]
     population_insights: dict[str, Any]
     population_database: dict[str, Any]
+    predictive_theses: dict[str, Any]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -206,6 +212,23 @@ def _derive_methylation_output_path(output_path: str | Path) -> Path:
     return report_path.with_name(f"{stem}_methylation.csv")
 
 
+def _load_json_database(
+    database_path: str | Path,
+    *,
+    missing_label: str,
+    invalid_label: str,
+) -> dict[str, Any]:
+    """Load a JSON-backed local database with a consistent error surface."""
+    payload_path = Path(database_path)
+    if not payload_path.exists():
+        raise AnalysisError(f"{missing_label}: {payload_path}")
+
+    try:
+        return json.loads(payload_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise AnalysisError(f"{invalid_label}: {payload_path}") from exc
+
+
 def load_interpretation_database(database_path: str | Path = INTERPRETATION_DB_PATH) -> dict[str, Any]:
     """Load the curated local DRD4 interpretation database.
 
@@ -226,26 +249,29 @@ def load_interpretation_database(database_path: str | Path = INTERPRETATION_DB_P
     AnalysisError
         Raised when the JSON file cannot be found or parsed.
     """
-    payload_path = Path(database_path)
-    if not payload_path.exists():
-        raise AnalysisError(f"Interpretation database not found: {payload_path}")
-
-    try:
-        return json.loads(payload_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise AnalysisError(f"Interpretation database is not valid JSON: {payload_path}") from exc
+    return _load_json_database(
+        database_path,
+        missing_label="Interpretation database not found",
+        invalid_label="Interpretation database is not valid JSON",
+    )
 
 
 def load_population_database(database_path: str | Path = POPULATION_DB_PATH) -> dict[str, Any]:
     """Load the curated local DRD4 population database."""
-    payload_path = Path(database_path)
-    if not payload_path.exists():
-        raise AnalysisError(f"Population database not found: {payload_path}")
+    return _load_json_database(
+        database_path,
+        missing_label="Population database not found",
+        invalid_label="Population database is not valid JSON",
+    )
 
-    try:
-        return json.loads(payload_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise AnalysisError(f"Population database is not valid JSON: {payload_path}") from exc
+
+def load_synthesis_database(database_path: str | Path = SYNTHESIS_DB_PATH) -> dict[str, Any]:
+    """Load the curated local predictive synthesis database."""
+    return _load_json_database(
+        database_path,
+        missing_label="Synthesis database not found",
+        invalid_label="Synthesis database is not valid JSON",
+    )
 
 
 def load_gene_interpretation_database(gene_name: str) -> dict[str, Any] | None:
@@ -262,6 +288,14 @@ def load_gene_population_database(gene_name: str) -> dict[str, Any] | None:
     if database_path is None:
         return None
     return load_population_database(database_path)
+
+
+def load_gene_synthesis_database(gene_name: str) -> dict[str, Any] | None:
+    """Load a bundled gene-specific predictive synthesis database when one exists."""
+    database_path = find_gene_database_path(gene_name, "synthesis.json")
+    if database_path is None:
+        return None
+    return load_synthesis_database(database_path)
 
 
 def _decode_scalar(value: Any) -> Any:
@@ -2026,6 +2060,285 @@ def build_empty_population_insights(*, gene_name: str) -> dict[str, Any]:
     }
 
 
+def _categorize_predictive_beta_band(mean_beta: float | None) -> str:
+    """Collapse UI methylation bands into the three predictive case buckets."""
+    descriptive_band = _categorize_beta(mean_beta)
+    if descriptive_band == "unavailable":
+        return "unavailable"
+    if descriptive_band == "low":
+        return "low"
+    if descriptive_band == "high":
+        return "high"
+    return "medium"
+
+
+def _format_predictive_beta_display(mean_beta: float | None) -> str:
+    """Render predictive beta values consistently for the UI."""
+    rounded = _round_beta(mean_beta)
+    return str(rounded) if rounded is not None else "Unavailable"
+
+
+def _summarize_predictive_observed_variants(
+    variant_interpretations: dict[str, Any],
+) -> list[str]:
+    """Return deduplicated human-readable labels for the current sample's observed variants."""
+    observed_items: list[str] = []
+    for item in variant_interpretations.get("sample_highlights", {}).get("highlight_items", []):
+        title = str(item.get("title", "")).strip()
+        observed_variant = str(item.get("observed_variant", "")).strip()
+        if title and observed_variant and observed_variant != title:
+            observed_items.append(f"{title} ({observed_variant})")
+        elif title:
+            observed_items.append(title)
+        elif observed_variant:
+            observed_items.append(observed_variant)
+    return _dedupe_text_items(observed_items)
+
+
+def build_predictive_theses(
+    *,
+    variant_interpretations: dict[str, Any],
+    methylation_insights: dict[str, Any],
+    knowledge_base: dict[str, Any] | None = None,
+    synthesis_database: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the predictive-thesis payload shown after a completed analysis run."""
+    knowledge_base = knowledge_base or {}
+    synthesis_database = synthesis_database or {}
+    gene_context = knowledge_base.get("gene_context", {})
+    gene_name = str(
+        synthesis_database.get("gene_name")
+        or variant_interpretations.get("gene_name")
+        or methylation_insights.get("gene_name")
+        or gene_context.get("gene_name")
+        or DEFAULT_GENE_NAME
+    ).strip() or DEFAULT_GENE_NAME
+
+    case_catalog = [
+        case
+        for case in synthesis_database.get("cases", [])
+        if str(case.get("case_id", "")).strip()
+    ]
+    case_lookup = {
+        str(case["case_id"]).strip(): case
+        for case in case_catalog
+    }
+
+    matched_records = variant_interpretations.get("matched_records", [])
+    highlight_items = variant_interpretations.get("sample_highlights", {}).get("highlight_items", [])
+    sample_variant_rows = variant_interpretations.get("sample_highlights", {}).get("result_table_rows", [])
+    observed_variant_labels = _summarize_predictive_observed_variants(variant_interpretations)
+    variant_found = bool(sample_variant_rows)
+
+    variant_case = case_lookup.get("gene_variant_found")
+    variant_summary = (
+        str(variant_case.get("prediction", "")).strip()
+        if variant_found and variant_case is not None
+        else ""
+    )
+    if not variant_summary and variant_found:
+        variant_summary = (
+            f"Observed {gene_name} variation is present in this sample, so the gene-level predictive thesis "
+            "should be read as locus-specific research context rather than as a stand-alone diagnosis."
+        )
+    if not variant_found:
+        variant_summary = (
+            f"No promoter or gene-body {gene_name} variant was visible in the current preview, so the "
+            "variant-gated predictive thesis cases did not match this sample."
+        )
+    if observed_variant_labels:
+        variant_summary = (
+            f"{variant_summary} Observed sample signal: {', '.join(observed_variant_labels[:4])}."
+        ).strip()
+
+    variant_prediction_rows: list[dict[str, str]] = []
+    if variant_found and variant_case is not None:
+        variant_prediction_rows.append(
+            {
+                "observed_signal": (
+                    ", ".join(observed_variant_labels[:3])
+                    if observed_variant_labels
+                    else f"{gene_name} interval variant observed"
+                ),
+                "source": "Gene-level thesis",
+                "prediction": str(variant_case.get("prediction", "")).strip(),
+                "research_focus": "; ".join(
+                    _dedupe_text_items(variant_case.get("research_focus", []))[:3]
+                ),
+            }
+        )
+
+    for record in matched_records:
+        variant_prediction_rows.append(
+            {
+                "observed_signal": str(record.get("observed_variant", record.get("variant", ""))).strip(),
+                "source": str(record.get("interpretation_scope", "Curated marker")).strip(),
+                "prediction": str(record.get("clinical_interpretation", "")).strip(),
+                "research_focus": "; ".join(
+                    _dedupe_text_items(record.get("associated_conditions", []))[:3]
+                ),
+            }
+        )
+
+    if not matched_records:
+        for item in highlight_items:
+            variant_prediction_rows.append(
+                {
+                    "observed_signal": str(item.get("title", item.get("observed_variant", ""))).strip(),
+                    "source": str(item.get("category", "Interval variant")).strip(),
+                    "prediction": str(item.get("description", "")).strip(),
+                    "research_focus": "; ".join(
+                        _dedupe_text_items(item.get("conditions", []))[:3]
+                    ),
+                }
+            )
+
+    methylation_source_rows = [
+        {
+            "metric_key": "whitelist",
+            "label": str(methylation_insights.get("whitelist_mean_beta_label", "Whitelist mean beta")).strip(),
+            "mean_beta": methylation_insights.get("whitelist_mean_beta"),
+            "probe_count": int(methylation_insights.get("whitelist_mean_beta_probe_count", 0) or 0),
+        },
+        {
+            "metric_key": "gene_name_related",
+            "label": str(
+                methylation_insights.get("gene_name_mean_beta_label", f"{gene_name}-named row mean beta")
+            ).strip(),
+            "mean_beta": methylation_insights.get("gene_name_mean_beta"),
+            "probe_count": int(methylation_insights.get("gene_name_mean_beta_probe_count", 0) or 0),
+        },
+        {
+            "metric_key": "all_numeric",
+            "label": str(
+                methylation_insights.get("all_numeric_mean_beta_label", "All numeric-row mean beta")
+            ).strip(),
+            "mean_beta": methylation_insights.get("all_numeric_mean_beta"),
+            "probe_count": int(methylation_insights.get("all_numeric_mean_beta_probe_count", 0) or 0),
+        },
+    ]
+
+    methylation_prediction_rows: list[dict[str, Any]] = []
+    matched_cases: list[dict[str, str]] = []
+
+    if variant_found and variant_case is not None:
+        matched_cases.append(
+            {
+                "case_label": str(variant_case.get("label", "Gene variant found")).strip(),
+                "trigger": "Observed promoter or gene-body variant",
+                "source": "Variant-only synthesis",
+                "mean_beta_display": "n/a",
+                "band": "n/a",
+                "prediction": str(variant_case.get("prediction", "")).strip(),
+                "research_focus": "; ".join(
+                    _dedupe_text_items(variant_case.get("research_focus", []))[:3]
+                ),
+            }
+        )
+
+    for source_row in methylation_source_rows:
+        mean_beta = source_row["mean_beta"]
+        band = _categorize_predictive_beta_band(mean_beta)
+        case_id = (
+            f"gene_variant_found__{source_row['metric_key']}__{band}"
+            if band != "unavailable"
+            else ""
+        )
+        case = case_lookup.get(case_id) if case_id else None
+        matched = variant_found and case is not None
+
+        if mean_beta is None:
+            prediction = f"No numeric beta value was available for {source_row['label'].lower()}."
+        elif not variant_found:
+            prediction = (
+                f"{source_row['label']} was computed, but the predictive thesis matrix only matches after "
+                f"a {gene_name} variant is observed."
+            )
+        elif case is not None:
+            prediction = str(case.get("prediction", "")).strip()
+        else:
+            prediction = (
+                f"No bundled predictive thesis case is available for {source_row['label']} with a {band} methylation band."
+            )
+
+        research_focus_items = (
+            _dedupe_text_items(case.get("research_focus", []))[:3]
+            if case is not None
+            else []
+        )
+
+        methylation_prediction_rows.append(
+            {
+                "metric_key": source_row["metric_key"],
+                "metric_label": source_row["label"],
+                "mean_beta": _round_beta(mean_beta),
+                "mean_beta_display": _format_predictive_beta_display(mean_beta),
+                "probe_count": source_row["probe_count"],
+                "band": band,
+                "band_display": band.title() if band != "unavailable" else "Unavailable",
+                "prediction": prediction,
+                "matched": matched,
+                "matched_case_label": str(case.get("label", "")).strip() if case is not None else "",
+                "research_focus": "; ".join(research_focus_items),
+            }
+        )
+
+        if matched and case is not None:
+            matched_cases.append(
+                {
+                    "case_label": str(case.get("label", "")).strip(),
+                    "trigger": f"Variant found + {source_row['label']}",
+                    "source": source_row["label"],
+                    "mean_beta_display": _format_predictive_beta_display(mean_beta),
+                    "band": band.title(),
+                    "prediction": str(case.get("prediction", "")).strip(),
+                    "research_focus": "; ".join(research_focus_items),
+                }
+            )
+
+    if matched_cases:
+        summary = (
+            f"{gene_name} matched {len(matched_cases)} predictive thesis case(s) in this run: "
+            f"the base variant case plus {max(len(matched_cases) - 1, 0)} methylation-linked case(s)."
+        )
+    elif variant_found:
+        summary = (
+            f"{gene_name} variation was observed, but none of the bundled predictive thesis cases could be matched "
+            "to the available methylation values."
+        )
+    else:
+        summary = (
+            f"No predictive thesis case matched because the current {gene_name} run did not surface a promoter or gene-body variant."
+        )
+
+    return {
+        "gene_name": gene_name,
+        "database_name": synthesis_database.get(
+            "database_name",
+            f"No curated {gene_name} predictive synthesis database loaded",
+        ),
+        "database_version": synthesis_database.get("version", "generic"),
+        "matching_rule": synthesis_database.get(
+            "matching_rule",
+            "Cases match only when a gene variant is present, plus the requested methylation source resolves to a low, medium, or high beta band.",
+        ),
+        "disclaimer": synthesis_database.get(
+            "disclaimer",
+            "Predictive theses in this app are literature-guided research summaries, not diagnostic claims.",
+        ),
+        "seeded_markers": synthesis_database.get("seeded_markers", []),
+        "variant_found": variant_found,
+        "variant_found_label": "Yes" if variant_found else "No",
+        "variant_summary": variant_summary,
+        "variant_prediction_rows": variant_prediction_rows,
+        "methylation_prediction_rows": methylation_prediction_rows,
+        "matched_cases": matched_cases,
+        "matched_case_count": len(matched_cases),
+        "case_catalog_size": len(case_catalog),
+        "summary": summary,
+    }
+
+
 def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     """Load PASS variants for the requested region from a tabix-indexed VCF.
 
@@ -3170,6 +3483,14 @@ def run_analysis(
             gene_name=normalized_gene_name,
         )
 
+    synthesis_database = load_gene_synthesis_database(normalized_gene_name)
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=synthesis_database,
+    )
+
     population_database = load_gene_population_database(normalized_gene_name)
     if population_database is not None and knowledge_base.get("version") != "generic":
         population_insights = build_population_insights(variants, knowledge_base, population_database)
@@ -3219,6 +3540,7 @@ def run_analysis(
         knowledge_base=knowledge_base,
         population_insights=population_insights,
         population_database=population_database,
+        predictive_theses=predictive_theses,
     )
 
 

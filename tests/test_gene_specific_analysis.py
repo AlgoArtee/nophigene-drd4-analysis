@@ -8,11 +8,13 @@ import pandas as pd
 
 from src.analysis import (
     annotate_known_variant_ids,
+    build_predictive_theses,
     build_population_insights,
     build_methylation_insights,
     build_variant_interpretations,
     load_gene_interpretation_database,
     load_gene_population_database,
+    load_gene_synthesis_database,
     load_methylation,
 )
 from src.webapp import (
@@ -46,9 +48,11 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     """HERC2 should load dedicated interpretation and population databases."""
     knowledge_base = load_gene_interpretation_database("HERC2")
     population_database = load_gene_population_database("herc2")
+    synthesis_database = load_gene_synthesis_database("HERC2")
 
     assert knowledge_base is not None
     assert population_database is not None
+    assert synthesis_database is not None
     assert knowledge_base["gene_context"]["gene_name"] == "HERC2"
     assert knowledge_base["gene_context"]["gene_region"]["start"] == 28356186
     assert len(knowledge_base["variant_records"]) >= 5
@@ -56,9 +60,85 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     assert population_database["database_name"].startswith("NophiGene HERC2 Population")
     assert len(population_database["variant_population_records"]) >= 5
     assert population_database["gene_population_patterns"]
+    assert synthesis_database["database_name"].startswith("NophiGene HERC2 Predictive")
+    assert synthesis_database["case_count"] == 10
+    assert len(synthesis_database["cases"]) == 10
     assert population_database["gene_population_patterns_intro"].startswith(
         "Broader population patterns curated from HERC2/OCA2"
     )
+
+
+def test_predictive_theses_match_variant_and_all_three_methylation_views() -> None:
+    """A curated variant plus three numeric methylation summaries should match four synthesis cases."""
+    knowledge_base = load_gene_interpretation_database("IGF1R")
+    synthesis_database = load_gene_synthesis_database("IGF1R")
+
+    assert knowledge_base is not None
+    assert synthesis_database is not None
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": "rs2229765",
+                "pos": 99478225,
+                "ref": "G",
+                "alt": "A",
+                "qual": 61.2,
+                "filter_pass": True,
+            }
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg19620752",
+                "beta": 0.82,
+                "GencodeBasicV12_NAME": "IGF1R",
+                "UCSC_RefGene_Group": "TSS1500",
+                "Relation_to_UCSC_CpG_Island": "Island",
+                "UCSC_CpG_Islands_Name": "chr15:99190446-99194559",
+            },
+            {
+                "probe_id": "cg07779120",
+                "beta": 0.84,
+                "GencodeBasicV12_NAME": "IGF1R",
+                "UCSC_RefGene_Group": "Body",
+                "Relation_to_UCSC_CpG_Island": "Island",
+                "UCSC_CpG_Islands_Name": "chr15:99190446-99194559",
+            },
+        ]
+    )
+
+    interpretation = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="15:99191768-99507759",
+    )
+    matched_variant_ids = {
+        str(record.get("variant", "")).strip()
+        for record in interpretation.get("matched_records", [])
+        if str(record.get("variant", "")).strip()
+    }
+    methylation_insights = build_methylation_insights(
+        methylation,
+        knowledge_base,
+        matched_variant_ids=matched_variant_ids,
+    )
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=interpretation,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=synthesis_database,
+    )
+
+    assert predictive_theses["variant_found"] is True
+    assert predictive_theses["matched_case_count"] == 4
+    assert predictive_theses["case_catalog_size"] == 10
+    assert predictive_theses["matched_cases"][0]["case_label"] == "Gene variant found"
+    assert all(row["band_display"] == "High" for row in predictive_theses["methylation_prediction_rows"])
+    assert all(row["matched"] is True for row in predictive_theses["methylation_prediction_rows"])
+    assert "rs2229765" in predictive_theses["variant_summary"]
 
 
 def test_igf1r_curated_copy_replaces_drd4_text() -> None:

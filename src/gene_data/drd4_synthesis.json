@@ -1,0 +1,175 @@
+{
+  "database_name": "NophiGene DRD4 Predictive Synthesis Database",
+  "version": "2026-04-18",
+  "gene_name": "DRD4",
+  "source_interpretation_database": "NophiGene DRD4 Interpretation Database",
+  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation.",
+  "disclaimer": "Predictive theses in this database are literature-guided research summaries derived from the bundled gene interpretation bundle. They are designed for exploratory synthesis in the UI and should not be treated as diagnostic or therapeutic claims.",
+  "seeded_markers": [
+    "rs3758653 (upstream regulatory DRD4 SNP)",
+    "rs747302 (-616C>G promoter SNP)",
+    "rs1800955 (-521C>T promoter SNP)",
+    "120-bp promoter duplication (a 120-bp duplication in the 5' flanking region)",
+    "Exon III 48-bp VNTR (2R/4R/7R repeat polymorphism)"
+  ],
+  "case_count": 10,
+  "methylation_sources": [
+    {
+      "key": "whitelist",
+      "label": "Whitelist mean beta",
+      "description": "Uses the curated whitelist probes stored in the interpretation database for the current gene."
+    },
+    {
+      "key": "gene_name_related",
+      "label": "Gene-name-related mean beta",
+      "description": "Uses rows whose gene annotation explicitly names the current gene."
+    },
+    {
+      "key": "all_numeric",
+      "label": "All numeric-row mean beta",
+      "description": "Uses every numeric beta value that survived preprocessing for the current sample."
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "gene_variant_found",
+      "label": "Gene variant found",
+      "requires_variant": true,
+      "methylation_source": null,
+      "methylation_band": null,
+      "prediction": "An observed DRD4 variant places this sample in the curated DRD4 research context. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "This is the base thesis that activates as soon as any promoter or gene-body variant is visible in the current sample.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__whitelist__high",
+      "label": "Gene variant found + high whitelist mean beta",
+      "requires_variant": true,
+      "methylation_source": "whitelist",
+      "methylation_band": "high",
+      "prediction": "When a DRD4 variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__whitelist__medium",
+      "label": "Gene variant found + medium whitelist mean beta",
+      "requires_variant": true,
+      "methylation_source": "whitelist",
+      "methylation_band": "medium",
+      "prediction": "When a DRD4 variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__whitelist__low",
+      "label": "Gene variant found + low whitelist mean beta",
+      "requires_variant": true,
+      "methylation_source": "whitelist",
+      "methylation_band": "low",
+      "prediction": "When a DRD4 variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__gene_name_related__high",
+      "label": "Gene variant found + high gene-name-related mean beta",
+      "requires_variant": true,
+      "methylation_source": "gene_name_related",
+      "methylation_band": "high",
+      "prediction": "When a DRD4 variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__gene_name_related__medium",
+      "label": "Gene variant found + medium gene-name-related mean beta",
+      "requires_variant": true,
+      "methylation_source": "gene_name_related",
+      "methylation_band": "medium",
+      "prediction": "When a DRD4 variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__gene_name_related__low",
+      "label": "Gene variant found + low gene-name-related mean beta",
+      "requires_variant": true,
+      "methylation_source": "gene_name_related",
+      "methylation_band": "low",
+      "prediction": "When a DRD4 variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__all_numeric__high",
+      "label": "Gene variant found + high all numeric-row mean beta",
+      "requires_variant": true,
+      "methylation_source": "all_numeric",
+      "methylation_band": "high",
+      "prediction": "When a DRD4 variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__all_numeric__medium",
+      "label": "Gene variant found + medium all numeric-row mean beta",
+      "requires_variant": true,
+      "methylation_source": "all_numeric",
+      "methylation_band": "medium",
+      "prediction": "When a DRD4 variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    },
+    {
+      "case_id": "gene_variant_found__all_numeric__low",
+      "label": "Gene variant found + low all numeric-row mean beta",
+      "requires_variant": true,
+      "methylation_source": "all_numeric",
+      "methylation_band": "low",
+      "prediction": "When a DRD4 variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. Published DRD4 methylation studies have linked higher methylation to addiction risk, ADHD-related attentional symptoms, and male schizophrenia cohorts, but the direction and magnitude of those effects depend on tissue source and the exact CpG region that was measured. The bundled EPIC subset in this project mostly covers DRD4 gene-body and CpG-island probes plus one 3'UTR probe, so its beta values should be treated as regulatory context rather than a stand-alone diagnostic biomarker or a direct readout of the promoter assays used in many case-control papers. The curated DRD4 records in this database are primarily research and pharmacogenomic context markers rather than high-penetrance diagnostic variants. When explicit ClinVar-style pathogenicity is not available, the app reports that status directly instead of implying a clinical-grade interpretation. Most commonly discussed DRD4 sequence findings are regulatory promoter polymorphisms or repeat-length polymorphisms with modest, context-dependent effects rather than monogenic pathogenic variants.",
+      "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
+      "research_focus": [
+        "Promoter and repeat polymorphisms in DRD4 have been repeatedly studied in schizophrenia, ADHD, novelty-seeking, addiction, social-affect processing, and other dopaminergic behavioral phenotypes.",
+        "The strongest evidence in this bundled database is candidate-gene or locus-context research, not a diagnostic variant panel for a single disorder.",
+        "When the current run does not directly hit a seeded DRD4 variant, the app still reports the broader conditions and research themes most often associated with the promoter and gene-body literature."
+      ]
+    }
+  ]
+}

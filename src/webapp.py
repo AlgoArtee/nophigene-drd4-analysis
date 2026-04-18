@@ -913,6 +913,7 @@ def index() -> str:
                         "population_database_version": analysis_result.population_database.get(
                             "version", "curated"
                         ),
+                        "predictive_theses": getattr(analysis_result, "predictive_theses", {}),
                     }
                 except AnalysisError as exc:
                     analysis_error = str(exc)
@@ -922,6 +923,8 @@ def index() -> str:
     available_tabs = ["overview", "preprocessing", "history", "proteins", "structure"]
     if analysis_unlocked:
         available_tabs.insert(2, "analysis")
+    if result and result.get("predictive_theses"):
+        available_tabs.insert(3, "predictive_theses")
     if initial_tab not in available_tabs:
         initial_tab = "preprocessing" if "preprocessing" in available_tabs else "overview"
 

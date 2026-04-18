@@ -34,6 +34,11 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "App Structure Q&amp;A" in template_text
     assert "Curated probe-to-variant and paper links" in template_text
     assert "These are the exact observed whitelist probe rows used to build the whitelist mean beta shown above." in template_text
+    assert "Predictive Theses" in template_text
+    assert 'data-tab-target="predictive_theses"' in template_text
+    assert "Variant Prediction" in template_text
+    assert "Methylation Prediction" in template_text
+    assert "matched case{{ \"\" if result.predictive_theses.matched_case_count == 1 else \"s\" }}" in template_text
     assert "flex-wrap: wrap;" in template_text
     assert "window.setTimeout(() => formElement.submit(), 40);" not in template_text
     assert "const preprocessLoadingStepsByAction = {" in template_text
@@ -276,6 +281,48 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
                 "evidence": [],
                 "probe_preview": probe_preview,
             },
+            predictive_theses={
+                "gene_name": "TEST",
+                "database_version": "test",
+                "variant_found_label": "Yes",
+                "matched_case_count": 1,
+                "case_catalog_size": 10,
+                "summary": "Mock predictive summary",
+                "variant_summary": "Mock variant summary",
+                "matching_rule": "Mock matching rule",
+                "disclaimer": "Mock disclaimer",
+                "seeded_markers": ["rs1"],
+                "variant_prediction_rows": [
+                    {
+                        "observed_signal": "rs1",
+                        "source": "Gene-level thesis",
+                        "prediction": "Mock variant prediction",
+                        "research_focus": "Mock focus",
+                    }
+                ],
+                "methylation_prediction_rows": [
+                    {
+                        "metric_label": "Whitelist mean beta",
+                        "probe_count": 15,
+                        "mean_beta_display": "0.9",
+                        "band_display": "High",
+                        "prediction": "Mock methylation prediction",
+                        "matched_case_label": "Gene variant found + high whitelist mean beta",
+                        "research_focus": "Mock focus",
+                    }
+                ],
+                "matched_cases": [
+                    {
+                        "case_label": "Gene variant found",
+                        "trigger": "Observed promoter or gene-body variant",
+                        "source": "Variant-only synthesis",
+                        "mean_beta_display": "n/a",
+                        "band": "n/a",
+                        "prediction": "Mock synthesis prediction",
+                        "research_focus": "Mock focus",
+                    }
+                ],
+            },
         ),
     )
 
@@ -317,6 +364,8 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
     assert probe_preview_html.count("<tr") >= 16
     assert "cg00000000" in probe_preview_html
     assert "cg00000014" in probe_preview_html
+    assert result["predictive_theses"]["matched_case_count"] == 1
+    assert result["predictive_theses"]["variant_prediction_rows"][0]["prediction"] == "Mock variant prediction"
 
 
 def test_analysis_result_labels_missing_variant_ids_in_preview(monkeypatch, tmp_path: Path) -> None:
