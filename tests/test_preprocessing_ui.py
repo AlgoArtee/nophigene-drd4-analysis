@@ -39,6 +39,9 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "Variant Prediction" in template_text
     assert "Methylation Prediction" in template_text
     assert "matched case{{ \"\" if result.predictive_theses.matched_case_count == 1 else \"s\" }}" in template_text
+    assert '<details class="predictive-card">' in template_text
+    assert '<article class="predictive-card">' not in template_text
+    assert "grid-template-columns: 1fr;" in template_text
     assert "flex-wrap: wrap;" in template_text
     assert "window.setTimeout(() => formElement.submit(), 40);" not in template_text
     assert "const preprocessLoadingStepsByAction = {" in template_text
