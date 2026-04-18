@@ -19,6 +19,8 @@ try:
         DEFAULT_GENE_NAME,
         DEFAULT_REGION,
         DEFAULT_REPORT_NAME,
+        _prepare_methylation_table_for_output,
+        _prepare_variant_table_for_output,
         run_analysis,
     )
     from .gene_region_extraction import find_gene_region
@@ -28,7 +30,15 @@ try:
     )
     from .human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 except ImportError:
-    from analysis import AnalysisError, DEFAULT_GENE_NAME, DEFAULT_REGION, DEFAULT_REPORT_NAME, run_analysis
+    from analysis import (
+        AnalysisError,
+        DEFAULT_GENE_NAME,
+        DEFAULT_REGION,
+        DEFAULT_REPORT_NAME,
+        _prepare_methylation_table_for_output,
+        _prepare_variant_table_for_output,
+        run_analysis,
+    )
     from gene_region_extraction import find_gene_region
     from helper_functions.filter_manifest_region import sanitize_gene_name_for_filename, save_filtered_manifest
     from human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
@@ -296,11 +306,12 @@ def _render_table(df: pd.DataFrame, rows: int = 12) -> str:
 
 def _prepare_variant_preview_table(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize the visible variant preview so missing source IDs stay readable."""
-    preview_df = df.copy()
-    if "id" in preview_df.columns:
-        preview_df["id"] = preview_df["id"].where(preview_df["id"].notna(), "Unlabeled in source VCF")
-        preview_df["id"] = preview_df["id"].replace({"": "Unlabeled in source VCF", ".": "Unlabeled in source VCF"})
-    return preview_df
+    return _prepare_variant_table_for_output(df)
+
+
+def _prepare_methylation_preview_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply stable methylation column ordering before rendering the preview table."""
+    return _prepare_methylation_table_for_output(df)
 
 
 def _serialize_table_rows(df: pd.DataFrame) -> list[dict[str, Any]]:
@@ -861,6 +872,7 @@ def index() -> str:
 
                     methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
                     variant_preview = _prepare_variant_preview_table(analysis_result.variants)
+                    methylation_preview = _prepare_methylation_preview_table(analysis_result.methylation)
                     variant_rows = _serialize_table_rows(variant_preview)
                     result = {
                         "report_path": _as_relative_display(analysis_result.report_path),
@@ -870,7 +882,7 @@ def index() -> str:
                         "variant_preview": _render_table(variant_preview, rows=VARIANT_RAW_PAGE_SIZE),
                         "variant_rows": variant_rows,
                         "variant_raw_page_size": VARIANT_RAW_PAGE_SIZE,
-                        "methylation_preview": _render_table(analysis_result.methylation),
+                        "methylation_preview": _render_table(methylation_preview),
                         "popstats_present": analysis_result.popstats is not None,
                         "population_context_status": _build_population_context_status(
                             popstats=analysis_result.popstats,
@@ -883,7 +895,7 @@ def index() -> str:
                             **analysis_result.methylation_insights,
                             "probe_preview": (
                                 _render_table(
-                                    methylation_probe_preview,
+                                    _prepare_methylation_preview_table(methylation_probe_preview),
                                     rows=max(len(methylation_probe_preview), 12),
                                 )
                                 if isinstance(methylation_probe_preview, pd.DataFrame)

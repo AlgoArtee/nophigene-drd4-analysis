@@ -2292,12 +2292,12 @@
 
                 <div class="results-viewer loading-hideable">
                   <div class="subtab-nav" aria-label="Result previews">
-                    <button type="button" class="subtab-button" data-subtab-target="variants" aria-selected="false">Variant Preview</button>
+                    <button type="button" class="subtab-button" data-subtab-target="variants" aria-selected="false">Genetic Variant Results</button>
                     <button type="button" class="subtab-button" data-subtab-target="methylation" aria-selected="false">Methylation Preview</button>
                   </div>
 
                   <section class="subtab-panel" data-subtab-panel="variants">
-                    <h3>Variant Preview</h3>
+                    <h3>Genetic Variant Results</h3>
                     <p class="status-note">Clinical and biological interpretation now sits beside the raw PASS calls, so you can switch context without leaving the viewer.</p>
                     <div class="subtab-nav subtab-nav--nested" aria-label="Variant preview details">
                       <button type="button" class="subtab-button" data-detail-group="variant" data-detail-target="interpretation" aria-selected="false">Interpretation</button>
@@ -2310,8 +2310,8 @@
                           <details class="insight-card expandable-card">
                             <summary class="expandable-summary">
                               <div class="expandable-copy">
-                                <span class="insight-kicker">Sample-first view</span>
-                                <h4>What this sample actually showed</h4>
+                                <span class="insight-kicker">Sample Results</span>
+                                <h4>Sample Results</h4>
                                 <p>{{ result.variant_interpretations.sample_highlights.summary }}</p>
                               </div>
                             </summary>
@@ -2343,6 +2343,40 @@
                               {% endif %}
                             </div>
                           </details>
+
+                          {% if result.variant_interpretations.sample_highlights.result_table_rows %}
+                          <details class="insight-card expandable-card">
+                            <summary class="expandable-summary">
+                              <div class="expandable-copy">
+                                <span class="insight-kicker">Sample-linked variants</span>
+                                <h4>Exact variant links in this sample</h4>
+                                <p>A compact variant-by-variant table showing the label, allele change, and the most specific bundled link available for each visible sample result.</p>
+                              </div>
+                            </summary>
+                            <div class="expandable-body">
+                              <div class="table-shell">
+                                <table class="preview-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Variant label</th>
+                                      <th>Change</th>
+                                      <th>Linked to</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {% for row in result.variant_interpretations.sample_highlights.result_table_rows %}
+                                    <tr>
+                                      <td>{{ row.variant_label }}</td>
+                                      <td>{{ row.change }}</td>
+                                      <td>{{ row.linked_to }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </details>
+                          {% endif %}
 
                           <details class="insight-card expandable-card">
                             <summary class="expandable-summary">
@@ -2800,32 +2834,30 @@
                                   <small>{{ result.methylation_insights.beta_band_source_label }}</small>
                                 </div>
                               </div>
-                              <ul class="insight-list">
-                                <li>
-                                  <strong>{{ result.methylation_insights.whitelist_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.whitelist_mean_beta is not none %}
-                                  {{ result.methylation_insights.whitelist_mean_beta }} from {{ result.methylation_insights.whitelist_mean_beta_probe_count }} numeric whitelist probe value(s).
-                                  {% else %}
-                                  No numeric observed whitelist probes were available in this run.
-                                  {% endif %}
-                                </li>
-                                <li>
-                                  <strong>{{ result.methylation_insights.gene_name_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.gene_name_mean_beta is not none %}
-                                  {{ result.methylation_insights.gene_name_mean_beta }} from {{ result.methylation_insights.gene_name_mean_beta_probe_count }} numeric row(s) where the gene name was explicitly annotated.
-                                  {% else %}
-                                  No numeric row explicitly annotated {{ result.methylation_insights.gene_name }} in the available gene-name columns.
-                                  {% endif %}
-                                </li>
-                                <li>
-                                  <strong>{{ result.methylation_insights.all_numeric_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.all_numeric_mean_beta is not none %}
-                                  {{ result.methylation_insights.all_numeric_mean_beta }} from {{ result.methylation_insights.all_numeric_mean_beta_probe_count }} numeric row(s) across the full raw table.
-                                  {% else %}
-                                  No numeric beta values were available in the raw methylation table.
-                                  {% endif %}
-                                </li>
-                              </ul>
+                              {% if result.methylation_insights.summary_metric_rows %}
+                              <div class="table-shell">
+                                <table class="preview-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Metric</th>
+                                      <th>Mean beta</th>
+                                      <th>Numeric values</th>
+                                      <th>Summary</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {% for row in result.methylation_insights.summary_metric_rows %}
+                                    <tr>
+                                      <td>{{ row.metric }}</td>
+                                      <td>{{ row.mean_beta_display }}</td>
+                                      <td>{{ row.numeric_values }}</td>
+                                      <td>{{ row.summary }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {% endif %}
                               <p>{{ result.methylation_insights.whitelist_explanation }}</p>
                               {% if result.methylation_insights.whitelist_literature_context %}
                               <p>{{ result.methylation_insights.whitelist_literature_context }}</p>

@@ -8,6 +8,7 @@ from src.analysis import (
     build_methylation_insights,
     build_population_insights,
     build_variant_interpretations,
+    generate_report,
     load_gene_interpretation_database,
     load_interpretation_database,
     load_population_database,
@@ -60,6 +61,9 @@ def test_coordinate_alias_can_match_curated_variant_record() -> None:
     assert interpretation["matched_records"][0]["literature_findings"]
     assert interpretation["sample_highlights"]["highlight_items"]
     assert interpretation["sample_highlights"]["highlight_items"][0]["literature_findings"]
+    assert interpretation["sample_highlights"]["result_table_rows"][0]["variant_label"] == "None"
+    assert interpretation["sample_highlights"]["result_table_rows"][0]["change"] == "C -> T"
+    assert interpretation["sample_highlights"]["result_table_rows"][0]["linked_to"]
     assert len(interpretation["region_recommendations"]) == 3
 
 
@@ -125,6 +129,9 @@ def test_methylation_insights_use_curated_probe_subset() -> None:
     assert insights["gene_name_mean_beta_probe_count"] == 2
     assert insights["all_numeric_mean_beta"] == 0.565
     assert insights["all_numeric_mean_beta_probe_count"] == 2
+    assert len(insights["summary_metric_rows"]) == 3
+    assert insights["summary_metric_rows"][0]["metric"] == "Whitelist mean beta"
+    assert insights["summary_metric_rows"][1]["metric"] == "DRD4-named row mean beta"
     assert insights["whitelist_probe_statuses"][0]["observed_in_run"] is True
     assert insights["gene_name_match_columns"] == ["GencodeBasicV12_NAME"]
     assert insights["methylation_effects"]
@@ -310,3 +317,65 @@ def test_population_insights_flag_observed_curated_variant() -> None:
     assert matched_record["observed_in_run"] is True
     assert matched_record["population_extremes"] is not None
     assert insights["location_groups"]
+
+
+def test_generate_report_includes_variant_and_methylation_interpretation_sections(tmp_path) -> None:
+    """HTML reports should include the richer interpretation/data sections now shown in the UI."""
+    knowledge_base = load_interpretation_database()
+    population_database = load_population_database()
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "11",
+                "id": None,
+                "pos": 636784,
+                "ref": "C",
+                "alt": "T",
+                "qual": 51.2,
+                "filter_pass": True,
+            }
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg11335335",
+                "beta": 0.72,
+                "chrom": "11",
+                "pos": 637050,
+                "GencodeBasicV12_NAME": "DRD4",
+                "UCSC_RefGene_Group": "Body",
+                "Relation_to_UCSC_CpG_Island": "Island",
+                "UCSC_CpG_Islands_Name": "DRD4_CGI",
+            }
+        ]
+    )
+
+    variant_interpretations = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="11:636269-640706",
+    )
+    methylation_insights = build_methylation_insights(methylation, knowledge_base)
+    population_insights = build_population_insights(variants, knowledge_base, population_database)
+
+    report_path = generate_report(
+        variants,
+        methylation,
+        None,
+        str(tmp_path / "report.html"),
+        gene_name="DRD4",
+        region="11:636269-640706",
+        methylation_output_path=tmp_path / "report_methylation.csv",
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        population_insights=population_insights,
+    )
+
+    report_html = report_path.read_text(encoding="utf-8")
+    assert "Genetic Variant Results" in report_html
+    assert "Sample Results" in report_html
+    assert "Matched Variant Interpretations" in report_html
+    assert "Methylation Summary Metrics" in report_html
+    assert "Methylation Raw Results" in report_html

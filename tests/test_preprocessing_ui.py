@@ -20,9 +20,11 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "temporarySubmitterInput.name = submitter.name;" in template_text
     assert "Bundled named {{ result.variant_interpretations.gene_name }} markers" in template_text
     assert "{{ result.variant_interpretations.curated_named_markers_summary }}" in template_text
-    assert "{{ result.methylation_insights.whitelist_mean_beta_label }}" in template_text
-    assert "{{ result.methylation_insights.gene_name_mean_beta_label }}" in template_text
-    assert "{{ result.methylation_insights.all_numeric_mean_beta_label }}" in template_text
+    assert "Genetic Variant Results" in template_text
+    assert "{{ result.variant_interpretations.sample_highlights.result_table_rows }}" not in template_text
+    assert "Exact variant links in this sample" in template_text
+    assert "{% for row in result.variant_interpretations.sample_highlights.result_table_rows %}" in template_text
+    assert "{% for row in result.methylation_insights.summary_metric_rows %}" in template_text
     assert "{{ result.methylation_insights.whitelist_explanation }}" in template_text
     assert "{{ result.methylation_insights.gene_name_match_rule }}" in template_text
     assert "{{ result.methylation_insights.whitelist_probe_reference_summary }}" in template_text

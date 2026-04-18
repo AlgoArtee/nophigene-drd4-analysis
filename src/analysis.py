@@ -371,6 +371,90 @@ def _format_variant_display(row: pd.Series) -> str:
     return f"{row['chrom']}:{int(row['pos'])} {row['ref']}>{row['alt']}"
 
 
+def _format_variant_label(value: Any) -> str:
+    """Render a compact variant label while preserving explicit missing IDs as ``None``."""
+    if pd.isna(value):
+        return "None"
+    text = str(value).strip()
+    if not text or text == ".":
+        return "None"
+    return text
+
+
+def _format_variant_change(ref: Any, alt: Any) -> str:
+    """Render a concise allele-change display for sample result tables."""
+    ref_text = "" if pd.isna(ref) else str(ref).strip()
+    alt_text = "" if pd.isna(alt) else str(alt).strip()
+    if not ref_text and not alt_text:
+        return "Unavailable"
+    if not ref_text or not alt_text:
+        return f"{ref_text or '?'} -> {alt_text or '?'}"
+    return f"{ref_text} -> {alt_text}"
+
+
+def _dedupe_text_items(items: list[str]) -> list[str]:
+    """Return non-empty text items while preserving the first occurrence order."""
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        if not text:
+            continue
+        normalized = text.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(text)
+    return deduped
+
+
+def _build_specific_variant_link_summary(
+    record: dict[str, Any] | None,
+    *,
+    fallback: str,
+) -> str:
+    """Return a compact, variant-specific association summary for sample tables."""
+    if not record:
+        return fallback
+
+    link_items: list[str] = []
+    usual_variant_note = str(record.get("usual_variant_note", "")).strip()
+    common_name = str(record.get("common_name", "")).strip()
+    if usual_variant_note:
+        link_items.append(usual_variant_note)
+    if common_name:
+        link_items.append(common_name)
+
+    associated_conditions = [str(item).strip() for item in record.get("associated_conditions", []) if str(item).strip()]
+    if associated_conditions:
+        link_items.append("Studied in " + ", ".join(associated_conditions))
+
+    literature_findings = record.get("literature_findings", [])
+    if not associated_conditions and literature_findings:
+        first_finding = literature_findings[0]
+        phenotype = str(first_finding.get("phenotype", "")).strip()
+        if phenotype:
+            link_items.append(phenotype)
+
+    functional_effects = [str(item).strip() for item in record.get("functional_effects", []) if str(item).strip()]
+    if not associated_conditions and not literature_findings and functional_effects:
+        link_items.append(functional_effects[0])
+
+    deduped_items = _dedupe_text_items(link_items)
+    if deduped_items:
+        return "; ".join(deduped_items[:2])
+
+    clinical_significance = str(record.get("clinical_significance", "")).strip()
+    if clinical_significance:
+        return clinical_significance
+
+    clinical_interpretation = str(record.get("clinical_interpretation", "")).strip()
+    if clinical_interpretation:
+        return clinical_interpretation
+
+    return fallback
+
+
 def annotate_known_variant_ids(
     variants: pd.DataFrame,
     knowledge_base: dict[str, Any] | None,
@@ -491,6 +575,9 @@ def _build_observed_variant_summary(
     if matched_record is None:
         return {
             "display": _format_variant_display(row),
+            "variant_label": _format_variant_label(row.get("id")),
+            "change": _format_variant_change(row.get("ref"), row.get("alt")),
+            "linked_to": f"No curated local {gene_name} link is bundled for this PASS variant yet.",
             "position": _format_point(chrom, position),
             "quality": quality_display,
             "matched_variant": None,
@@ -510,6 +597,12 @@ def _build_observed_variant_summary(
 
     return {
         "display": _format_variant_display(row),
+        "variant_label": _format_variant_label(row.get("id")),
+        "change": _format_variant_change(row.get("ref"), row.get("alt")),
+        "linked_to": _build_specific_variant_link_summary(
+            matched_record,
+            fallback=f"No curated local {gene_name} link is bundled for this PASS variant yet.",
+        ),
         "position": _format_point(chrom, position),
         "quality": quality_display,
         "matched_variant": matched_record.get("display_name", matched_record["variant"]),
@@ -736,9 +829,18 @@ def _build_sample_variant_highlights(
         return {
             "summary": summary,
             "highlight_items": items,
+            "result_table_rows": [
+                {
+                    "variant_label": record.get("variant_label", "None"),
+                    "change": record.get("change", "Unavailable"),
+                    "linked_to": record.get("linked_to", ""),
+                }
+                for record in matched_records
+            ],
         }
 
     found_items: list[dict[str, Any]] = []
+    result_table_rows: list[dict[str, str]] = []
     for region_label, region_analysis in (
         ("Promoter review", promoter_analysis),
         ("Gene body review", gene_analysis),
@@ -752,6 +854,13 @@ def _build_sample_variant_highlights(
                     "description": record.get("summary", ""),
                     "conditions": record.get("associated_conditions", []),
                     "literature_findings": record.get("literature_findings", []),
+                }
+            )
+            result_table_rows.append(
+                {
+                    "variant_label": record.get("variant_label", "None"),
+                    "change": record.get("change", "Unavailable"),
+                    "linked_to": record.get("linked_to", ""),
                 }
             )
 
@@ -768,6 +877,7 @@ def _build_sample_variant_highlights(
     return {
         "summary": summary,
         "highlight_items": found_items,
+        "result_table_rows": result_table_rows,
     }
 
 
@@ -835,6 +945,54 @@ def _mean_beta_or_none(beta_values: pd.Series) -> float | None:
 def _round_beta(mean_beta: float | None) -> float | None:
     """Round a mean beta value for UI display while preserving ``None``."""
     return round(mean_beta, 3) if mean_beta is not None else None
+
+
+def _build_methylation_metric_rows(
+    *,
+    gene_name: str,
+    whitelist_mean_beta: float | None,
+    whitelist_count: int,
+    gene_name_mean_beta: float | None,
+    gene_name_count: int,
+    raw_mean_beta: float | None,
+    raw_count: int,
+) -> list[dict[str, Any]]:
+    """Build table-ready methylation summary rows for the UI and generated reports."""
+    return [
+        {
+            "metric": "Whitelist mean beta",
+            "mean_beta": _round_beta(whitelist_mean_beta),
+            "mean_beta_display": str(_round_beta(whitelist_mean_beta)) if whitelist_mean_beta is not None else "Unavailable",
+            "numeric_values": int(whitelist_count),
+            "summary": (
+                f"Observed whitelist probe mean across {whitelist_count} numeric value(s)."
+                if whitelist_mean_beta is not None
+                else "No numeric observed whitelist probe was available in this run."
+            ),
+        },
+        {
+            "metric": f"{gene_name}-named row mean beta",
+            "mean_beta": _round_beta(gene_name_mean_beta),
+            "mean_beta_display": str(_round_beta(gene_name_mean_beta)) if gene_name_mean_beta is not None else "Unavailable",
+            "numeric_values": int(gene_name_count),
+            "summary": (
+                f"Rows where {gene_name} was explicitly annotated in the gene-name columns."
+                if gene_name_mean_beta is not None
+                else f"No numeric row explicitly annotated {gene_name} in the available gene-name columns."
+            ),
+        },
+        {
+            "metric": "All numeric-row mean beta",
+            "mean_beta": _round_beta(raw_mean_beta),
+            "mean_beta_display": str(_round_beta(raw_mean_beta)) if raw_mean_beta is not None else "Unavailable",
+            "numeric_values": int(raw_count),
+            "summary": (
+                "All numeric beta values across the full raw methylation table."
+                if raw_mean_beta is not None
+                else "No numeric beta values were available in the raw methylation table."
+            ),
+        },
+    ]
 
 
 def _select_gene_named_methylation_rows(
@@ -1191,6 +1349,12 @@ def build_variant_interpretations(
         matched_records.append(
             {
                 "observed_variant": observed_label,
+                "variant_label": _format_variant_label(row.get("id")),
+                "change": _format_variant_change(row.get("ref"), row.get("alt")),
+                "linked_to": _build_specific_variant_link_summary(
+                    matched_record,
+                    fallback=f"No curated local {gene_name} link is bundled for this PASS variant yet.",
+                ),
                 "variant": matched_record.get("display_name", matched_record["variant"]),
                 "interpretation_scope": matched_record.get("interpretation_scope", "Research context"),
                 "clinical_interpretation": matched_record.get("clinical_interpretation", ""),
@@ -1499,6 +1663,15 @@ def build_methylation_insights(
         knowledge_base,
         matched_variant_ids=matched_variant_ids,
     )
+    summary_metric_rows = _build_methylation_metric_rows(
+        gene_name=gene_name,
+        whitelist_mean_beta=whitelist_mean_beta,
+        whitelist_count=len(whitelist_beta_values),
+        gene_name_mean_beta=gene_name_mean_beta,
+        gene_name_count=len(gene_named_beta_values),
+        raw_mean_beta=raw_mean_beta,
+        raw_count=len(full_table_beta_values),
+    )
     if matched_variant_ids is None:
         whitelist_probe_reference_summary = (
             "Each whitelist probe is cross-referenced to any curated variant records that explicitly cite it, "
@@ -1548,6 +1721,7 @@ def build_methylation_insights(
         "all_numeric_mean_beta": _round_beta(raw_mean_beta),
         "all_numeric_mean_beta_label": "All numeric-row mean beta",
         "all_numeric_mean_beta_probe_count": int(len(full_table_beta_values)),
+        "summary_metric_rows": summary_metric_rows,
         "beta_band": beta_band,
         "beta_band_source_label": beta_band_source_label,
         "observed_probe_count": int(len(observed_relevant)),
@@ -1638,6 +1812,14 @@ def build_generic_variant_interpretations(
                 f"This sample yielded {len(observed_summaries)} visible PASS variant(s) in the current {gene_name} interval preview."
             ),
             "highlight_items": highlight_items,
+            "result_table_rows": [
+                {
+                    "variant_label": item.get("variant_label", "None"),
+                    "change": item.get("change", "Unavailable"),
+                    "linked_to": item.get("linked_to", ""),
+                }
+                for item in observed_summaries
+            ],
         },
         "region_recommendations": [
             {
@@ -1757,6 +1939,15 @@ def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: 
         if gene_named_match_columns
         else f"No gene-annotation column in the current methylation table explicitly mentioned {gene_name}."
     )
+    summary_metric_rows = _build_methylation_metric_rows(
+        gene_name=gene_name,
+        whitelist_mean_beta=None,
+        whitelist_count=0,
+        gene_name_mean_beta=gene_name_mean_beta,
+        gene_name_count=len(gene_named_beta_values),
+        raw_mean_beta=mean_beta,
+        raw_count=len(beta_values),
+    )
 
     return {
         "gene_name": gene_name,
@@ -1797,6 +1988,7 @@ def build_generic_methylation_insights(methylation: pd.DataFrame, *, gene_name: 
         "all_numeric_mean_beta": _round_beta(mean_beta),
         "all_numeric_mean_beta_label": "All numeric-row mean beta",
         "all_numeric_mean_beta_probe_count": int(len(beta_values)),
+        "summary_metric_rows": summary_metric_rows,
         "beta_band": beta_band,
         "beta_band_source_label": beta_band_source_label,
         "observed_probe_count": int(len(methylation)),
@@ -2153,10 +2345,18 @@ def fetch_population_stats(popstats_source: str, variants: pd.DataFrame) -> Any:
     )
 
 
-def _render_section_table(df: pd.DataFrame, title: str, rows: int = 20) -> str:
+def _render_section_table(df: pd.DataFrame, title: str, rows: int | None = 20) -> str:
     """Render a DataFrame preview section for the HTML report."""
-    preview = df.head(rows).to_html(index=False, classes="data-table", border=0)
+    preview_df = df if rows is None else df.head(rows)
+    preview = preview_df.to_html(index=False, classes="data-table", border=0)
     return f"<section><h2>{html.escape(title)}</h2>{preview}</section>"
+
+
+def _with_preferred_column_order(df: pd.DataFrame, preferred_columns: list[str]) -> pd.DataFrame:
+    """Move preferred columns to the front while preserving the remaining order."""
+    ordered_columns = [column for column in preferred_columns if column in df.columns]
+    ordered_columns.extend(column for column in df.columns if column not in ordered_columns)
+    return df.loc[:, ordered_columns]
 
 
 def _prepare_variant_table_for_output(df: pd.DataFrame) -> pd.DataFrame:
@@ -2165,7 +2365,479 @@ def _prepare_variant_table_for_output(df: pd.DataFrame) -> pd.DataFrame:
     if "id" in preview_df.columns:
         preview_df["id"] = preview_df["id"].where(preview_df["id"].notna(), "Unlabeled in source VCF")
         preview_df["id"] = preview_df["id"].replace({"": "Unlabeled in source VCF", ".": "Unlabeled in source VCF"})
-    return preview_df
+    return _with_preferred_column_order(
+        preview_df,
+        ["chrom", "id", "pos", "ref", "alt", "qual", "filter_pass", "id_source"],
+    )
+
+
+def _prepare_methylation_table_for_output(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply stable column ordering to methylation tables for the UI and reports."""
+    return _with_preferred_column_order(
+        df.copy(),
+        [
+            "probe_id",
+            "beta",
+            "chrom",
+            "pos",
+            "ref",
+            "alt",
+            "GencodeBasicV12_NAME",
+            "UCSC_RefGene_Name",
+            "UCSC_RefGene_Group",
+            "UCSC_CpG_Islands_Name",
+            "Relation_to_UCSC_CpG_Island",
+        ],
+    )
+
+
+def _flatten_report_value(value: Any) -> str:
+    """Convert structured payload values into compact report-table text."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, list):
+        flattened_items = [_flatten_report_value(item) for item in value]
+        flattened_items = [item for item in flattened_items if item]
+        return "; ".join(flattened_items)
+    if isinstance(value, dict):
+        if value.get("label") and value.get("url"):
+            return f"{value['label']} ({value['url']})"
+        if value.get("paper") and value.get("finding"):
+            return f"{value['paper']}: {value['finding']}"
+        if value.get("variant") and value.get("summary"):
+            return f"{value['variant']}: {value['summary']}"
+        if value.get("location_group") and value.get("label"):
+            return f"{value['location_group']} - {value['label']}"
+        return json.dumps(value, ensure_ascii=True)
+    return str(value)
+
+
+def _report_df_from_rows(
+    rows: list[dict[str, Any]],
+    column_map: list[tuple[str, str]],
+) -> pd.DataFrame:
+    """Build a report-ready DataFrame from structured rows and user-facing labels."""
+    normalized_rows: list[dict[str, str]] = []
+    for row in rows:
+        normalized_rows.append(
+            {
+                label: _flatten_report_value(row.get(source_key))
+                for source_key, label in column_map
+            }
+        )
+    if not normalized_rows:
+        return pd.DataFrame(columns=[label for _, label in column_map])
+    return pd.DataFrame(normalized_rows)
+
+
+def _render_report_paragraphs(
+    title: str,
+    paragraphs: list[str],
+    *,
+    extra_markup: str = "",
+) -> str:
+    """Render one report section made of paragraphs and optional nested markup."""
+    rendered_paragraphs = "".join(
+        f"<p>{html.escape(paragraph)}</p>" for paragraph in paragraphs if str(paragraph).strip()
+    )
+    if not rendered_paragraphs and not extra_markup:
+        return ""
+    return f"<section><h2>{html.escape(title)}</h2>{rendered_paragraphs}{extra_markup}</section>"
+
+
+def _render_variant_interpretation_report(
+    variant_interpretations: dict[str, Any],
+    population_insights: dict[str, Any],
+) -> str:
+    """Render the richer variant interpretation block for the exported HTML report."""
+    if not variant_interpretations:
+        return ""
+
+    nested_sections: list[str] = []
+    sample_rows = variant_interpretations.get("sample_highlights", {}).get("result_table_rows", [])
+    if sample_rows:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    sample_rows,
+                    [
+                        ("variant_label", "Variant label"),
+                        ("change", "Change"),
+                        ("linked_to", "Linked to"),
+                    ],
+                ),
+                "Sample Results",
+                rows=None,
+            )
+        )
+
+    matched_records = variant_interpretations.get("matched_records", [])
+    if matched_records:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    matched_records,
+                    [
+                        ("variant", "Curated variant"),
+                        ("variant_label", "Variant label"),
+                        ("observed_variant", "Observed in run"),
+                        ("change", "Change"),
+                        ("linked_to", "Linked to"),
+                        ("interpretation_scope", "Scope"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("clinical_interpretation", "Clinical interpretation"),
+                        ("methylation_interpretation", "Methylation interpretation"),
+                        ("associated_conditions", "Associated conditions"),
+                        ("functional_effects", "Functional effects"),
+                        ("research_context", "Research context"),
+                        ("relevant_probe_ids", "Relevant probes"),
+                        ("evidence", "Evidence"),
+                    ],
+                ),
+                "Matched Variant Interpretations",
+                rows=None,
+            )
+        )
+
+    curated_markers = variant_interpretations.get("curated_named_markers", [])
+    if curated_markers:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    curated_markers,
+                    [
+                        ("variant", "Variant"),
+                        ("common_name", "Common name"),
+                        ("observed_in_run", "Observed in run"),
+                        ("observed_variants", "Observed labels"),
+                        ("region_class", "Curated class"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("summary", "Interpretation"),
+                        ("associated_conditions", "Associated conditions"),
+                        ("functional_effects", "Functional effects"),
+                        ("research_context", "Research context"),
+                    ],
+                ),
+                "Curated Marker Catalog",
+                rows=None,
+            )
+        )
+
+    variant_effect_overview = variant_interpretations.get("variant_effect_overview", [])
+    if variant_effect_overview:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    [{"item": item} for item in variant_effect_overview],
+                    [("item", "Variant interpretation overview")],
+                ),
+                "How This Gene's Variants Are Usually Interpreted",
+                rows=None,
+            )
+        )
+
+    condition_research_overview = variant_interpretations.get("condition_research_overview", [])
+    if condition_research_overview:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    [{"item": item} for item in condition_research_overview],
+                    [("item", "Condition or research theme")],
+                ),
+                "Conditions and Research Themes",
+                rows=None,
+            )
+        )
+
+    region_recommendations = variant_interpretations.get("region_recommendations", [])
+    if region_recommendations:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    region_recommendations,
+                    [
+                        ("title", "View"),
+                        ("region", "Region"),
+                        ("purpose", "Purpose"),
+                    ],
+                ),
+                "Region Recommendations",
+                rows=None,
+            )
+        )
+
+    promoter_analysis = variant_interpretations.get("promoter_analysis", {})
+    if promoter_analysis.get("found_variants"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    promoter_analysis["found_variants"],
+                    [
+                        ("display", "Observed variant"),
+                        ("variant_label", "Variant label"),
+                        ("change", "Change"),
+                        ("position", "Position"),
+                        ("linked_to", "Linked to"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("summary", "Interpretation"),
+                    ],
+                ),
+                promoter_analysis.get("label", "Promoter Analysis") + " - Observed Variants",
+                rows=None,
+            )
+        )
+    if promoter_analysis.get("known_variants"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    promoter_analysis["known_variants"],
+                    [
+                        ("variant", "Variant"),
+                        ("common_name", "Common name"),
+                        ("position", "Position"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("summary", "Interpretation"),
+                        ("associated_conditions", "Associated conditions"),
+                    ],
+                ),
+                promoter_analysis.get("label", "Promoter Analysis") + " - Curated Variants",
+                rows=None,
+            )
+        )
+
+    gene_analysis = variant_interpretations.get("gene_analysis", {})
+    if gene_analysis.get("found_variants"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    gene_analysis["found_variants"],
+                    [
+                        ("display", "Observed variant"),
+                        ("variant_label", "Variant label"),
+                        ("change", "Change"),
+                        ("position", "Position"),
+                        ("linked_to", "Linked to"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("summary", "Interpretation"),
+                    ],
+                ),
+                gene_analysis.get("label", "Gene Analysis") + " - Observed Variants",
+                rows=None,
+            )
+        )
+    if gene_analysis.get("known_variants"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    gene_analysis["known_variants"],
+                    [
+                        ("variant", "Variant"),
+                        ("common_name", "Common name"),
+                        ("position", "Position"),
+                        ("clinical_significance", "Clinical significance"),
+                        ("summary", "Interpretation"),
+                        ("associated_conditions", "Associated conditions"),
+                    ],
+                ),
+                gene_analysis.get("label", "Gene Analysis") + " - Curated Variants",
+                rows=None,
+            )
+        )
+
+    if population_insights and population_insights.get("variant_population_records"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    population_insights["variant_population_records"],
+                    [
+                        ("display_name", "Variant"),
+                        ("observed_in_run", "Observed in run"),
+                        ("observed_variants", "Observed labels"),
+                        ("effect_allele", "Effect allele"),
+                        ("effect_summary", "Population summary"),
+                        ("associated_conditions", "Associated conditions"),
+                        ("functional_effects", "Functional effects"),
+                        ("population_extremes", "Population extremes"),
+                    ],
+                ),
+                "Population Reference Data",
+                rows=None,
+            )
+        )
+
+    if population_insights and population_insights.get("sources"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    population_insights["sources"],
+                    [
+                        ("label", "Source"),
+                        ("url", "URL"),
+                    ],
+                ),
+                "Population Sources",
+                rows=None,
+            )
+        )
+
+    if population_insights and population_insights.get("gene_population_patterns"):
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    population_insights["gene_population_patterns"],
+                    [
+                        ("variant", "Variant or locus"),
+                        ("location_group", "Location group"),
+                        ("summary", "Summary"),
+                    ],
+                ),
+                "Gene-wide Population Patterns",
+                rows=None,
+            )
+        )
+
+    return _render_report_paragraphs(
+        "Variant Interpretation",
+        [
+            variant_interpretations.get("sample_highlights", {}).get("summary", ""),
+            variant_interpretations.get("summary", ""),
+            variant_interpretations.get("gene_summary", ""),
+            variant_interpretations.get("clinical_context", ""),
+            variant_interpretations.get("curated_named_markers_summary", ""),
+            population_insights.get("summary", "") if population_insights else "",
+            population_insights.get("gene_population_patterns_intro", "") if population_insights else "",
+        ],
+        extra_markup="".join(nested_sections),
+    )
+
+
+def _render_methylation_interpretation_report(methylation_insights: dict[str, Any]) -> str:
+    """Render the richer methylation interpretation block for the exported HTML report."""
+    if not methylation_insights:
+        return ""
+
+    nested_sections: list[str] = []
+    summary_metric_rows = methylation_insights.get("summary_metric_rows", [])
+    if summary_metric_rows:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    summary_metric_rows,
+                    [
+                        ("metric", "Metric"),
+                        ("mean_beta_display", "Mean beta"),
+                        ("numeric_values", "Numeric values"),
+                        ("summary", "Summary"),
+                    ],
+                ),
+                "Methylation Summary Metrics",
+                rows=None,
+            )
+        )
+
+    whitelist_probe_statuses = methylation_insights.get("whitelist_probe_statuses", [])
+    if whitelist_probe_statuses:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    whitelist_probe_statuses,
+                    [
+                        ("probe_id", "Whitelist probe"),
+                        ("observed_in_run", "Observed in run"),
+                    ],
+                ),
+                "Whitelist Probe Status",
+                rows=None,
+            )
+        )
+
+    methylation_effects = methylation_insights.get("methylation_effects", [])
+    if methylation_effects:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    [{"item": item} for item in methylation_effects],
+                    [("item", "Likely biological effect")],
+                ),
+                "Likely Biological Effects",
+                rows=None,
+            )
+        )
+
+    methylation_condition_research = methylation_insights.get("methylation_condition_research", [])
+    if methylation_condition_research:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    [{"item": item} for item in methylation_condition_research],
+                    [("item", "Condition or research setting")],
+                ),
+                "Methylation Research Context",
+                rows=None,
+            )
+        )
+
+    evidence = methylation_insights.get("evidence", [])
+    if evidence:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    evidence,
+                    [
+                        ("label", "Source"),
+                        ("url", "URL"),
+                    ],
+                ),
+                "Methylation Evidence",
+                rows=None,
+            )
+        )
+
+    whitelist_probe_reference_rows = methylation_insights.get("whitelist_probe_reference_rows", [])
+    if whitelist_probe_reference_rows:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    whitelist_probe_reference_rows,
+                    [
+                        ("probe_id", "Whitelist probe"),
+                        ("observed_in_run", "Observed in run"),
+                        ("beta", "Observed beta"),
+                        ("probe_locus", "Probe locus"),
+                        ("linked_variants", "Linked variants"),
+                        ("nearby_manifest_variants", "Nearby manifest variants"),
+                        ("papers", "Bundled papers"),
+                    ],
+                ),
+                "Whitelist Probe Reference Map",
+                rows=None,
+            )
+        )
+
+    probe_preview = methylation_insights.get("probe_preview")
+    if isinstance(probe_preview, pd.DataFrame) and not probe_preview.empty:
+        nested_sections.append(
+            _render_section_table(
+                _prepare_methylation_table_for_output(probe_preview),
+                "Observed Whitelist Probe Rows",
+                rows=None,
+            )
+        )
+
+    return _render_report_paragraphs(
+        "Methylation Interpretation",
+        [
+            methylation_insights.get("summary", ""),
+            methylation_insights.get("clinical_context", ""),
+            methylation_insights.get("whitelist_explanation", ""),
+            methylation_insights.get("whitelist_literature_context", ""),
+            methylation_insights.get("gene_name_match_rule", ""),
+            methylation_insights.get("whitelist_probe_reference_summary", ""),
+        ],
+        extra_markup="".join(nested_sections),
+    )
 
 
 def generate_report(
@@ -2177,6 +2849,9 @@ def generate_report(
     gene_name: str = DEFAULT_GENE_NAME,
     region: str,
     methylation_output_path: Path | None = None,
+    variant_interpretations: dict[str, Any] | None = None,
+    methylation_insights: dict[str, Any] | None = None,
+    population_insights: dict[str, Any] | None = None,
 ) -> Path:
     """Generate a report artifact from the assembled analysis tables.
 
@@ -2227,6 +2902,14 @@ def generate_report(
                 "<p><strong>Methylation CSV:</strong> "
                 f"{html.escape(str(methylation_output_path))}</p>"
             )
+
+        variant_interpretation_section = _render_variant_interpretation_report(
+            variant_interpretations or {},
+            population_insights or {},
+        )
+        methylation_interpretation_section = _render_methylation_interpretation_report(
+            methylation_insights or {},
+        )
 
         report_html = f"""<!doctype html>
 <html lang="en">
@@ -2363,8 +3046,10 @@ def generate_report(
         </article>
       </div>
     </section>
-    {_render_section_table(_prepare_variant_table_for_output(variants), "Variant Preview")}
-    {_render_section_table(methylation, "Methylation Preview")}
+    {_render_section_table(_prepare_variant_table_for_output(variants), "Genetic Variant Results", rows=None)}
+    {variant_interpretation_section}
+    {methylation_interpretation_section}
+    {_render_section_table(_prepare_methylation_table_for_output(methylation), "Methylation Raw Results", rows=None)}
     {popstats_section}
   </main>
 </body>
@@ -2515,6 +3200,9 @@ def run_analysis(
         gene_name=normalized_gene_name,
         region=region,
         methylation_output_path=methylation_output_path,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        population_insights=population_insights,
     )
 
     return AnalysisResult(
