@@ -1,0 +1,498 @@
+{
+  "database_name": "NophiGene HERC2 Interpretation Database",
+  "version": "2026-04-16",
+  "gene_context": {
+    "gene_name": "HERC2",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "15q13.1",
+    "chromosome": "15",
+    "gene_region": {
+      "label": "HERC2 transcribed interval",
+      "start": 28356186,
+      "end": 28567325,
+      "definition": "Canonical HERC2 genomic interval on GRCh37 / hg19 from NCBI Gene."
+    },
+    "promoter_review_region": {
+      "label": "Operational pigmentation-enhancer review window",
+      "start": 28356000,
+      "end": 28387000,
+      "definition": "A practical review window used in this app to focus the HERC2/OCA2 pigmentation segment that contains rs1129038, rs12913832, rs11636232, and nearby linked markers."
+    },
+    "promoter_hotspot_region": {
+      "label": "rs12913832 enhancer hotspot",
+      "start": 28365200,
+      "end": 28366050,
+      "definition": "Compact distal-enhancer window around rs12913832 in HERC2 intron 86, curated here as the main eye-colour hotspot because it regulates OCA2 expression."
+    },
+    "recommended_promoter_plus_gene_region": "15:28356000-28567325",
+    "gene_summary": "HERC2 encodes a very large HECT-domain E3 ubiquitin ligase with broad cellular roles, but the most widely discussed common-variant signal in this locus concerns pigmentation rather than altered HERC2 protein sequence. In humans, the eye-colour association is driven mainly by regulatory variation in the HERC2/OCA2 region, especially the rs12913832 enhancer segment that modulates OCA2 expression.",
+    "clinical_context": "This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation.",
+    "variant_effect_overview": [
+      "The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "rs12913832 is the primary seeded marker in this bundle, while rs1129038, rs7170852, rs916977, and rs11636232 are treated as linked or secondary pigmentation markers that refine haplotype or prediction context.",
+      "Observed PASS variants inside the HERC2 interval should therefore be read as locus context unless they directly match one of the curated pigmentation markers bundled here."
+    ],
+    "condition_research_overview": [
+      "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
+      "Forensic DNA phenotyping: the HERC2 region is central to IrisPlex-style eye-colour prediction models, with rs12913832 as the dominant predictor and additional local markers refining exceptions.",
+      "Pigmentation-linked cancer risk research: HERC2/OCA2 markers have also been associated with melanoma, uveal melanoma, and cutaneous squamous-cell carcinoma through pigmentation background."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg14091419",
+      "cg12605148",
+      "cg14390018",
+      "cg02277326",
+      "cg09689686",
+      "cg07567273",
+      "cg17176002",
+      "cg16895086",
+      "cg25059751",
+      "cg25622125"
+    ],
+    "methylation_interpretation": "The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample.",
+    "methylation_effects": [
+      "Methylation near the HERC2/OCA2 regulatory segment may help frame chromatin accessibility around pigmentation enhancers, but it does not replace direct genotype interpretation for rs12913832 or linked SNPs.",
+      "The strongest mechanistic papers at this locus focus on enhancer-promoter architecture and OCA2 expression rather than on one universally accepted methylation biomarker.",
+      "Treat paired HERC2 methylation and sequence data as locus-level regulatory context rather than as a deterministic eye-colour readout."
+    ],
+    "methylation_condition_research": [
+      "Pigmentation-regulatory chromatin studies at the HERC2/OCA2 locus.",
+      "Forensic eye-colour prediction research that models multiple linked variants across the locus.",
+      "Broader pigmentation and pigmentation-linked skin-cancer susceptibility studies."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 8924: HERC2 genomic coordinates and summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/8924"
+      },
+      {
+        "label": "PubMed 18252221 / PMCID PMC2427174: HERC2 as a human iris-colour gene",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/18252221/"
+      },
+      {
+        "label": "PubMed 18252222 / PMCID PMC2427173: rs12913832 as the main blue-brown eye-colour SNP",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+      },
+      {
+        "label": "PubMed 22234890 / PMCID PMC3290780: rs12913832 enhancer-promoter mechanism",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+      },
+      {
+        "label": "PubMed 20457063: HERC2 rs1129038, rs7170852, and rs11636232 in eye-colour prediction",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+      },
+      {
+        "label": "PubMed 22065085 / PMCID PMC3325407: global OCA2-HERC2 pigmentation haplotypes",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+      },
+      {
+        "label": "PubMed 36980970 / PMCID PMC10048254: additional OCA2-HERC2 variants in rs12913832 AA/AG individuals",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+      },
+      {
+        "label": "PubMed 38928306 / PMCID PMC11204186: conserved chromatin architecture around rs12913832",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/38928306/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "gene_name": "HERC2",
+      "variant": "rs12913832",
+      "display_name": "rs12913832",
+      "common_name": "intron 86 eye-colour enhancer SNP",
+      "region_class": "upstream_regulatory",
+      "position": 28365618,
+      "interpretation_scope": "Major common pigmentation regulator",
+      "lookup_keys": [
+        "rs12913832",
+        "herc2:rs12913832",
+        "15:28365618",
+        "15:28365618:A>G",
+        "15:28365618:G>A"
+      ],
+      "clinical_interpretation": "rs12913832 is the best-supported common regulatory variant in the local HERC2 bundle. In the forward-strand hg19 A/G representation used by this workbench, the G allele corresponds to the widely discussed light-eye-associated state and the A allele corresponds to the darker-eye-associated state in most cohorts. The effect is strong but not deterministic, because additional OCA2-HERC2 variants can modify expected eye colour among AA and AG carriers.",
+      "clinical_significance": "Research-level common regulatory pigmentation variant; strongest seeded eye-colour marker in the local HERC2 bundle.",
+      "functional_effects": [
+        "Distal enhancer SNP in HERC2 intron 86 that modulates chromatin looping to the OCA2 promoter.",
+        "Primary common determinant of blue versus brown eye-colour variation in European-derived cohorts.",
+        "Best interpreted as a cis-regulatory pigmentation variant rather than as a protein-altering HERC2 lesion."
+      ],
+      "associated_conditions": [
+        "Blue-brown eye-colour variation",
+        "Hair and skin pigmentation variation",
+        "Pigmentation-linked melanoma, uveal melanoma, and cutaneous squamous-cell carcinoma risk context"
+      ],
+      "research_context": [
+        "This is the dominant HERC2/OCA2 pigmentation marker, but it is not fully deterministic for observed eye colour.",
+        "Unexpected blue eyes in rs12913832 AA or AG individuals can often be explained by additional OCA2-HERC2 variants rather than by failure of the core signal itself."
+      ],
+      "usual_variant_note": "Core HERC2/OCA2 eye-colour enhancer marker.",
+      "relevant_methylation_probe_ids": [
+        "cg14091419",
+        "cg12605148",
+        "cg14390018",
+        "cg02277326",
+        "cg09689686",
+        "cg07567273",
+        "cg17176002",
+        "cg16895086",
+        "cg25059751",
+        "cg25622125"
+      ],
+      "methylation_interpretation": "When rs12913832 is present, HERC2 methylation should be read as supportive regulatory context around enhancer-promoter architecture rather than as a direct replacement for genotype. The bundled probes can help frame whether the surrounding region is methylated, but the core mechanistic evidence still points to enhancer sequence state and OCA2 expression control.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 18252222 / PMCID PMC2427173: main eye-colour association study",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+        },
+        {
+          "label": "PubMed 22234890 / PMCID PMC3290780: enhancer-promoter loop mechanism",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+        },
+        {
+          "label": "PubMed 36980970 / PMCID PMC10048254: additional modifiers in rs12913832 AA/AG individuals",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+        },
+        {
+          "label": "PubMed 38928306 / PMCID PMC11204186: conserved chromatin organization around rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38928306/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Sturm et al., 2008 (PMID 18252222)",
+          "genotypes": "AA, AG, and GG in the forward-strand A/G representation used here",
+          "phenotype": "Blue-brown eye-colour variation in European cohorts",
+          "finding": "Fine mapping across the HERC2/OCA2 region identified rs12913832 as the single best common predictor of blue-brown eye colour, outperforming the previously favoured OCA2 haplotype markers.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+        },
+        {
+          "paper": "Visser et al., 2012 (PMID 22234890)",
+          "genotypes": "Allele-specific enhancer states at rs12913832",
+          "phenotype": "Pigmentation-regulatory mechanism",
+          "finding": "The study showed that rs12913832 alters a long-range enhancer in HERC2 and attenuates chromatin-loop formation with the OCA2 promoter, providing a direct mechanistic explanation for the pigmentation effect.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+        },
+        {
+          "paper": "Salvo et al., 2023 (PMID 36980970)",
+          "genotypes": "rs12913832 AA and AG individuals with unexpected blue eyes",
+          "phenotype": "Eye-colour exceptions in Norwegian cohorts",
+          "finding": "Sequencing across the OCA2-HERC2 region showed that additional variants can explain most blue-eyed rs12913832 AA or AG individuals, reinforcing that rs12913832 is the main signal but not the entire model.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+        }
+      ]
+    },
+    {
+      "gene_name": "HERC2",
+      "variant": "rs1129038",
+      "display_name": "rs1129038",
+      "common_name": "linked 3' UTR pigmentation marker",
+      "region_class": "upstream_regulatory",
+      "position": 28356859,
+      "interpretation_scope": "Research association / linked regulatory marker",
+      "lookup_keys": [
+        "rs1129038",
+        "herc2:rs1129038",
+        "15:28356859",
+        "15:28356859:C>T",
+        "15:28356859:T>C"
+      ],
+      "clinical_interpretation": "rs1129038 is a tightly linked HERC2 pigmentation marker that tags much of the same eye-colour background as rs12913832. It is useful in prediction models and haplotype interpretation, but the mechanistic evidence is stronger for rs12913832 than for rs1129038 as an independent causal variant.",
+      "clinical_significance": "Research-level linked pigmentation marker; commonly used companion SNP for eye-colour prediction.",
+      "functional_effects": [
+        "Acts mainly as a strong linkage and haplotype marker for the HERC2/OCA2 pigmentation background.",
+        "Improves common eye-colour prediction models when interpreted together with rs12913832 and selected OCA2 markers."
+      ],
+      "associated_conditions": [
+        "Blue-brown eye-colour variation",
+        "Pigmentation prediction and forensic DNA phenotyping",
+        "Pigmentation-linked melanoma susceptibility context"
+      ],
+      "research_context": [
+        "The strongest evidence for rs1129038 comes from prediction-model performance and linkage disequilibrium with the core HERC2 enhancer signal.",
+        "Population studies show striking frequency differences between European and East Asian or African groups, consistent with a historically structured pigmentation haplotype."
+      ],
+      "usual_variant_note": "Common linked HERC2 eye-colour marker usually read alongside rs12913832.",
+      "relevant_methylation_probe_ids": [
+        "cg14091419",
+        "cg12605148",
+        "cg14390018",
+        "cg02277326",
+        "cg09689686",
+        "cg07567273",
+        "cg17176002",
+        "cg16895086",
+        "cg25059751",
+        "cg25622125"
+      ],
+      "methylation_interpretation": "If rs1129038 is observed, the methylation panel should still be interpreted as locus-level context instead of as a direct functional readout of this single SNP. The main value here is showing whether the linked pigmentation region appears epigenetically open or closed in the current sample.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 20457063: rs1129038 and rs12913832 as the strongest light-versus-dark eye-colour markers",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 19472299: Japanese genotype and haplotype frequencies for rs1129038 and rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19472299/"
+        },
+        {
+          "label": "PubMed 21926416: melanoma GWAS signal at rs1129038 and rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21926416/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Mengel-From et al., 2010 (PMID 20457063)",
+          "genotypes": "rs1129038 and rs12913832 combinations in Danish volunteers",
+          "phenotype": "Light versus dark eye-colour prediction",
+          "finding": "The highest predictive value for light-versus-dark eye-colour grouping was achieved by typing rs1129038 and/or rs12913832, confirming rs1129038 as a powerful linked marker in forensic models.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "paper": "Nakayama et al., 2009 (PMID 19472299)",
+          "genotypes": "Population genotype and haplotype frequencies in a brown-eyed Japanese cohort",
+          "phenotype": "Population specificity of the HERC2/OCA2 eye-colour system",
+          "finding": "The Japanese study highlighted marked differences in rs1129038 and rs12913832 haplotype structure relative to European and African populations, underscoring the ancestry dependence of pigmentation prediction models.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19472299/"
+        },
+        {
+          "paper": "Bishop et al., 2011 (PMID 21926416)",
+          "genotypes": "Common HERC2/OCA2 pigmentation markers including rs1129038",
+          "phenotype": "Cutaneous melanoma susceptibility",
+          "finding": "Melanoma GWAS identified rs1129038 and rs12913832 in a pigmentation-rich locus whose association with disease was interpreted in the context of eye and skin colour biology rather than a direct oncogenic mechanism.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21926416/"
+        }
+      ]
+    },
+    {
+      "gene_name": "HERC2",
+      "variant": "rs7170852",
+      "display_name": "rs7170852",
+      "common_name": "secondary intronic eye-colour predictor",
+      "region_class": "gene_body",
+      "position": 28427986,
+      "interpretation_scope": "Research association / secondary pigmentation marker",
+      "lookup_keys": [
+        "rs7170852",
+        "herc2:rs7170852",
+        "15:28427986",
+        "15:28427986:T>A",
+        "15:28427986:A>T"
+      ],
+      "clinical_interpretation": "rs7170852 is curated here as a secondary HERC2 eye-colour marker. It has shown additional association with eye colour in some cohorts, but the effect is generally weaker than rs12913832 and can disappear after adjusting for the main HERC2 signal.",
+      "clinical_significance": "Research-level secondary pigmentation marker; best interpreted as a haplotype-refinement SNP rather than an independent causal call.",
+      "functional_effects": [
+        "Acts as an intronic HERC2 marker that can refine local eye-colour prediction models.",
+        "Published associations are modest and usually interpreted in the context of the stronger rs12913832 background."
+      ],
+      "associated_conditions": [
+        "Eye-colour prediction and forensic phenotype modeling",
+        "Human pigmentation association studies"
+      ],
+      "research_context": [
+        "This SNP is useful when trying to explain eye-colour variation beyond a single-marker model, but it should not be over-read as a dominant effect locus.",
+        "The most reproducible interpretation is as a secondary or linked pigmentation predictor."
+      ],
+      "usual_variant_note": "Secondary HERC2 eye-colour SNP with smaller effect than rs12913832.",
+      "relevant_methylation_probe_ids": [
+        "cg14091419",
+        "cg12605148",
+        "cg14390018",
+        "cg02277326",
+        "cg09689686",
+        "cg07567273",
+        "cg17176002",
+        "cg16895086",
+        "cg25059751",
+        "cg25622125"
+      ],
+      "methylation_interpretation": "For rs7170852, the methylation panel is best treated as general HERC2/OCA2 locus context. There is no bundled evidence here for a one-to-one methylation consequence analogous to the enhancer mechanism of rs12913832.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 20457063: additional eye-colour association of rs7170852 in Danish data",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 31762634: rs7170852 significance in a Saudi eye-colour cohort before adjusting for rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Mengel-From et al., 2010 (PMID 20457063)",
+          "genotypes": "HERC2 diplotypes including rs7170852",
+          "phenotype": "Light versus dark eye-colour classification in Danes",
+          "finding": "rs7170852 showed additional association with eye colour beyond the core rs1129038 signal, improving the best-performing multilocus discrimination model in that forensic cohort.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "paper": "Alsultan et al., 2019/2020 (PMID 31762634)",
+          "genotypes": "Saudi eye-colour prediction panel including rs7170852",
+          "phenotype": "Brown, hazel, and intermediate eye colours",
+          "finding": "rs7170852 reached nominal significance in the Saudi cohort, but the association did not remain independent after adjusting for rs12913832, supporting its role as a secondary rather than primary predictor.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        }
+      ]
+    },
+    {
+      "gene_name": "HERC2",
+      "variant": "rs916977",
+      "display_name": "rs916977",
+      "common_name": "intronic iris-colour cline marker",
+      "region_class": "gene_body",
+      "position": 28513364,
+      "interpretation_scope": "Research association / pigmentation-background marker",
+      "lookup_keys": [
+        "rs916977",
+        "herc2:rs916977",
+        "15:28513364",
+        "15:28513364:T>C",
+        "15:28513364:C>T"
+      ],
+      "clinical_interpretation": "rs916977 is a HERC2 intronic pigmentation marker with a clear geographic cline in Europe and repeated association to iris colour or pigmentation-related outcomes. It is best interpreted as a linked pigmentation-background SNP rather than as the core causal enhancer variant.",
+      "clinical_significance": "Research-level pigmentation marker with eye-colour, uveal-melanoma, and skin-cancer-context associations.",
+      "functional_effects": [
+        "Acts mainly as a population-structure and haplotype marker in the broader HERC2/OCA2 pigmentation region.",
+        "Can contribute to eye-colour prediction or pigmentation-risk modeling but is weaker mechanistically than rs12913832."
+      ],
+      "associated_conditions": [
+        "Iris-colour variation and European pigmentation clines",
+        "Uveal melanoma susceptibility through pigmentation background",
+        "Time to first cutaneous squamous-cell carcinoma in high-risk transplant cohorts"
+      ],
+      "research_context": [
+        "This SNP is often discussed because it mirrors eye-colour geography and pigmentation background, not because it has the strongest standalone functional evidence.",
+        "The main practical use is to contextualize a broader HERC2/OCA2 haplotype rather than to override rs12913832."
+      ],
+      "usual_variant_note": "Useful linked pigmentation marker with broader disease-correlation literature.",
+      "relevant_methylation_probe_ids": [
+        "cg14091419",
+        "cg12605148",
+        "cg14390018",
+        "cg02277326",
+        "cg09689686",
+        "cg07567273",
+        "cg17176002",
+        "cg16895086",
+        "cg25059751",
+        "cg25622125"
+      ],
+      "methylation_interpretation": "For rs916977, methylation remains supportive locus context. The main interpretation here is pigmentation background, and the bundled probes should not be read as a direct molecular consequence of rs916977 itself.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 18252221 / PMCID PMC2427174: rs916977 European iris-colour cline",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252221/"
+        },
+        {
+          "label": "PubMed 31762634: rs916977 in Saudi eye-colour prediction",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        },
+        {
+          "label": "PubMed 27499155 / PMCID PMC4976361: rs916977 and uveal melanoma risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27499155/"
+        },
+        {
+          "label": "PubMed 28456133: rs916977 and time to first cutaneous squamous-cell carcinoma",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28456133/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Kayser et al., 2008 (PMID 18252221)",
+          "genotypes": "European population frequency gradients at rs916977",
+          "phenotype": "Iris-colour geography across Europe",
+          "finding": "rs916977 showed a clinal allele distribution across 23 European populations that was significantly correlated with iris-colour variation, making it a useful population-level pigmentation marker.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252221/"
+        },
+        {
+          "paper": "Alsultan et al., 2019/2020 (PMID 31762634)",
+          "genotypes": "Saudi eye-colour panel including rs916977",
+          "phenotype": "Brown, hazel, and intermediate eye colours",
+          "finding": "rs916977 was significant in the Saudi cohort before conditioning on rs12913832, again supporting its role as a secondary HERC2 pigmentation predictor rather than the dominant eye-colour SNP.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        },
+        {
+          "paper": "Brown et al., 2017 (PMID 28456133)",
+          "genotypes": "Common rs916977 eye-colour genotypes in solid organ transplant recipients",
+          "phenotype": "Time to first cutaneous squamous-cell carcinoma",
+          "finding": "The study linked rs916977 eye-colour background to time-to-cSCC risk, reinforcing that HERC2 pigmentation markers can matter clinically through pigmentation biology even when they are not direct cancer-driver variants.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28456133/"
+        }
+      ]
+    },
+    {
+      "gene_name": "HERC2",
+      "variant": "rs11636232",
+      "display_name": "rs11636232",
+      "common_name": "synonymous secondary eye-colour marker",
+      "region_class": "gene_body",
+      "position": 28386626,
+      "interpretation_scope": "Research association / secondary pigmentation marker",
+      "lookup_keys": [
+        "rs11636232",
+        "herc2:rs11636232",
+        "15:28386626",
+        "15:28386626:C>T",
+        "15:28386626:T>C"
+      ],
+      "clinical_interpretation": "rs11636232 is curated as a secondary HERC2 pigmentation SNP that can sharpen multi-marker eye-colour prediction models. Its effect is modest relative to rs12913832 and is best interpreted as part of a local haplotype rather than as a primary causal variant.",
+      "clinical_significance": "Research-level secondary pigmentation marker with modest predictive utility.",
+      "functional_effects": [
+        "Synonymous HERC2 variant mainly used as a linked pigmentation marker.",
+        "Contributes to multilocus eye-colour models more plausibly through linkage than through an established direct molecular effect."
+      ],
+      "associated_conditions": [
+        "Eye-colour prediction and pigmentation modeling"
+      ],
+      "research_context": [
+        "This SNP is a refinement marker for local prediction models and should not be interpreted as a stand-alone deterministic eye-colour call."
+      ],
+      "usual_variant_note": "Secondary HERC2 model-refinement SNP.",
+      "relevant_methylation_probe_ids": [
+        "cg14091419",
+        "cg12605148",
+        "cg14390018",
+        "cg02277326",
+        "cg09689686",
+        "cg07567273",
+        "cg17176002",
+        "cg16895086",
+        "cg25059751",
+        "cg25622125"
+      ],
+      "methylation_interpretation": "The methylation subset provides only broad regional context for rs11636232. The more defensible interpretation is that this SNP helps tag a pigmentation haplotype rather than driving a specific methylation phenotype in the bundled EPIC probes.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 20457063: additional eye-colour association of rs11636232 in Danish data",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 22065085 / PMCID PMC3325407: global OCA2-HERC2 haplotype structure",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Mengel-From et al., 2010 (PMID 20457063)",
+          "genotypes": "HERC2 multilocus diplotypes including rs11636232",
+          "phenotype": "Light versus dark eye-colour discrimination in Danes",
+          "finding": "rs11636232 showed additional association with eye colour within the multilocus HERC2/OCA2 prediction framework, but remained clearly secondary to the linked rs1129038-rs12913832 system.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "paper": "Donnelly et al., 2012 (PMID 22065085)",
+          "genotypes": "Global OCA2-HERC2 haplotype systems",
+          "phenotype": "Population structure of pigmentation markers",
+          "finding": "The broader OCA2-HERC2 study underscored that pigmentation inference at this locus depends on haplotypes and ancestry context rather than on any single secondary marker alone.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+        }
+      ]
+    }
+  ]
+}

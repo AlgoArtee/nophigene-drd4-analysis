@@ -1,0 +1,588 @@
+{
+  "database_name": "NophiGene HERC2 Population Database",
+  "version": "2026-04-16",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "This HERC2 population database uses Ensembl GRCh37 variation frequencies as the main reference layer for common pigmentation markers in the HERC2/OCA2 region, with literature-backed cohort notes added for interpretation context.",
+  "gene_population_patterns_intro": "Broader population patterns curated from HERC2/OCA2 pigmentation, forensic-phenotyping, and pigmentation-linked cancer literature.",
+  "population_categories": [
+    {
+      "key": "Global reference",
+      "label": "Global reference panels"
+    },
+    {
+      "key": "Africa",
+      "label": "Africa"
+    },
+    {
+      "key": "Americas",
+      "label": "Americas"
+    },
+    {
+      "key": "East Asia",
+      "label": "East Asia"
+    },
+    {
+      "key": "Europe",
+      "label": "Europe"
+    },
+    {
+      "key": "South Asia",
+      "label": "South Asia"
+    },
+    {
+      "key": "Japan",
+      "label": "Japan"
+    },
+    {
+      "key": "Pigmentation cohorts",
+      "label": "Pigmentation and eye-colour cohorts"
+    },
+    {
+      "key": "Forensic cohorts",
+      "label": "Forensic prediction cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Pigmentation-linked cancer cohorts"
+    }
+  ],
+  "sources": [
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs12913832 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs12913832?pops=1"
+    },
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs1129038 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs1129038?pops=1"
+    },
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs916977 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs916977?pops=1"
+    },
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs7170852 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs7170852?pops=1"
+    },
+    {
+      "label": "Ensembl GRCh37 Variation REST API: rs11636232 population frequencies",
+      "url": "https://grch37.rest.ensembl.org/variation/human/rs11636232?pops=1"
+    },
+    {
+      "label": "PubMed 22065085 / PMCID PMC3325407: global OCA2-HERC2 pigmentation haplotypes",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+    },
+    {
+      "label": "PubMed 36980970 / PMCID PMC10048254: additional modifiers in rs12913832 AA/AG individuals",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+    },
+    {
+      "label": "PubMed 27499155 / PMCID PMC4976361: uveal melanoma risk at HERC2/OCA2",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27499155/"
+    },
+    {
+      "label": "PubMed 28456133: cSCC timing and HERC2/OCA2 eye-colour variants",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28456133/"
+    }
+  ],
+  "variant_population_records": [
+    {
+      "variant": "rs12913832",
+      "display_name": "rs12913832",
+      "common_name": "intron 86 eye-colour enhancer SNP",
+      "effect_allele": "G",
+      "focus_alleles": [
+        "A",
+        "G"
+      ],
+      "effect_summary": "In the forward-strand A/G representation used by this workbench, the G allele is the commonly discussed light-eye-associated state and is strongly enriched in European populations relative to Africa and East Asia.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs12913832?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.822684,
+            "G": 0.177316
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "A": 0.610722,
+            "G": 0.389278
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.972012,
+            "G": 0.027988
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.798271,
+            "G": 0.201729
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.998016,
+            "G": 0.001984
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.363817,
+            "G": 0.636183
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "A": 0.929448,
+            "G": 0.070552
+          }
+        }
+      ],
+      "detailed_population_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:CEU",
+          "location_group": "Europe",
+          "label": "Utah residents with northern and western European ancestry",
+          "granularity": "subpopulation",
+          "allele_frequencies": {
+            "A": 0.232323,
+            "G": 0.767677
+          }
+        }
+      ]
+    },
+    {
+      "variant": "rs1129038",
+      "display_name": "rs1129038",
+      "common_name": "linked 3' UTR pigmentation marker",
+      "effect_allele": "T",
+      "focus_alleles": [
+        "C",
+        "T"
+      ],
+      "effect_summary": "The T allele tracks the light-eye-associated HERC2/OCA2 haplotype in the local forward-strand representation and closely mirrors the European enrichment seen for rs12913832.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs1129038?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.823083,
+            "T": 0.176917
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "C": 0.611649,
+            "T": 0.388351
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.972012,
+            "T": 0.027988
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.79683,
+            "T": 0.20317
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.999008,
+            "T": 0.000992
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.364811,
+            "T": 0.635189
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.93047,
+            "T": 0.06953
+          }
+        }
+      ],
+      "detailed_population_frequencies": []
+    },
+    {
+      "variant": "rs916977",
+      "display_name": "rs916977",
+      "common_name": "intronic iris-colour cline marker",
+      "effect_allele": "C",
+      "focus_alleles": [
+        "T",
+        "C"
+      ],
+      "effect_summary": "The C allele is enriched in Europe relative to Africa and East Asia, consistent with the published European iris-colour cline and pigmentation-background interpretation for this marker.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs916977?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.611422,
+            "C": 0.388578
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "T": 0.498901,
+            "C": 0.501099
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.899395,
+            "C": 0.100605
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.42219,
+            "C": 0.57781
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.728175,
+            "C": 0.271825
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.233598,
+            "C": 0.766402
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.624744,
+            "C": 0.375256
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "T": 0.7667,
+            "C": 0.2333
+          }
+        }
+      ],
+      "detailed_population_frequencies": []
+    },
+    {
+      "variant": "rs7170852",
+      "display_name": "rs7170852",
+      "common_name": "secondary intronic eye-colour predictor",
+      "effect_allele": "A",
+      "focus_alleles": [
+        "T",
+        "A"
+      ],
+      "effect_summary": "The A allele is markedly enriched in European populations and behaves as a secondary pigmentation-prediction allele in published HERC2 models, although its effect is weaker than rs12913832.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs7170852?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.5627,
+            "A": 0.4373
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "T": 0.450649,
+            "A": 0.549351
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.794251,
+            "A": 0.205749
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.386167,
+            "A": 0.613833
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.73301,
+            "A": 0.26699
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.146465,
+            "A": 0.853535
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "T": 0.580777,
+            "A": 0.419223
+          }
+        },
+        {
+          "population_code": "GEM-J",
+          "location_group": "Japan",
+          "label": "GEM-J Japanese reference panel",
+          "granularity": "regional_reference",
+          "allele_frequencies": {
+            "T": 0.7582,
+            "A": 0.2417
+          }
+        }
+      ],
+      "detailed_population_frequencies": []
+    },
+    {
+      "variant": "rs11636232",
+      "display_name": "rs11636232",
+      "common_name": "synonymous secondary eye-colour marker",
+      "effect_allele": "T",
+      "focus_alleles": [
+        "C",
+        "T"
+      ],
+      "effect_summary": "The T allele is modestly enriched in Europe relative to Africa and East Asia and is best interpreted as a secondary HERC2 eye-colour refinement allele rather than a core causal signal.",
+      "source_url": "https://grch37.rest.ensembl.org/variation/human/rs11636232?pops=1",
+      "top_level_location_frequencies": [
+        {
+          "population_code": "1000GENOMES:phase_3:ALL",
+          "location_group": "Global reference",
+          "label": "1000 Genomes all populations",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.914337,
+            "T": 0.085663
+          }
+        },
+        {
+          "population_code": "TOPMed",
+          "location_group": "Global reference",
+          "label": "TOPMed multi-ancestry reference panel",
+          "granularity": "multi_ancestry_reference",
+          "allele_frequencies": {
+            "C": 0.809534,
+            "T": 0.190466
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AFR",
+          "location_group": "Africa",
+          "label": "African superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.984871,
+            "T": 0.015129
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:AMR",
+          "location_group": "Americas",
+          "label": "Admixed American superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.909222,
+            "T": 0.090778
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EAS",
+          "location_group": "East Asia",
+          "label": "East Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 1.0,
+            "T": 0.0
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:EUR",
+          "location_group": "Europe",
+          "label": "European superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.677932,
+            "T": 0.322068
+          }
+        },
+        {
+          "population_code": "1000GENOMES:phase_3:SAS",
+          "location_group": "South Asia",
+          "label": "South Asian superpopulation",
+          "granularity": "superpopulation",
+          "allele_frequencies": {
+            "C": 0.977505,
+            "T": 0.022495
+          }
+        }
+      ],
+      "detailed_population_frequencies": []
+    }
+  ],
+  "gene_population_patterns": [
+    {
+      "variant": "rs12913832 / rs1129038 pigmentation haplotype",
+      "location_group": "Pigmentation cohorts",
+      "summary": "Across global datasets, the light-eye-associated rs12913832-rs1129038 background is strongly enriched in Europe and uncommon in Africa and East Asia, which is consistent with selection and historical structure at the HERC2/OCA2 pigmentation locus.",
+      "evidence": [
+        {
+          "label": "PubMed 22065085 / PMCID PMC3325407",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+        }
+      ]
+    },
+    {
+      "variant": "HERC2 eye-colour prediction exceptions",
+      "location_group": "Forensic cohorts",
+      "summary": "Recent sequencing studies show that rs12913832 alone does not explain every observed eye-colour outcome, and additional OCA2-HERC2 or pigmentation-locus variants can account for many blue-eyed AA or AG individuals and many brown-eyed GG individuals.",
+      "evidence": [
+        {
+          "label": "PubMed 36980970 / PMCID PMC10048254",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+        },
+        {
+          "label": "PubMed 32915910 / PMCID PMC7485777",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/32915910/"
+        }
+      ]
+    },
+    {
+      "variant": "Pigmentation-linked cancer background",
+      "location_group": "Cancer cohorts",
+      "summary": "Common HERC2/OCA2 pigmentation markers, including rs12913832 and rs916977, have been associated with uveal melanoma or cutaneous squamous-cell carcinoma risk through pigmentation background rather than a direct cancer-driver mechanism.",
+      "evidence": [
+        {
+          "label": "PubMed 27499155 / PMCID PMC4976361",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27499155/"
+        },
+        {
+          "label": "PubMed 28456133",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28456133/"
+        }
+      ]
+    }
+  ]
+}

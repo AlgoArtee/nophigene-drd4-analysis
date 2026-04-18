@@ -38,6 +38,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 PREPROCESSED_MANIFEST_DIR = Path(__file__).resolve().parent / "gene_data"
 SESSION_PREPROCESS_KEY = "preprocess_state"
+VARIANT_RAW_PAGE_SIZE = 25
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
@@ -291,6 +292,37 @@ def discover_report_history() -> list[dict[str, str]]:
 def _render_table(df: pd.DataFrame, rows: int = 12) -> str:
     """Render a compact preview table for the result cards."""
     return df.head(rows).to_html(index=False, classes="preview-table", border=0)
+
+
+def _prepare_variant_preview_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize the visible variant preview so missing source IDs stay readable."""
+    preview_df = df.copy()
+    if "id" in preview_df.columns:
+        preview_df["id"] = preview_df["id"].where(preview_df["id"].notna(), "Unlabeled in source VCF")
+        preview_df["id"] = preview_df["id"].replace({"": "Unlabeled in source VCF", ".": "Unlabeled in source VCF"})
+    return preview_df
+
+
+def _serialize_table_rows(df: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert dataframe rows into JSON-safe dictionaries for client-side pagination."""
+    serialized_rows: list[dict[str, Any]] = []
+    for record in df.to_dict(orient="records"):
+        serialized_record: dict[str, Any] = {}
+        for key, value in record.items():
+            if pd.isna(value):
+                serialized_value = None
+            elif isinstance(value, (bytes, bytearray)):
+                serialized_value = value.decode("utf-8", errors="replace")
+            elif hasattr(value, "item"):
+                try:
+                    serialized_value = value.item()
+                except Exception:
+                    serialized_value = value
+            else:
+                serialized_value = value
+            serialized_record[str(key)] = serialized_value
+        serialized_rows.append(serialized_record)
+    return serialized_rows
 
 
 def _empty_form_state() -> dict[str, str]:
@@ -828,12 +860,16 @@ def index() -> str:
                     )
 
                     methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
+                    variant_preview = _prepare_variant_preview_table(analysis_result.variants)
+                    variant_rows = _serialize_table_rows(variant_preview)
                     result = {
                         "report_path": _as_relative_display(analysis_result.report_path),
                         "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
                         "variant_count": len(analysis_result.variants),
                         "methylation_count": len(analysis_result.methylation),
-                        "variant_preview": _render_table(analysis_result.variants),
+                        "variant_preview": _render_table(variant_preview, rows=VARIANT_RAW_PAGE_SIZE),
+                        "variant_rows": variant_rows,
+                        "variant_raw_page_size": VARIANT_RAW_PAGE_SIZE,
                         "methylation_preview": _render_table(analysis_result.methylation),
                         "popstats_present": analysis_result.popstats is not None,
                         "population_context_status": _build_population_context_status(

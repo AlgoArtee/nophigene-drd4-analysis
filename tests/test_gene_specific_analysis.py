@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.analysis import (
+    annotate_known_variant_ids,
     build_population_insights,
     build_methylation_insights,
     build_variant_interpretations,
@@ -38,6 +39,25 @@ def test_igf1r_gene_databases_load_from_gene_data() -> None:
     assert population_database["gene_population_patterns"]
     assert population_database["gene_population_patterns_intro"].startswith(
         "Broader population patterns curated from cohort-focused IGF1R"
+    )
+
+
+def test_herc2_gene_databases_load_from_gene_data() -> None:
+    """HERC2 should load dedicated interpretation and population databases."""
+    knowledge_base = load_gene_interpretation_database("HERC2")
+    population_database = load_gene_population_database("herc2")
+
+    assert knowledge_base is not None
+    assert population_database is not None
+    assert knowledge_base["gene_context"]["gene_name"] == "HERC2"
+    assert knowledge_base["gene_context"]["gene_region"]["start"] == 28356186
+    assert len(knowledge_base["variant_records"]) >= 5
+    assert knowledge_base["gene_context"]["relevant_methylation_probe_ids"]
+    assert population_database["database_name"].startswith("NophiGene HERC2 Population")
+    assert len(population_database["variant_population_records"]) >= 5
+    assert population_database["gene_population_patterns"]
+    assert population_database["gene_population_patterns_intro"].startswith(
+        "Broader population patterns curated from HERC2/OCA2"
     )
 
 
@@ -109,6 +129,122 @@ def test_igf1r_curated_copy_replaces_drd4_text() -> None:
     assert methylation_insights["observed_probe_count"] == 2
     assert "IGF1R" in methylation_insights["summary"]
     assert "DRD4" not in methylation_insights["summary"]
+
+
+def test_curated_variant_match_survives_missing_source_id_when_coordinates_match() -> None:
+    """Coordinate and allele matching should still identify curated variants when the VCF ID field is missing."""
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "11",
+                "id": None,
+                "pos": 636689,
+                "ref": "G",
+                "alt": "C",
+                "qual": 75.35,
+                "filter_pass": True,
+            }
+        ]
+    )
+
+    interpretation = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="11:637269-640706",
+    )
+
+    assert interpretation["matched_records"]
+    assert interpretation["matched_records"][0]["variant"] == "rs747302"
+    assert interpretation["matched_records"][0]["observed_variant"] == "11:636689 G>C"
+
+
+def test_herc2_known_variants_are_labeled_when_source_vcf_ids_are_missing() -> None:
+    """Curated HERC2 markers should fill visible IDs from coordinate matches when the source VCF leaves them blank."""
+    knowledge_base = load_gene_interpretation_database("HERC2")
+    population_database = load_gene_population_database("HERC2")
+
+    assert knowledge_base is not None
+    assert population_database is not None
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": None,
+                "pos": 28356859,
+                "ref": "C",
+                "alt": "T",
+                "qual": 50.0,
+                "filter_pass": True,
+            },
+            {
+                "chrom": "15",
+                "id": None,
+                "pos": 28365618,
+                "ref": "A",
+                "alt": "G",
+                "qual": 42.0,
+                "filter_pass": True,
+            },
+            {
+                "chrom": "15",
+                "id": None,
+                "pos": 28427986,
+                "ref": "T",
+                "alt": "A",
+                "qual": 86.13,
+                "filter_pass": True,
+            },
+            {
+                "chrom": "15",
+                "id": None,
+                "pos": 28513364,
+                "ref": "T",
+                "alt": "C",
+                "qual": 92.15,
+                "filter_pass": True,
+            },
+        ]
+    )
+
+    labeled_variants = annotate_known_variant_ids(variants, knowledge_base)
+    interpretation = build_variant_interpretations(
+        labeled_variants,
+        knowledge_base,
+        region="15:28356000-28567325",
+    )
+    population_insights = build_population_insights(
+        labeled_variants,
+        knowledge_base,
+        population_database,
+    )
+
+    assert labeled_variants["id"].tolist() == [
+        "rs1129038",
+        "rs12913832",
+        "rs7170852",
+        "rs916977",
+    ]
+    assert labeled_variants["id_source"].tolist() == [
+        "Knowledge base match",
+        "Knowledge base match",
+        "Knowledge base match",
+        "Knowledge base match",
+    ]
+    assert interpretation["matched_records"]
+    assert interpretation["matched_records"][0]["observed_variant"] == "rs1129038"
+    assert any(record["variant"] == "rs12913832" for record in interpretation["matched_records"])
+    assert any(record["variant"] == "rs916977" for record in interpretation["matched_records"])
+
+    matched_population_record = next(
+        item for item in population_insights["variant_population_records"] if item["variant"] == "rs12913832"
+    )
+    assert matched_population_record["observed_in_run"] is True
+    assert matched_population_record["observed_variants"] == ["rs12913832"]
+    assert matched_population_record["population_extremes"] is not None
 
 
 def test_igf1r_population_insights_use_curated_population_database() -> None:

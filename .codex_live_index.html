@@ -147,9 +147,6 @@
     .tab-panel.is-active {
       display: block;
     }
-    [hidden] {
-      display: none !important;
-    }
     .overview-panel {
       padding: 34px;
     }
@@ -479,20 +476,6 @@
       margin-top: 18px;
       flex-wrap: wrap;
     }
-    .table-pagination {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    .table-pagination-actions {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
     .protein-pagination button {
       padding: 12px 16px;
       border-radius: 14px;
@@ -504,20 +487,6 @@
       cursor: pointer;
     }
     .protein-pagination button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-    .table-pagination button {
-      padding: 12px 16px;
-      border-radius: 14px;
-      border: 1px solid rgba(161, 20, 61, 0.12);
-      background: rgba(161, 20, 61, 0.05);
-      color: var(--accent-3);
-      font: inherit;
-      font-weight: 800;
-      cursor: pointer;
-    }
-    .table-pagination button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
     }
@@ -1536,7 +1505,7 @@
     }
   </style>
 </head>
-<body data-initial-tab="{{ initial_tab }}">
+<body data-initial-tab="overview">
   <div class="shell">
     <header class="frame frame-header">
       <div class="brand">
@@ -1549,9 +1518,7 @@
       <nav class="tab-nav" aria-label="Primary navigation">
         <button type="button" class="tab-button" data-tab-target="overview" aria-selected="false">Overview</button>
         <button type="button" class="tab-button" data-tab-target="preprocessing" aria-selected="false">Preprocessing</button>
-        {% if analysis_unlocked %}
-        <button type="button" class="tab-button" data-tab-target="analysis" aria-selected="false">Run Analysis</button>
-        {% endif %}
+        
         <button type="button" class="tab-button" data-tab-target="history" aria-selected="false">History</button>
         <button type="button" class="tab-button" data-tab-target="proteins" aria-selected="false">Human Proteins</button>
         <button type="button" class="tab-button" data-tab-target="structure" aria-selected="false">App Structure</button>
@@ -1559,7 +1526,7 @@
     </header>
 
     <main>
-      <section class="frame tab-panel overview-panel{% if initial_tab == 'overview' %} is-active{% endif %}" data-tab-panel="overview"{% if initial_tab != 'overview' %} hidden{% endif %} style="display:{% if initial_tab == 'overview' %}block{% else %}none{% endif %};">
+      <section class="frame tab-panel overview-panel is-active" data-tab-panel="overview">
         <span class="overview-badge">Clinical genomics interface</span>
         <h1 class="overview-title">NophiGene Gene Workbench</h1>
         <p class="overview-copy">
@@ -1572,8 +1539,8 @@
           <article class="overview-card">
             <h2>What this workbench expects</h2>
             <p>
-              The app reads local project inputs from <code>{{ data_dir }}</code> and writes reports to
-              <code>{{ results_dir }}</code>. It scans for VCFs, paired IDAT prefixes, and optional population statistics
+              The app reads local project inputs from <code>data</code> and writes reports to
+              <code>results</code>. It scans for VCFs, paired IDAT prefixes, and optional population statistics
               files so the browser stays close to the real project layout.
             </p>
             <div class="overview-list">
@@ -1592,7 +1559,7 @@
             </p>
             <div class="overview-actions">
               <button type="button" class="cta-button" data-go-tab="preprocessing">
-                {{ "Review Preprocessing" if analysis_unlocked else "Open Preprocessing Workspace" }}
+                Open Preprocessing Workspace
               </button>
               <span class="cta-note">Designed to keep the active work surface compact, high-density, and stepwise.</span>
             </div>
@@ -1600,7 +1567,7 @@
         </div>
       </section>
 
-      <section class="frame tab-panel preprocess-panel{% if initial_tab == 'preprocessing' %} is-active{% endif %}" data-tab-panel="preprocessing"{% if initial_tab != 'preprocessing' %} hidden{% endif %} style="display:{% if initial_tab == 'preprocessing' %}block{% else %}none{% endif %};">
+      <section class="frame tab-panel preprocess-panel" data-tab-panel="preprocessing" hidden>
         <div class="preprocess-shell">
           <section class="analysis-panel-inner preprocess-main-panel">
             <div class="panel-head">
@@ -1617,11 +1584,11 @@
                 <div class="field-grid">
                   <div class="field-card">
                     <label for="gene_name">Gene Name</label>
-                    <p class="field-example">Current value: <code>{{ preprocess_field_info.gene_name.example }}</code></p>
-                    <input id="gene_name" name="gene_name" type="text" value="{{ preprocess_state.gene_name }}" placeholder="Enter a gene symbol such as DRD4 or COMT">
+                    <p class="field-example">Current value: <code>DRD4</code></p>
+                    <input id="gene_name" name="gene_name" type="text" value="DRD4" placeholder="Enter a gene symbol such as DRD4 or COMT">
                     <details class="field-details">
                       <summary>What this means biologically</summary>
-                      <p>{{ preprocess_field_info.gene_name.details }}</p>
+                      <p>Enter an HGNC-style gene symbol. The preprocessing workflow will look up the genomic coordinates for that gene and use the resulting interval in the downstream analysis.</p>
                     </details>
                     <div class="analysis-actions">
                       <button type="submit" class="run-button" name="preprocess_action" value="find_region">Find Region from Gene Name</button>
@@ -1630,33 +1597,33 @@
 
                   <div class="field-card">
                     <label for="preprocess_region">Gene Region</label>
-                    <p class="field-example">Current value: <code>{{ preprocess_field_info.region.example }}</code></p>
+                    <p class="field-example">Current value: <code>11:637269-640706</code></p>
                     <input
                       id="preprocess_region"
                       name="preprocess_region"
                       type="text"
-                      value="{{ preprocess_state.region }}"
+                      value="11:637269-640706"
                       placeholder="Gene interval will appear here"
-                      class="{% if preprocess_state.region_recently_updated %}input-autofilled{% endif %}"
+                      class=""
                     >
                     <details class="field-details">
                       <summary>What this means biologically</summary>
-                      <p>{{ preprocess_field_info.region.details }}</p>
+                      <p>This field is filled by the gene-region lookup step and can also be adjusted manually if you want to use a custom span such as promoter-plus-gene coverage.</p>
                     </details>
                   </div>
 
                   <div class="field-card">
                     <label for="manifest_source">EPIC Manifest File</label>
-                    <p class="field-example">Current value: <code>{{ preprocess_field_info.manifest_source.example }}</code></p>
-                    <input id="manifest_source" name="manifest_source" list="manifest-source-options" type="text" value="{{ preprocess_state.manifest_source }}" placeholder="Path to the full EPIC manifest CSV">
+                    <p class="field-example">Current value: <code>data/infinium-methylationepic-v-1-0-b5-manifest-file.csv</code></p>
+                    <input id="manifest_source" name="manifest_source" list="manifest-source-options" type="text" value="data/infinium-methylationepic-v-1-0-b5-manifest-file.csv" placeholder="Path to the full EPIC manifest CSV">
                     <datalist id="manifest-source-options">
-                      {% for option in manifest_files %}
-                      <option value="{{ option }}"></option>
-                      {% endfor %}
+                      
+                      <option value="data/infinium-methylationepic-v-1-0-b5-manifest-file.csv"></option>
+                      
                     </datalist>
                     <details class="field-details">
                       <summary>What this means biologically</summary>
-                      <p>{{ preprocess_field_info.manifest_source.details }}</p>
+                      <p>Use the full EPIC manifest here. The app will filter it down to just the selected gene interval and save a much smaller CSV subset into src/gene_data for downstream methylation processing.</p>
                     </details>
                     <div class="analysis-actions">
                       <button type="submit" class="run-button" name="preprocess_action" value="select_methylation">Select Methylation Data</button>
@@ -1665,23 +1632,19 @@
                           type="checkbox"
                           name="overwrite_filtered_manifest"
                           value="1"
-                          {% if preprocess_state.overwrite_filtered_manifest %}checked{% endif %}
+                          
                         >
                         <span>Overwrite existing filtered file</span>
                       </label>
-                      {% if analysis_unlocked %}
-                      <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
-                      {% endif %}
+                      
                     </div>
                     <p class="hint">
-                      Leave this unchecked to reuse an existing <code>{{ preprocess_state.gene_name }}_epigenetics_{{ preprocess_state.build }}.csv</code> if one is already present. Check it to regenerate that file for the current region.
+                      Leave this unchecked to reuse an existing <code>DRD4_epigenetics_hg19.csv</code> if one is already present. Check it to regenerate that file for the current region.
                     </p>
                   </div>
                 </div>
 
-                {% if preprocess_error %}
-                <div class="error">{{ preprocess_error }}</div>
-                {% endif %}
+                
               </form>
             </div>
           </section>
@@ -1693,7 +1656,7 @@
                   <h2>Preprocessing Status</h2>
                   <p>The status column mirrors the two preprocessing steps and fills downward as each one completes.</p>
                 </div>
-                <span class="panel-chip">{{ "Analysis unlocked" if analysis_unlocked else "Waiting for preprocessing" }}</span>
+                <span class="panel-chip">Waiting for preprocessing</span>
               </div>
 
               <div class="viewer-stage preprocess-status-stage" id="preprocess-viewer-stage">
@@ -1723,49 +1686,42 @@
                       <div class="preprocess-vertical-track" aria-hidden="true">
                         <div
                           class="preprocess-vertical-fill"
-                          style="height: {{ preprocess_result.progress_percent if preprocess_result else 0 }}%;"
+                          style="height: 0%;"
                         ></div>
                       </div>
-                      <div class="preprocess-progress-caption">{{ preprocess_result.progress_percent if preprocess_result else 0 }}%</div>
+                      <div class="preprocess-progress-caption">0%</div>
                     </div>
 
                     <div class="preprocess-step-stack">
-                      <article class="preprocess-step-card {% if preprocess_state.region_ready %}is-complete{% endif %}">
+                      <article class="preprocess-step-card ">
                         <div class="preprocess-step-meta">
                           <span class="preprocess-step-index">01</span>
-                          <span class="preprocess-step-state">{{ "Complete" if preprocess_state.region_ready else "Pending" }}</span>
+                          <span class="preprocess-step-state">Pending</span>
                         </div>
                         <div class="preprocess-step-copy">
                           <h4>Find Region from Gene Name</h4>
-                          <p>{{ preprocess_result.steps[0].summary if preprocess_result else "Enter a gene symbol, then resolve it to a genome interval." }}</p>
+                          <p>Enter a gene symbol, then resolve it to a genome interval.</p>
                         </div>
                         <div class="preprocess-step-details">
-                          <div><strong>Gene:</strong> <code>{{ preprocess_state.gene_name }}</code></div>
-                          <div><strong>Region field:</strong> <code>{{ preprocess_state.region or "Waiting for lookup" }}</code></div>
-                          {% if preprocess_result and preprocess_result.selected_sources %}
-                          <div>
-                            <strong>Sources:</strong>
-                            {% for source in preprocess_result.selected_sources %}
-                            <span class="muted-badge">{{ source }}</span>
-                            {% endfor %}
-                          </div>
-                          {% endif %}
+                          <div><strong>Gene:</strong> <code>DRD4</code></div>
+                          <div><strong>Region field:</strong> <code>11:637269-640706</code></div>
+                          
                         </div>
                       </article>
 
-                      <article class="preprocess-step-card {% if preprocess_state.manifest_ready %}is-complete{% endif %}">
+                      <article class="preprocess-step-card ">
                         <div class="preprocess-step-meta">
                           <span class="preprocess-step-index">02</span>
-                          <span class="preprocess-step-state">{{ "Complete" if preprocess_state.manifest_ready else "Pending" }}</span>
+                          <span class="preprocess-step-state">Pending</span>
                         </div>
                         <div class="preprocess-step-copy">
                           <h4>Select Methylation Data</h4>
-                          <p>{{ preprocess_result.steps[1].summary if preprocess_result else "Choose the full EPIC manifest and create the gene-specific subset." }}</p>
+                          <p>Choose the full EPIC manifest and create the gene-specific subset.</p>
                         </div>
                         <div class="preprocess-step-details">
-                          <div><strong>Manifest source:</strong> <code>{{ preprocess_state.manifest_source or "Waiting for source file" }}</code></div>
-                          <div><strong>Saved subset:</strong> <code>{{ preprocess_state.filtered_manifest or "Not created yet" }}</code></div>
-                          <div><strong>Probe count:</strong> {{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</div>
+                          <div><strong>Manifest source:</strong> <code>data/infinium-methylationepic-v-1-0-b5-manifest-file.csv</code></div>
+                          <div><strong>Saved subset:</strong> <code>Not created yet</code></div>
+                          <div><strong>Probe count:</strong> Pending</div>
                         </div>
                       </article>
                     </div>
@@ -1774,21 +1730,19 @@
                   <div class="metrics">
                     <article class="metric">
                       <span>Gene</span>
-                      <strong>{{ preprocess_state.gene_name }}</strong>
+                      <strong>DRD4</strong>
                     </article>
                     <article class="metric">
                       <span>Current region</span>
-                      <strong>{{ preprocess_state.region if preprocess_state.region_ready else "Pending" }}</strong>
+                      <strong>Pending</strong>
                     </article>
                     <article class="metric">
                       <span>Subset probes</span>
-                      <strong>{{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</strong>
+                      <strong>Pending</strong>
                     </article>
                   </div>
 
-                  {% if preprocess_notice %}
-                  <p class="status-note">{{ preprocess_notice }}</p>
-                  {% endif %}
+                  
                 </div>
               </div>
             </section>
@@ -1802,49 +1756,13 @@
                 <h3>Preprocessing Results</h3>
                 <p>Resolved coordinates, saved subset details, and preview rows appear here after each preprocessing step.</p>
               </div>
-              <span class="panel-chip">{{ "Workspace updated" if preprocess_result else "Waiting for preprocessing" }}</span>
+              <span class="panel-chip">Waiting for preprocessing</span>
             </div>
 
             <div class="preprocess-results-body">
-              {% if preprocess_result %}
-              <div class="preprocess-artifacts">
-                <details class="field-details">
-                  <summary>Inspect preprocessing artifacts</summary>
-                  <div class="preprocess-step-details" style="margin-top: 10px;">
-                    <div><strong>Manifest source:</strong> <code>{{ preprocess_result.manifest_source or "Not selected yet" }}</code></div>
-                    <div><strong>Filtered subset:</strong> <code>{{ preprocess_result.filtered_manifest or "Not generated yet" }}</code></div>
-                    <div><strong>Genome build:</strong> {{ preprocess_result.build }}</div>
-                    {% if preprocess_result.region_candidates %}
-                    <div><strong>Candidate coordinates returned by public sources:</strong></div>
-                    <ul class="insight-list">
-                      {% for item in preprocess_result.region_candidates %}
-                      <li><strong>{{ item.source }}</strong>: <code>{{ item.region }}</code></li>
-                      {% endfor %}
-                    </ul>
-                    {% endif %}
-                  </div>
-                </details>
-
-                {% if preprocess_result.preview_html %}
-                <details class="field-details">
-                  <summary>Preview filtered manifest rows</summary>
-                  <div class="table-shell" style="margin-top: 12px;">
-                    {{ preprocess_result.preview_html | safe }}
-                  </div>
-                </details>
-                {% endif %}
-
-                {% if analysis_unlocked %}
-                <div class="path-chip">
-                  <strong>Next step</strong>
-                  <span>The region and gene-specific manifest subset are ready.</span>
-                  <button type="button" class="cta-button" data-go-tab="analysis">Open Analysis Workspace</button>
-                </div>
-                {% endif %}
-              </div>
-              {% else %}
+              
               <p class="preprocess-console-hint">Run a preprocessing step to populate the saved region, filtered manifest details, and preview rows.</p>
-              {% endif %}
+              
             </div>
           </article>
 
@@ -1859,65 +1777,335 @@
 
             <div class="preprocess-console-shell">
               <p class="preprocess-console-hint">Use this panel to confirm what the lookup and manifest-filter scripts processed, including warnings and tracebacks.</p>
-              <div class="preprocess-console {% if not preprocess_result or not preprocess_result.logs %}is-empty{% endif %}">
-                <pre>{% if preprocess_result and preprocess_result.logs %}{% for line in preprocess_result.logs %}{{ line }}
-{% endfor %}{% else %}[stdout] Preprocessing script output will appear here.
+              <div class="preprocess-console is-empty">
+                <pre>[stdout] Preprocessing script output will appear here.
 [stderr] Errors and tracebacks will appear here if a step fails.
-{% endif %}</pre>
+</pre>
               </div>
             </div>
           </article>
         </div>
       </section>
 
-      <section class="frame tab-panel overview-panel{% if initial_tab == 'history' %} is-active{% endif %}" data-tab-panel="history"{% if initial_tab != 'history' %} hidden{% endif %} style="display:{% if initial_tab == 'history' %}block{% else %}none{% endif %};">
+      <section class="frame tab-panel overview-panel" data-tab-panel="history" hidden>
         <span class="overview-badge">Generated artifacts</span>
         <h2 class="architecture-title">Report History</h2>
         <p class="overview-copy">
           Previous reports stay available here even when the preprocessing workspace resets to a fresh gene. Use this tab to reopen older analyses without carrying their prepared region back into the active workspace.
         </p>
 
-        {% if report_history %}
+        
         <div class="overview-grid">
-          {% for item in report_history %}
+          
           <article class="overview-card">
-            <h3>{{ item.label }}</h3>
+            <h3>PRKAA1</h3>
             <p>
-              <strong>{{ item.report_type }} report</strong> saved as <code>{{ item.report_path }}</code>.
-              Updated {{ item.modified_display }} and sized {{ item.size_display }}.
+              <strong>HTML report</strong> saved as <code>results/prkaa1_report.html</code>.
+              Updated 2026-04-16 21:27 and sized 13.8 KB.
             </p>
             <div class="protein-meta-grid">
               <div class="protein-meta-card">
                 <span>Report</span>
-                <strong>{{ item.report_name }}</strong>
+                <strong>prkaa1_report.html</strong>
               </div>
               <div class="protein-meta-card">
                 <span>Modified</span>
-                <strong>{{ item.modified_display }}</strong>
+                <strong>2026-04-16 21:27</strong>
               </div>
               <div class="protein-meta-card">
                 <span>Size</span>
-                <strong>{{ item.size_display }}</strong>
+                <strong>13.8 KB</strong>
               </div>
             </div>
             <div class="protein-source-links">
-              <a href="{{ item.report_url }}" target="_blank" rel="noreferrer">Open report</a>
-              {% if item.methylation_url %}
-              <a href="{{ item.methylation_url }}" target="_blank" rel="noreferrer">Open methylation CSV</a>
-              {% endif %}
+              <a href="/results/prkaa1_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/prkaa1_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
             </div>
           </article>
-          {% endfor %}
+          
+          <article class="overview-card">
+            <h3>SIRT6</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/sirt6_report.html</code>.
+              Updated 2026-04-16 17:55 and sized 8.6 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>sirt6_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-16 17:55</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>8.6 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/sirt6_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/sirt6_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>FLCN</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/flcn_report.html</code>.
+              Updated 2026-04-16 09:00 and sized 14.3 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>flcn_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-16 09:00</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>14.3 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/flcn_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/flcn_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>SIK3</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/sik3_report.html</code>.
+              Updated 2026-04-16 08:01 and sized 14.6 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>sik3_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-16 08:01</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>14.6 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/sik3_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/sik3_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>RPS6</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/rps6_report.html</code>.
+              Updated 2026-04-15 23:51 and sized 7.6 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>rps6_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-15 23:51</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>7.6 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/rps6_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/rps6_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>MTOR</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/mtor_report.html</code>.
+              Updated 2026-04-15 23:37 and sized 13.8 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>mtor_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-15 23:37</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>13.8 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/mtor_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/mtor_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>FOXO3</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/foxo3_report.html</code>.
+              Updated 2026-04-15 23:25 and sized 14.3 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>foxo3_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-15 23:25</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>14.3 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/foxo3_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/foxo3_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>IGF1R</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/igf1r_report.html</code>.
+              Updated 2026-04-15 21:55 and sized 14.2 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>igf1r_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-15 21:55</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>14.2 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/igf1r_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/igf1r_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>DRD4</h3>
+            <p>
+              <strong>HTML report</strong> saved as <code>results/drd4_report.html</code>.
+              Updated 2026-04-14 23:46 and sized 8.4 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>drd4_report.html</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-14 23:46</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>8.4 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/drd4_report.html" target="_blank" rel="noreferrer">Open report</a>
+              
+              <a href="/results/drd4_report_methylation.csv" target="_blank" rel="noreferrer">Open methylation CSV</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>DRD4 epigenetics hg19</h3>
+            <p>
+              <strong>CSV report</strong> saved as <code>results/preprocessed_manifests/DRD4_epigenetics_hg19.csv</code>.
+              Updated 2026-04-14 23:44 and sized 6.6 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>DRD4_epigenetics_hg19.csv</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2026-04-14 23:44</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>6.6 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/preprocessed_manifests/DRD4_epigenetics_hg19.csv" target="_blank" rel="noreferrer">Open report</a>
+              
+            </div>
+          </article>
+          
+          <article class="overview-card">
+            <h3>methylation output</h3>
+            <p>
+              <strong>CSV report</strong> saved as <code>results/methylation_output.csv</code>.
+              Updated 2025-08-08 18:40 and sized 1.2 KB.
+            </p>
+            <div class="protein-meta-grid">
+              <div class="protein-meta-card">
+                <span>Report</span>
+                <strong>methylation_output.csv</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Modified</span>
+                <strong>2025-08-08 18:40</strong>
+              </div>
+              <div class="protein-meta-card">
+                <span>Size</span>
+                <strong>1.2 KB</strong>
+              </div>
+            </div>
+            <div class="protein-source-links">
+              <a href="/results/methylation_output.csv" target="_blank" rel="noreferrer">Open report</a>
+              
+            </div>
+          </article>
+          
         </div>
-        {% else %}
-        <article class="overview-card">
-          <h3>No reports yet</h3>
-          <p>Run an analysis to generate the first report artifact. Generated HTML, JSON, and CSV reports in <code>{{ results_dir }}</code> will appear here automatically.</p>
-        </article>
-        {% endif %}
+        
       </section>
 
-      <section class="frame tab-panel protein-panel{% if initial_tab == 'proteins' %} is-active{% endif %}" data-tab-panel="proteins"{% if initial_tab != 'proteins' %} hidden{% endif %} style="display:{% if initial_tab == 'proteins' %}block{% else %}none{% endif %};">
+      <section class="frame tab-panel protein-panel" data-tab-panel="proteins" hidden>
         <div class="protein-shell">
           <section class="analysis-panel-inner">
             <div class="panel-head">
@@ -1965,9 +2153,19 @@
               </form>
 
               <div class="protein-quick-searches" aria-label="Featured protein shortcuts">
-                {% for item in featured_protein_queries %}
-                <button type="button" class="quick-chip" data-protein-quick-query="{{ item }}">{{ item }}</button>
-                {% endfor %}
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="DRD4">DRD4</button>
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="TP53">TP53</button>
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="BRCA1">BRCA1</button>
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="EGFR">EGFR</button>
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="APOE">APOE</button>
+                
+                <button type="button" class="quick-chip" data-protein-quick-query="ACE2">ACE2</button>
+                
               </div>
             </div>
 
@@ -1986,7 +2184,7 @@
         </div>
       </section>
 
-      <section class="frame tab-panel architecture-panel{% if initial_tab == 'structure' %} is-active{% endif %}" data-tab-panel="structure"{% if initial_tab != 'structure' %} hidden{% endif %} style="display:{% if initial_tab == 'structure' %}block{% else %}none{% endif %};">
+      <section class="frame tab-panel architecture-panel" data-tab-panel="structure" hidden>
         <span class="overview-badge">Runtime map</span>
         <h2 class="architecture-title">How NophiGene Is Wired</h2>
         <p class="overview-copy">
@@ -2011,22 +2209,22 @@
                 <strong>User browser</strong>
                 <span>Open <code>http://127.0.0.1:8000</code> after the local starter script launches the UI.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node">
                 <strong>Starter icon and local Python</strong>
                 <span><code>Start NophiGene UI.cmd</code> calls the PowerShell launcher, which starts <code>.venv\Scripts\python.exe</code>.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node">
                 <strong>Web layer</strong>
                 <span><code>src/app.py</code> boots the Flask app in <code>src/webapp.py</code> and renders the red-biotech workspace.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node">
                 <strong>Analysis core</strong>
                 <span><code>src/analysis.py</code> loads PASS variants, processes IDAT methylation data, applies gene-specific manifest subsets, and builds the previews.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node-row">
                 <div class="diagram-node">
                   <strong>Inputs</strong>
@@ -2059,17 +2257,17 @@
                 <strong>User browser</strong>
                 <span>Connect to the same UI endpoint on <code>http://127.0.0.1:8000</code>, but served from the container.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node">
                 <strong>Docker starter path</strong>
                 <span><code>Start NophiGene UI (Docker).cmd</code> starts Docker Desktop if needed, builds the image, and runs the NophiGene container.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node">
                 <strong>Container runtime</strong>
                 <span>The image starts the same Flask layer and Python pipeline, with port <code>8000</code> published back to the host machine.</span>
               </div>
-              <div class="diagram-arrow" aria-hidden="true">↓</div>
+              <div class="diagram-arrow" aria-hidden="true">?</div>
               <div class="diagram-node-row">
                 <div class="diagram-node">
                   <strong>Mounted inputs</strong>
@@ -2097,875 +2295,52 @@
         <section class="subtab-panel" data-detail-group-panel="structure" data-detail-panel="qa">
           <div class="viewer-scroll">
             <div class="insight-stack">
-              {% for item in app_structure_qa_items %}
+              
               <details class="insight-card expandable-card" open>
                 <summary class="expandable-summary">
                   <div class="expandable-copy">
                     <span class="insight-kicker">App Structure Q&amp;A</span>
-                    <h4>{{ item.question }}</h4>
+                    <h4>How are the local databases built from literature, and how does a probe get mapped to a locus or variant?</h4>
                     <p>This section explains the general literature-to-database-to-UI path used by the app.</p>
                   </div>
                 </summary>
                 <div class="expandable-body">
                   <ul class="insight-list">
-                    {% for line in item.answer_lines %}
-                    <li>{{ line }}</li>
-                    {% endfor %}
+                    
+                    <li>The bundled interpretation and population databases are curated manually from literature first. For each supported gene, the app stores a local interpretation JSON, a population JSON, and a filtered EPIC manifest CSV in `src/gene_data/`.</li>
+                    
+                    <li>During curation, papers are reviewed and converted into structured entries such as gene-level context, curated variant records, bundled evidence links, and a gene-level methylation review area.</li>
+                    
+                    <li>Important clarification: the current whitelist probes are usually not stored as &#39;these exact EPIC probe IDs were individually named in a paper.&#39; Instead, the current generator builds a gene-level shortlist from the bundled EPIC manifest subset for that gene.</li>
+                    
+                    <li>That shortlist is produced in `scripts/generate_curated_gene_knowledge_bases.py` by taking the gene&#39;s filtered manifest subset, preferring probes annotated as `TSS`, `5&#39;UTR`, or `1stExon`, ranking them by distance to the transcription start site, and then keeping up to the first 10 probe IDs.</li>
+                    
+                    <li>Concrete example: in `src/gene_data/sirt6_interpretation_db.json`, the SIRT6 whitelist contains `cg15635336` and `cg09936839`. Those probes come from the bundled SIRT6 EPIC subset and are promoter-proximal/TSS-facing probes chosen by that ranking rule, not because the JSON currently records that each exact probe ID was explicitly cited in a publication.</li>
+                    
+                    <li>For SIRT6 on the reverse strand, the transcription start is near genomic position 4,182,560. `cg15635336` is at 4,182,521 with a distance of 39 bp and a `1stExon;TSS1500` annotation, while `cg09936839` is at 4,181,854 with a distance of 706 bp and a `Body;TSS1500` annotation. That is why those two probes rise to the top of the bundled whitelist.</li>
+                    
+                    <li>After the shortlist exists, the app opens the bundled manifest subset CSV for the same gene. For SIRT6, it reads `src/gene_data/SIRT6_epigenetics_hg19.csv`, normalizes `IlmnID`, `CHR`, and `MAPINFO` to `probe_id`, `chrom`, and `pos`, and uses those fields to format the probe locus.</li>
+                    
+                    <li>Concrete locus example: the `cg15635336` manifest row carries `CHR=19` and `MAPINFO=4182521`, so the UI shows that probe at `chr19:4,182,521`.</li>
+                    
+                    <li>The same manifest row may also carry nearby SNP annotations. For `cg15635336`, the bundled SIRT6 manifest subset lists `SNP_ID=rs201182672` and `SNP_DISTANCE=50`, so the UI shows that as a nearby manifest locus. That nearby-locus column is purely manifest-derived proximity annotation, not a literature claim.</li>
+                    
+                    <li>There is a second important clarification for the current code: when the local bundles are generated, that same gene-level whitelist is copied into each curated variant record for the gene. So the current &#39;probe to variant&#39; table should be read as &#39;this variant is being discussed against the same bundled gene-level methylation hotspot&#39; rather than &#39;this paper proved this exact probe belongs to this exact variant.&#39;</li>
+                    
+                    <li>The paper column is gathered only from the linked curated variant records&#39; `literature_findings` and `evidence` entries. In the SIRT6 example, the table can show Li et al., 2016 for `rs350846` and Simon et al., 2022 for `centSIRT6`, but those papers support the curated variant entries, not necessarily a direct publication-specific assay of `cg15635336` or `cg09936839`.</li>
+                    
+                    <li>In short: literature creates the gene record and the variant records; the whitelist probes are currently a bundled promoter/TSS-focused EPIC subset chosen from the manifest for that gene; nearby SNPs come from manifest proximity fields; and the current probe-to-variant links are gene-level bundled associations unless a future bundle adds probe-specific evidence explicitly.</li>
+                    
                   </ul>
                 </div>
               </details>
-              {% endfor %}
+              
             </div>
           </div>
         </section>
       </section>
 
-      {% if analysis_unlocked %}
-      <section class="frame tab-panel analysis-panel{% if initial_tab == 'analysis' %} is-active{% endif %}" data-tab-panel="analysis"{% if initial_tab != 'analysis' %} hidden{% endif %} style="display:{% if initial_tab == 'analysis' %}block{% else %}none{% endif %};">
-        <div class="analysis-shell">
-          <section class="analysis-panel-inner">
-            <div class="panel-head">
-              <div>
-                <h2>Run Analysis</h2>
-                <p>Enter or confirm the biological inputs on the left. The preprocessing tab has already prepared the gene interval and manifest subset, so the result viewer can stay focused on the actual run.</p>
-              </div>
-              <span class="panel-chip">Workspace width tuned for active review</span>
-            </div>
-
-            <div class="scroll-region">
-              <form method="post" data-analysis-form>
-                <input type="hidden" name="workflow" value="analysis">
-                <div class="field-grid">
-                  <article class="field-card">
-                    <label for="vcf">VCF path</label>
-                    <p class="field-example">Current example: <code>{{ field_info.vcf.example }}</code></p>
-                    <input id="vcf" name="vcf" list="vcf-options" value="{{ form.vcf }}" placeholder="data/gene_region.vcf.gz" required>
-                    <datalist id="vcf-options">
-                      {% for item in vcf_files %}
-                      <option value="{{ item }}">
-                      {% endfor %}
-                    </datalist>
-                    <p class="hint">Pick from discovered files or enter another path inside the local workspace.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.vcf.details }}</p>
-                    </details>
-                  </article>
-
-                  <article class="field-card">
-                    <label for="idat">IDAT base path</label>
-                    <p class="field-example">Current example: <code>{{ field_info.idat.example }}</code></p>
-                    <input id="idat" name="idat" list="idat-options" value="{{ form.idat }}" placeholder="data/202277800037_R01C01" required>
-                    <datalist id="idat-options">
-                      {% for item in idat_prefixes %}
-                      <option value="{{ item }}">
-                      {% endfor %}
-                    </datalist>
-                    <p class="hint">Use the shared prefix only, without <code>_Grn.idat</code> or <code>_Red.idat</code>.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.idat.details }}</p>
-                    </details>
-                  </article>
-
-                  <article class="field-card">
-                    <label for="out">Report output path</label>
-                    <p class="field-example">Current example: <code>{{ field_info.out.example }}</code></p>
-                    <input id="out" name="out" value="{{ form.out }}" placeholder="results/gene_report.html" required>
-                    <p class="hint">Supported extensions are <code>.html</code>, <code>.json</code>, and <code>.csv</code>.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.out.details }}</p>
-                    </details>
-                  </article>
-
-                  <article class="field-card">
-                    <label for="region">Genomic region</label>
-                    <p class="field-example">Current example: <code>{{ field_info.region.example }}</code></p>
-                    <input id="region" name="region" value="{{ form.region }}" placeholder="11:63671737-63677367">
-                    <p class="hint">Use a coordinate span if you want to narrow the locus under review.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.region.details }}</p>
-                    </details>
-                  </article>
-
-                  <article class="field-card">
-                    <label for="popstats">Population stats file</label>
-                    <p class="field-example">Current example: <code>{{ field_info.popstats.example }}</code></p>
-                    <input id="popstats" name="popstats" list="popstats-options" value="{{ form.popstats }}" placeholder="{{ field_info.popstats.example }}">
-                    <datalist id="popstats-options">
-                      {% for item in popstats_files %}
-                      <option value="{{ item }}">
-                      {% endfor %}
-                    </datalist>
-                    <p class="hint">Optional. Use a CSV or JSON file if you want cohort-level context for the run.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.popstats.details }}</p>
-                    </details>
-                  </article>
-
-                  <article class="field-card">
-                    <label for="manifest_file">Custom manifest file</label>
-                    <p class="field-example">Current example: <code>{{ field_info.manifest_file.example }}</code></p>
-                    <input id="manifest_file" name="manifest_file" value="{{ form.manifest_file }}" placeholder="data/custom_manifest.csv.gz">
-                    <p class="hint">Optional. Leave empty to use methylprep's default manifest behavior.</p>
-                    <details class="field-details">
-                      <summary>What this means biologically</summary>
-                      <p>{{ field_info.manifest_file.details }}</p>
-                    </details>
-                  </article>
-                </div>
-
-                <div class="analysis-actions">
-                  <button type="submit" class="run-button">Run {{ preprocess_state.gene_name }} analysis</button>
-                  <span class="subtle">Outputs are written into {{ results_dir }}</span>
-                </div>
-              </form>
-
-              {% if error %}
-              <div class="error">
-                <strong>Run failed:</strong>
-                <div>{{ error }}</div>
-              </div>
-              {% endif %}
-            </div>
-          </section>
-
-          <section class="analysis-panel-inner">
-            <div class="panel-head">
-              <div>
-                <h2>Result Viewer</h2>
-                <p>Summary metrics stay visible at the top, while the table previews switch in place below so you can inspect the outputs without pushing the form off-screen.</p>
-              </div>
-              <span class="panel-chip">Preview-first analysis review</span>
-            </div>
-
-            <div class="results-stack">
-              <div class="viewer-stage" id="viewer-stage">
-                <section class="loading-overlay" data-loading-overlay hidden>
-                  <div class="loading-shell">
-                    <span class="insight-kicker">Live processing</span>
-                    <h3>Analyzing {{ preprocess_state.gene_name }}</h3>
-                    <p>The result viewer stays active while the app calls variants, processes methylation, and assembles the interpretation database view.</p>
-                    <div class="loading-readout">
-                      <div>
-                        <div class="loading-percent" data-loading-percent>3%</div>
-                        <div class="loading-label" data-loading-label>Preparing analysis workspace</div>
-                      </div>
-                      <span class="muted-badge" data-loading-note>Result Viewer is tracking progress</span>
-                    </div>
-                    <div class="dna-progress-track" aria-hidden="true">
-                      <div class="dna-progress-fill" data-loading-fill></div>
-                    </div>
-                    <div class="loading-steps">
-                      <div class="loading-step">1. Calling selected-gene variants from the chosen VCF</div>
-                      <div class="loading-step">2. Processing paired IDAT intensities into methylation beta values</div>
-                      <div class="loading-step">3. Joining results to the available interpretation context</div>
-                    </div>
-                  </div>
-                </section>
-
-                {% if result %}
-                <div class="metrics loading-hideable">
-                  <article class="metric">
-                    <span>PASS variants</span>
-                    <strong>{{ result.variant_count }}</strong>
-                  </article>
-                  <article class="metric">
-                    <span>Methylation probes</span>
-                    <strong>{{ result.methylation_count }}</strong>
-                  </article>
-                  <article class="metric">
-                    <span>Population context</span>
-                    <strong>{{ result.population_context_status }}</strong>
-                  </article>
-                </div>
-
-                <div class="paths loading-hideable">
-                  <div class="path-chip"><strong>Report</strong> <code>{{ result.report_path }}</code></div>
-                  <div class="path-chip"><strong>Methylation CSV</strong> <code>{{ result.methylation_output_path }}</code></div>
-                  <div class="path-chip"><strong>Knowledge base</strong> <code>{{ result.knowledge_base_name }} ({{ result.knowledge_base_version }})</code></div>
-                  <div class="path-chip"><strong>Population DB</strong> <code>{{ result.population_database_name }} ({{ result.population_database_version }})</code></div>
-                </div>
-
-                <div class="results-viewer loading-hideable">
-                  <div class="subtab-nav" aria-label="Result previews">
-                    <button type="button" class="subtab-button" data-subtab-target="variants" aria-selected="false">Variant Preview</button>
-                    <button type="button" class="subtab-button" data-subtab-target="methylation" aria-selected="false">Methylation Preview</button>
-                  </div>
-
-                  <section class="subtab-panel" data-subtab-panel="variants">
-                    <h3>Variant Preview</h3>
-                    <p class="status-note">Clinical and biological interpretation now sits beside the raw PASS calls, so you can switch context without leaving the viewer.</p>
-                    <div class="subtab-nav subtab-nav--nested" aria-label="Variant preview details">
-                      <button type="button" class="subtab-button" data-detail-group="variant" data-detail-target="interpretation" aria-selected="false">Interpretation</button>
-                      <button type="button" class="subtab-button" data-detail-group="variant" data-detail-target="raw" aria-selected="false">Raw Results</button>
-                    </div>
-
-                    <section class="subtab-panel" data-detail-group-panel="variant" data-detail-panel="interpretation">
-                      <div class="viewer-scroll">
-                        <div class="insight-stack">
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Sample-first view</span>
-                                <h4>What this sample actually showed</h4>
-                                <p>{{ result.variant_interpretations.sample_highlights.summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              {% if result.variant_interpretations.sample_highlights.highlight_items %}
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.sample_highlights.highlight_items %}
-                                <li>
-                                  <strong>{{ item.title }}</strong> {% if item.observed_variant %}({{ item.observed_variant }}){% endif %}.
-                                  {{ item.category }}. {{ item.description }}
-                                  {% if item.conditions %} Studied in {{ item.conditions | join(", ") }}.{% endif %}
-                                  {% if item.literature_findings %}
-                                  <ul class="literature-list">
-                                    {% for finding in item.literature_findings %}
-                                    <li>
-                                      {% if finding.url %}<a href="{{ finding.url }}" target="_blank" rel="noreferrer">{{ finding.paper }}</a>{% else %}<strong>{{ finding.paper }}</strong>{% endif %}
-                                      {% if finding.genotypes %} ({{ finding.genotypes }}){% endif %}.
-                                      {% if finding.phenotype %} {{ finding.phenotype }}.{% endif %}
-                                      {{ finding.finding }}
-                                    </li>
-                                    {% endfor %}
-                                  </ul>
-                                  {% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                              {% else %}
-                              <p>No direct sample-specific {{ result.variant_interpretations.gene_name }} finding is visible in the current preview slice.</p>
-                              {% endif %}
-                            </div>
-                          </details>
-
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Curated marker catalog</span>
-                                <h4>Bundled named {{ result.variant_interpretations.gene_name }} markers</h4>
-                                <p>{{ result.variant_interpretations.curated_named_markers_summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              {% if result.variant_interpretations.curated_named_markers %}
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.curated_named_markers %}
-                                <li>
-                                  <strong>{{ item.variant }}</strong>
-                                  {% if item.common_name %}({{ item.common_name }}){% endif %}
-                                  {% if item.observed_in_run %}
-                                  matched in this run as {{ item.observed_variants | join(", ") }}.
-                                  {% else %}
-                                  was not directly observed in this run.
-                                  {% endif %}
-                                  {% if item.region_class %} Curated class: {{ item.region_class | replace("_", " ") }}.{% endif %}
-                                  {{ item.clinical_significance }} {{ item.summary }}
-                                  {% if item.assay_note %} {{ item.assay_note }}{% endif %}
-                                  {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                  {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                  {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                </li>
-                                {% endfor %}
-                              </ul>
-                              {% else %}
-                              <p>No curated named markers are bundled for {{ result.variant_interpretations.gene_name }} yet.</p>
-                              {% endif %}
-                            </div>
-                          </details>
-
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Region recommendation</span>
-                                <h4>Which span to choose next</h4>
-                                <p>Quick presets for promoter-only, gene-body-only, or combined {{ result.variant_interpretations.gene_name }} review.</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <div class="population-grid">
-                                {% for item in result.variant_interpretations.region_recommendations %}
-                                <div class="population-row">
-                                  <strong>{{ item.title }}</strong>
-                                  <span><code>{{ item.region }}</code></span>
-                                  <span>{{ item.purpose }}</span>
-                                </div>
-                                {% endfor %}
-                              </div>
-                            </div>
-                          </details>
-
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Curated interpretation</span>
-                                <h4>{{ result.variant_interpretations.gene_name }} locus audit</h4>
-                                <p>{{ result.variant_interpretations.summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              {% if result.variant_interpretations.gene_summary %}
-                              <p>{{ result.variant_interpretations.gene_summary }}</p>
-                              {% endif %}
-                              <p>{{ result.variant_interpretations.clinical_context }}</p>
-                              {% if result.variant_interpretations.variant_effect_overview %}
-                              <h4>How {{ result.variant_interpretations.gene_name }} variation is usually interpreted</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.variant_effect_overview %}
-                                <li>{{ item }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if result.variant_interpretations.condition_research_overview %}
-                              <h4>Conditions and research themes commonly studied</h4>
-                              <ul class="insight-list">
-                                {% for item in result.variant_interpretations.condition_research_overview %}
-                                <li>{{ item }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              <div class="stat-grid">
-                                <div class="stat-card">
-                                  <span>Current search</span>
-                                  <strong>{{ result.variant_interpretations.search_region.display }}</strong>
-                                </div>
-                                <div class="stat-card">
-                                  <span>Gene interval</span>
-                                  <strong>{{ result.variant_interpretations.gene_region.display }}</strong>
-                                </div>
-                                <div class="stat-card">
-                                  <span>Promoter review</span>
-                                  <strong>{{ result.variant_interpretations.promoter_region.display }}</strong>
-                                </div>
-                              </div>
-                              <div class="badge-row">
-                                <span class="muted-badge">Matched records: {{ result.variant_interpretations.matched_records | length }}</span>
-                                <span class="muted-badge">Unclassified PASS variants: {{ result.variant_interpretations.unclassified_variant_count }}</span>
-                                <span class="muted-badge">Promoter included: {{ "Yes" if result.variant_interpretations.promoter_analysis.included else "No" }}</span>
-                                <span class="muted-badge">Gene included: {{ "Yes" if result.variant_interpretations.gene_analysis.included else "No" }}</span>
-                              </div>
-                            </div>
-                          </details>
-
-                          <div class="insight-grid">
-                            <details class="insight-card expandable-card">
-                              <summary class="expandable-summary">
-                                <div class="expandable-copy">
-                                  <span class="insight-kicker">Promoter region</span>
-                                  <h4>{{ result.variant_interpretations.promoter_analysis.label }}</h4>
-                                  <p>{{ result.variant_interpretations.promoter_analysis.analysis_note }}</p>
-                                </div>
-                              </summary>
-                              <div class="expandable-body">
-                                <ul class="insight-list">
-                                  <li><strong>Review window:</strong> {{ result.variant_interpretations.promoter_analysis.window }}</li>
-                                  <li><strong>Definition:</strong> {{ result.variant_interpretations.promoter_analysis.definition }}</li>
-                                  <li><strong>Hotspot window:</strong> {{ result.variant_interpretations.promoter_hotspot_region.display }}</li>
-                                </ul>
-                                {% if result.variant_interpretations.promoter_analysis.found_variants %}
-                                <h4>Observed promoter-window variants</h4>
-                                <ul class="insight-list">
-                                  {% for item in result.variant_interpretations.promoter_analysis.found_variants %}
-                                  <li>
-                                    <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
-                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                  </li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                <h4>Common promoter or upstream regulatory variants</h4>
-                                <ul class="insight-list">
-                                  {% for item in result.variant_interpretations.promoter_analysis.known_variants %}
-                                  <li>
-                                    <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
-                                    {{ item.clinical_significance }} {{ item.summary }}
-                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                  </li>
-                                  {% endfor %}
-                                </ul>
-                              </div>
-                            </details>
-
-                            <details class="insight-card expandable-card">
-                              <summary class="expandable-summary">
-                                <div class="expandable-copy">
-                                  <span class="insight-kicker">Gene body</span>
-                                  <h4>{{ result.variant_interpretations.gene_analysis.label }}</h4>
-                                  <p>{{ result.variant_interpretations.gene_analysis.analysis_note }}</p>
-                                </div>
-                              </summary>
-                              <div class="expandable-body">
-                                <ul class="insight-list">
-                                  <li><strong>Gene interval:</strong> {{ result.variant_interpretations.gene_analysis.window }}</li>
-                                  <li><strong>Definition:</strong> {{ result.variant_interpretations.gene_analysis.definition }}</li>
-                                  <li><strong>Promoter-plus-gene recommendation:</strong> {{ result.variant_interpretations.recommended_promoter_plus_gene_region }}</li>
-                                </ul>
-                                {% if result.variant_interpretations.gene_analysis.found_variants %}
-                                <h4>Observed gene-interval variants</h4>
-                                <ul class="insight-list">
-                                  {% for item in result.variant_interpretations.gene_analysis.found_variants %}
-                                  <li>
-                                    <strong>{{ item.display }}</strong> at {{ item.position }}. {{ item.clinical_significance }} {{ item.summary }}
-                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                  </li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                <h4>Common {{ result.variant_interpretations.gene_name }} gene variants</h4>
-                                <ul class="insight-list">
-                                  {% for item in result.variant_interpretations.gene_analysis.known_variants %}
-                                  <li>
-                                    <strong>{{ item.variant }}</strong> {% if item.common_name %}({{ item.common_name }}){% endif %} at {{ item.position }}.
-                                    {{ item.clinical_significance }} {{ item.summary }}
-                                    {% if item.functional_effects %} Functional themes: {{ item.functional_effects | join(", ") }}.{% endif %}
-                                    {% if item.associated_conditions %} Studied in {{ item.associated_conditions | join(", ") }}.{% endif %}
-                                    {% if item.research_context %} Research notes: {{ item.research_context | join("; ") }}.{% endif %}
-                                  </li>
-                                  {% endfor %}
-                                </ul>
-                              </div>
-                            </details>
-                          </div>
-
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Population context</span>
-                                <h4>{{ result.variant_interpretations.gene_name }} population reference data by geography</h4>
-                                <p>{{ result.population_insights.summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <div class="badge-row">
-                                {% for item in result.population_insights.location_groups %}
-                                <span class="muted-badge">{{ item }}</span>
-                                {% endfor %}
-                              </div>
-                              {% if result.population_insights.sources %}
-                              <ul class="source-list">
-                                {% for source in result.population_insights.sources %}
-                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                            </div>
-                          </details>
-
-                          <div class="insight-grid">
-                            {% for item in result.population_insights.variant_population_records %}
-                            <details class="insight-card expandable-card">
-                              <summary class="expandable-summary">
-                                <div class="expandable-copy">
-                                  <span class="insight-kicker">{{ "Observed variant with population data" if item.observed_in_run else "Reference population marker" }}</span>
-                                  <h4>{{ item.display_name }}{% if item.common_name %} ({{ item.common_name }}){% endif %}</h4>
-                                  <p>{% if item.observed_variants %}Observed in this run: {{ item.observed_variants | join(", ") }}. {% endif %}{{ item.effect_summary }}</p>
-                                </div>
-                              </summary>
-                              <div class="expandable-body">
-                                {% if item.functional_effects %}
-                                <h4>Functional effects</h4>
-                                <ul class="insight-list">
-                                  {% for effect in item.functional_effects %}
-                                  <li>{{ effect }}</li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if item.associated_conditions %}
-                                <h4>Associated conditions and research areas</h4>
-                                <ul class="insight-list">
-                                  {% for condition in item.associated_conditions %}
-                                  <li>{{ condition }}</li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if item.population_extremes %}
-                                <p>{{ item.population_extremes.summary }}</p>
-                                {% endif %}
-                                <h4>Top-level location frequencies</h4>
-                                <div class="population-grid">
-                                  {% for population in item.top_level_location_frequencies %}
-                                  <div class="population-row">
-                                    <strong>{{ population.location_group }}</strong>
-                                    <span>{{ population.label }}</span>
-                                    <div class="badge-row">
-                                      {% for allele in population.allele_frequencies %}
-                                      <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
-                                      {% endfor %}
-                                    </div>
-                                  </div>
-                                  {% endfor %}
-                                </div>
-                                {% if item.detailed_population_groups %}
-                                <details class="population-details">
-                                  <summary>View detailed subpopulation frequencies</summary>
-                                  {% for group in item.detailed_population_groups %}
-                                  <h4>{{ group.location_group }}</h4>
-                                  <div class="population-grid">
-                                    {% for population in group.entries %}
-                                    <div class="population-row">
-                                      <strong>{{ population.label }}</strong>
-                                      <span>{{ population.population_code }}</span>
-                                      <div class="badge-row">
-                                        {% for allele in population.allele_frequencies %}
-                                        <span class="probe-tag">{{ allele.allele }} {{ allele.display }}</span>
-                                        {% endfor %}
-                                      </div>
-                                    </div>
-                                    {% endfor %}
-                                  </div>
-                                  {% endfor %}
-                                </details>
-                                {% endif %}
-                              </div>
-                            </details>
-                            {% endfor %}
-                          </div>
-
-                          {% if result.population_insights.gene_population_patterns %}
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Gene-wide population patterns</span>
-                                <h4>{{ result.variant_interpretations.gene_name }} population structure beyond the curated SNP set</h4>
-                                <p>{{ result.population_insights.gene_population_patterns_intro }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <ul class="insight-list">
-                                {% for item in result.population_insights.gene_population_patterns %}
-                                <li><strong>{{ item.variant }}</strong> in {{ item.location_group }}: {{ item.summary }}</li>
-                                {% endfor %}
-                              </ul>
-                            </div>
-                          </details>
-                          {% endif %}
-
-                          {% if result.variant_interpretations.matched_records %}
-                          <div class="insight-grid">
-                            {% for item in result.variant_interpretations.matched_records %}
-                            <details class="insight-card expandable-card">
-                              <summary class="expandable-summary">
-                                <div class="expandable-copy">
-                                  <span class="insight-kicker">{{ item.interpretation_scope }}</span>
-                                  <h4>{{ item.variant }}</h4>
-                                  <p>Observed in run: {{ item.observed_variant }}. {{ item.clinical_significance }}</p>
-                                </div>
-                              </summary>
-                              <div class="expandable-body">
-                                <p>{{ item.clinical_interpretation }}</p>
-                                {% if item.literature_findings %}
-                                <h4>Paper-by-paper findings</h4>
-                                <ul class="literature-list">
-                                  {% for finding in item.literature_findings %}
-                                  <li>
-                                    {% if finding.url %}<a href="{{ finding.url }}" target="_blank" rel="noreferrer">{{ finding.paper }}</a>{% else %}<strong>{{ finding.paper }}</strong>{% endif %}
-                                    {% if finding.genotypes %} ({{ finding.genotypes }}){% endif %}.
-                                    {% if finding.phenotype %} {{ finding.phenotype }}.{% endif %}
-                                    {{ finding.finding }}
-                                  </li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                <p>{{ item.methylation_interpretation }}</p>
-                                {% if item.functional_effects %}
-                                <h4>Functional effects</h4>
-                                <ul class="insight-list">
-                                  {% for effect in item.functional_effects %}
-                                  <li>{{ effect }}</li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if item.associated_conditions %}
-                                <h4>Associated conditions and research areas</h4>
-                                <ul class="insight-list">
-                                  {% for condition in item.associated_conditions %}
-                                  <li>{{ condition }}</li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if item.research_context %}
-                                <h4>Research notes</h4>
-                                <ul class="insight-list">
-                                  {% for note in item.research_context %}
-                                  <li>{{ note }}</li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                                {% if item.relevant_probe_ids %}
-                                <div class="badge-row">
-                                  {% for probe_id in item.relevant_probe_ids %}
-                                  <span class="probe-tag">{{ probe_id }}</span>
-                                  {% endfor %}
-                                </div>
-                                {% endif %}
-                                {% if item.evidence %}
-                                <ul class="source-list">
-                                  {% for source in item.evidence %}
-                                  <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                                  {% endfor %}
-                                </ul>
-                                {% endif %}
-                              </div>
-                            </details>
-                            {% endfor %}
-                          </div>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </section>
-
-                    <section class="subtab-panel" data-detail-group-panel="variant" data-detail-panel="raw">
-                      <div class="viewer-scroll">
-                        <div class="table-pagination">
-                          <span class="subtle" data-variant-raw-summary>
-                            Showing 1-{{ result.variant_rows | length if (result.variant_rows | length) < result.variant_raw_page_size else result.variant_raw_page_size }} of {{ result.variant_rows | length }} PASS variants
-                          </span>
-                          <div class="table-pagination-actions">
-                            <button type="button" data-variant-raw-prev disabled>Previous page</button>
-                            <button type="button" data-variant-raw-next {% if (result.variant_rows | length) <= result.variant_raw_page_size %}disabled{% endif %}>Next page</button>
-                          </div>
-                        </div>
-                        <div class="table-shell" data-variant-raw-table>
-                          {{ result.variant_preview | safe }}
-                        </div>
-                        <script type="application/json" id="variant-raw-data" data-page-size="{{ result.variant_raw_page_size }}">{{ result.variant_rows | tojson }}</script>
-                      </div>
-                    </section>
-                  </section>
-
-                  <section class="subtab-panel" data-subtab-panel="methylation">
-                    <h3>Methylation Preview</h3>
-                    <p class="status-note">The methylation tab now combines a gene-level interpretation view with the original probe-level raw table.</p>
-                    <div class="subtab-nav subtab-nav--nested" aria-label="Methylation preview details">
-                      <button type="button" class="subtab-button" data-detail-group="methylation" data-detail-target="interpretation" aria-selected="false">Interpretation</button>
-                      <button type="button" class="subtab-button" data-detail-group="methylation" data-detail-target="raw" aria-selected="false">Raw Results</button>
-                    </div>
-
-                    <section class="subtab-panel" data-detail-group-panel="methylation" data-detail-panel="interpretation">
-                      <div class="viewer-scroll">
-                        <div class="insight-stack">
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Gene-level methylation insight</span>
-                                <h4>{{ result.methylation_insights.gene_name }}</h4>
-                                <p>{{ result.methylation_insights.summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <p>{{ result.methylation_insights.clinical_context }}</p>
-                              {% if result.methylation_insights.methylation_effects %}
-                              <h4>Likely biological effects of {{ result.methylation_insights.gene_name }} methylation changes</h4>
-                              <ul class="insight-list">
-                                {% for item in result.methylation_insights.methylation_effects %}
-                                <li>{{ item }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              {% if result.methylation_insights.methylation_condition_research %}
-                              <h4>Conditions and research settings where {{ result.methylation_insights.gene_name }} methylation has been studied</h4>
-                              <ul class="insight-list">
-                                {% for item in result.methylation_insights.methylation_condition_research %}
-                                <li>{{ item }}</li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                              <div class="stat-grid">
-                                <div class="stat-card">
-                                  <span>Observed whitelist probes</span>
-                                  <strong>{{ result.methylation_insights.whitelist_observed_probe_count }}</strong>
-                                </div>
-                                <div class="stat-card">
-                                  <span>{{ result.methylation_insights.gene_name }}-named rows</span>
-                                  <strong>{{ result.methylation_insights.gene_name_row_count }}</strong>
-                                </div>
-                                <div class="stat-card">
-                                  <span>Numeric rows overall</span>
-                                  <strong>{{ result.methylation_insights.all_numeric_mean_beta_probe_count }}</strong>
-                                </div>
-                                <div class="stat-card">
-                                  <span>Mean beta band</span>
-                                  <strong>{{ result.methylation_insights.beta_band }}</strong>
-                                  <small>{{ result.methylation_insights.beta_band_source_label }}</small>
-                                </div>
-                              </div>
-                              <ul class="insight-list">
-                                <li>
-                                  <strong>{{ result.methylation_insights.whitelist_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.whitelist_mean_beta is not none %}
-                                  {{ result.methylation_insights.whitelist_mean_beta }} from {{ result.methylation_insights.whitelist_mean_beta_probe_count }} numeric whitelist probe value(s).
-                                  {% else %}
-                                  No numeric observed whitelist probes were available in this run.
-                                  {% endif %}
-                                </li>
-                                <li>
-                                  <strong>{{ result.methylation_insights.gene_name_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.gene_name_mean_beta is not none %}
-                                  {{ result.methylation_insights.gene_name_mean_beta }} from {{ result.methylation_insights.gene_name_mean_beta_probe_count }} numeric row(s) where the gene name was explicitly annotated.
-                                  {% else %}
-                                  No numeric row explicitly annotated {{ result.methylation_insights.gene_name }} in the available gene-name columns.
-                                  {% endif %}
-                                </li>
-                                <li>
-                                  <strong>{{ result.methylation_insights.all_numeric_mean_beta_label }}:</strong>
-                                  {% if result.methylation_insights.all_numeric_mean_beta is not none %}
-                                  {{ result.methylation_insights.all_numeric_mean_beta }} from {{ result.methylation_insights.all_numeric_mean_beta_probe_count }} numeric row(s) across the full raw table.
-                                  {% else %}
-                                  No numeric beta values were available in the raw methylation table.
-                                  {% endif %}
-                                </li>
-                              </ul>
-                              <p>{{ result.methylation_insights.whitelist_explanation }}</p>
-                              {% if result.methylation_insights.whitelist_literature_context %}
-                              <p>{{ result.methylation_insights.whitelist_literature_context }}</p>
-                              {% endif %}
-                              <p>{{ result.methylation_insights.gene_name_match_rule }}</p>
-                              {% if result.methylation_insights.whitelist_probe_statuses %}
-                              <div class="badge-row">
-                                {% for probe in result.methylation_insights.whitelist_probe_statuses %}
-                                <span class="probe-tag">{{ probe.probe_id }}{% if probe.observed_in_run %} (observed){% else %} (not observed){% endif %}</span>
-                                {% endfor %}
-                              </div>
-                              {% endif %}
-                              {% if result.methylation_insights.evidence %}
-                              <ul class="source-list">
-                                {% for source in result.methylation_insights.evidence %}
-                                <li><a href="{{ source.url }}" target="_blank" rel="noreferrer">{{ source.label }}</a></li>
-                                {% endfor %}
-                              </ul>
-                              {% endif %}
-                            </div>
-                          </details>
-
-                          {% if result.methylation_insights.whitelist_probe_reference_rows %}
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Whitelist probe reference map</span>
-                                <h4>Curated probe-to-variant and paper links</h4>
-                                <p>{{ result.methylation_insights.whitelist_probe_reference_summary }}</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <div class="table-shell">
-                                <table class="preview-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Whitelist probe</th>
-                                      <th>Corresponding loci or variants</th>
-                                      <th>Bundled papers</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {% for row in result.methylation_insights.whitelist_probe_reference_rows %}
-                                    <tr>
-                                      <td>
-                                        <strong>{{ row.probe_id }}</strong>
-                                        <div>{% if row.observed_in_run %}Observed in current run{% else %}Not observed in current run{% endif %}</div>
-                                        {% if row.beta is not none %}
-                                        <div>Observed beta: {{ row.beta }}</div>
-                                        {% endif %}
-                                        {% if row.probe_locus %}
-                                        <div>{{ row.probe_locus }}</div>
-                                        {% endif %}
-                                      </td>
-                                      <td>
-                                        {% if row.linked_variants %}
-                                          {% for variant in row.linked_variants %}
-                                          <div>
-                                            <strong>{{ variant.label }}</strong>
-                                            {% if variant.common_name %}<span> - {{ variant.common_name }}</span>{% endif %}
-                                            {% if variant.locus %}<span> ({{ variant.locus }})</span>{% endif %}
-                                          </div>
-                                          {% endfor %}
-                                        {% else %}
-                                        <div>No curated variant record in the local bundle explicitly cites this probe.</div>
-                                        {% endif %}
-                                        {% if row.nearby_manifest_variants %}
-                                        <div><strong>Nearby manifest SNPs</strong></div>
-                                          {% for variant in row.nearby_manifest_variants %}
-                                          <div>{{ variant.variant }}{% if variant.distance %} ({{ variant.distance }} bp){% endif %}</div>
-                                          {% endfor %}
-                                        {% endif %}
-                                      </td>
-                                      <td>
-                                        {% if row.papers %}
-                                        <ul class="source-list">
-                                          {% for paper in row.papers %}
-                                          <li>
-                                            <a href="{{ paper.url }}" target="_blank" rel="noreferrer">{{ paper.label }}</a>
-                                            {% if paper.source_variant %}<span> (via {{ paper.source_variant }})</span>{% endif %}
-                                          </li>
-                                          {% endfor %}
-                                        </ul>
-                                        {% else %}
-                                        <div>No bundled paper is mapped directly to this whitelist probe yet.</div>
-                                        {% endif %}
-                                      </td>
-                                    </tr>
-                                    {% endfor %}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          </details>
-                          {% endif %}
-
-                          {% if result.methylation_insights.probe_preview %}
-                          <details class="insight-card expandable-card">
-                            <summary class="expandable-summary">
-                              <div class="expandable-copy">
-                                <span class="insight-kicker">Relevant {{ result.methylation_insights.gene_name }} probe subset</span>
-                                <h4>Observed whitelist probes used for interpretation</h4>
-                                <p>These are the exact observed whitelist probe rows used to build the whitelist mean beta shown above.</p>
-                              </div>
-                            </summary>
-                            <div class="expandable-body">
-                              <div class="table-shell">
-                                {{ result.methylation_insights.probe_preview | safe }}
-                              </div>
-                            </div>
-                          </details>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </section>
-
-                    <section class="subtab-panel" data-detail-group-panel="methylation" data-detail-panel="raw">
-                      <div class="viewer-scroll">
-                        <div class="table-shell">
-                          {{ result.methylation_preview | safe }}
-                        </div>
-                      </div>
-                    </section>
-                  </section>
-                </div>
-                {% else %}
-                <section class="empty-state loading-hideable">
-                  <div class="empty-state-inner">
-                    <h3>Analysis output will appear here</h3>
-                    <p>Run the workflow from the left-hand form and this panel will update in place with summary counts, output paths, biological interpretation, and raw previews for the current {{ preprocess_state.gene_name }} analysis.</p>
-                    <p>If the suggestion lists are empty, make sure the project <code>{{ data_dir }}</code> folder contains your local VCF and IDAT files.</p>
-                  </div>
-                </section>
-                {% endif %}
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
-      {% endif %}
+      
     </main>
   </div>
 
@@ -2987,19 +2362,9 @@
       const proteinResults = document.querySelector("[data-protein-results]");
       const proteinRefreshButton = document.querySelector("[data-protein-refresh]");
       const proteinQuickButtons = Array.from(document.querySelectorAll("[data-protein-quick-query]"));
-      const variantRawDataElement = document.getElementById("variant-raw-data");
-      const variantRawTable = document.querySelector("[data-variant-raw-table]");
-      const variantRawSummary = document.querySelector("[data-variant-raw-summary]");
-      const variantRawPrevButton = document.querySelector("[data-variant-raw-prev]");
-      const variantRawNextButton = document.querySelector("[data-variant-raw-next]");
       const preprocessViewerStage = document.getElementById("preprocess-viewer-stage");
       const analysisViewerStage = document.getElementById("viewer-stage");
       const proteinApiUrl = "/api/human-proteins";
-      const variantRawState = {
-        rows: [],
-        pageIndex: 0,
-        pageSize: 25
-      };
       const proteinState = {
         initialized: false,
         loading: false,
@@ -3288,66 +2653,6 @@
         }
       }
 
-      function formatTableCell(value) {
-        if (value === null || value === undefined || value === "") {
-          return "—";
-        }
-        if (typeof value === "boolean") {
-          return value ? "True" : "False";
-        }
-        return escapeHtml(value);
-      }
-
-      function renderPreviewTable(rows) {
-        if (!rows.length) {
-          return `
-            <section class="empty-state">
-              <div class="empty-state-inner">
-                <h3>No rows available</h3>
-                <p>The current analysis did not return any rows for this preview.</p>
-              </div>
-            </section>
-          `;
-        }
-
-        const columns = Object.keys(rows[0]);
-        return `
-          <table class="preview-table">
-            <thead>
-              <tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>
-            </thead>
-            <tbody>
-              ${rows.map((row) => `
-                <tr>${columns.map((column) => `<td>${formatTableCell(row[column])}</td>`).join("")}</tr>
-              `).join("")}
-            </tbody>
-          </table>
-        `;
-      }
-
-      function renderVariantRawPage() {
-        if (!variantRawTable || !variantRawState.rows.length) {
-          return;
-        }
-
-        const totalRows = variantRawState.rows.length;
-        const startIndex = variantRawState.pageIndex * variantRawState.pageSize;
-        const endIndex = Math.min(startIndex + variantRawState.pageSize, totalRows);
-        const pageRows = variantRawState.rows.slice(startIndex, endIndex);
-
-        variantRawTable.innerHTML = renderPreviewTable(pageRows);
-
-        if (variantRawSummary) {
-          variantRawSummary.textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalRows} PASS variants`;
-        }
-        if (variantRawPrevButton) {
-          variantRawPrevButton.disabled = startIndex === 0;
-        }
-        if (variantRawNextButton) {
-          variantRawNextButton.disabled = endIndex >= totalRows;
-        }
-      }
-
       async function loadProteinCatalog({ resetCursor = false } = {}) {
         if (!proteinResults || proteinState.loading) {
           return;
@@ -3432,8 +2737,6 @@
           const isActive = panel.dataset.tabPanel === name;
           panel.classList.toggle("is-active", isActive);
           panel.hidden = !isActive;
-          panel.style.display = isActive ? "block" : "none";
-          panel.setAttribute("aria-hidden", isActive ? "false" : "true");
         });
         if (name === "proteins") {
           ensureProteinCatalogLoaded();
@@ -3450,8 +2753,6 @@
           const isActive = panel.dataset.subtabPanel === name;
           panel.classList.toggle("is-active", isActive);
           panel.hidden = !isActive;
-          panel.style.display = isActive ? "" : "none";
-          panel.setAttribute("aria-hidden", isActive ? "false" : "true");
         });
       }
 
@@ -3469,8 +2770,6 @@
             const isActive = panel.dataset.detailPanel === name;
             panel.classList.toggle("is-active", isActive);
             panel.hidden = !isActive;
-            panel.style.display = isActive ? "" : "none";
-            panel.setAttribute("aria-hidden", isActive ? "false" : "true");
           }
         });
       }
@@ -3576,42 +2875,6 @@
           loadProteinCatalog({ resetCursor: true });
         });
       });
-
-      if (variantRawDataElement && variantRawTable) {
-        try {
-          variantRawState.rows = JSON.parse(variantRawDataElement.textContent || "[]");
-        } catch (error) {
-          variantRawState.rows = [];
-        }
-
-        const parsedPageSize = Number.parseInt(variantRawDataElement.dataset.pageSize || "", 10);
-        if (Number.isFinite(parsedPageSize) && parsedPageSize > 0) {
-          variantRawState.pageSize = parsedPageSize;
-        }
-
-        if (variantRawPrevButton) {
-          variantRawPrevButton.addEventListener("click", () => {
-            if (variantRawState.pageIndex <= 0) {
-              return;
-            }
-            variantRawState.pageIndex -= 1;
-            renderVariantRawPage();
-          });
-        }
-
-        if (variantRawNextButton) {
-          variantRawNextButton.addEventListener("click", () => {
-            const nextStart = (variantRawState.pageIndex + 1) * variantRawState.pageSize;
-            if (nextStart >= variantRawState.rows.length) {
-              return;
-            }
-            variantRawState.pageIndex += 1;
-            renderVariantRawPage();
-          });
-        }
-
-        renderVariantRawPage();
-      }
 
       function bindLoadingForm(formElement, stage, elements, steps, targetTab) {
         if (!formElement) {

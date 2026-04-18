@@ -247,6 +247,33 @@ def test_methylation_insights_build_whitelist_probe_reference_rows() -> None:
     assert any("Simon et al., 2022" in item["label"] for item in probe_row["papers"])
 
 
+def test_methylation_probe_reference_rows_hide_when_no_curated_variant_was_observed() -> None:
+    """Variant-linked methylation rows should disappear when no curated variant was matched in the run."""
+    knowledge_base = load_gene_interpretation_database("SIRT6")
+    assert knowledge_base is not None
+
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg15635336",
+                "beta": 0.02,
+                "chrom": "19",
+                "pos": 4182521,
+                "GencodeBasicV12_NAME": "SIRT6;SIRT6;SIRT6;SIRT6",
+            }
+        ]
+    )
+
+    insights = build_methylation_insights(
+        methylation,
+        knowledge_base,
+        matched_variant_ids=set(),
+    )
+
+    assert insights["whitelist_probe_reference_rows"] == []
+    assert "table is hidden" in insights["whitelist_probe_reference_summary"]
+
+
 def test_population_database_loads_expected_variant_records() -> None:
     """The bundled population database should expose DRD4 geography summaries."""
     population_database = load_population_database()

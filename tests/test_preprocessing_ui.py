@@ -34,6 +34,18 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "These are the exact observed whitelist probe rows used to build the whitelist mean beta shown above." in template_text
     assert "flex-wrap: wrap;" in template_text
     assert "window.setTimeout(() => formElement.submit(), 40);" not in template_text
+    assert "const preprocessLoadingStepsByAction = {" in template_text
+    assert 'data-preprocess-loading-steps' in template_text
+    assert "Confirm the selected coordinates for the current gene." in template_text
+    assert ".preprocess-detail-grid {" in template_text
+    assert ".preprocess-panel {\n      padding: 18px;\n      display: grid;" in template_text
+    assert "panel.hidden = !isActive;" in template_text
+    assert "[hidden] {" in template_text
+    assert 'style="display:{% if initial_tab == ' in template_text
+    assert 'panel.style.display = isActive ? "block" : "none";' in template_text
+    assert 'data-variant-raw-table' in template_text
+    assert 'variant-raw-data' in template_text
+    assert "function renderVariantRawPage()" in template_text
 
 
 def test_preprocess_find_region_submission_updates_session(monkeypatch) -> None:
@@ -303,3 +315,243 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
     assert probe_preview_html.count("<tr") >= 16
     assert "cg00000000" in probe_preview_html
     assert "cg00000014" in probe_preview_html
+
+
+def test_analysis_result_labels_missing_variant_ids_in_preview(monkeypatch, tmp_path: Path) -> None:
+    """Variant previews should explain when the source VCF does not provide a named ID."""
+    monkeypatch.setattr("src.webapp.discover_vcf_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_idat_prefixes", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_population_stats_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_manifest_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_report_history", lambda: [])
+
+    captured_context: dict[str, object] = {}
+
+    def fake_render_template(template_name: str, **context: object) -> str:
+        captured_context["template_name"] = template_name
+        captured_context["context"] = context
+        return "ok"
+
+    monkeypatch.setattr("src.webapp.render_template", fake_render_template)
+    monkeypatch.setattr(
+        "src.webapp.run_analysis",
+        lambda **_: SimpleNamespace(
+            report_path=tmp_path / "mock_report.html",
+            methylation_output_path=tmp_path / "mock_report_methylation.csv",
+            variants=pd.DataFrame(
+                [{"chrom": "11", "id": None, "pos": 636689, "ref": "G", "alt": "C", "qual": 75.35, "filter_pass": True}]
+            ),
+            methylation=pd.DataFrame([{"probe_id": "cg1", "beta": 0.42}]),
+            popstats=None,
+            knowledge_base={"database_name": "Mock interpretation DB", "version": "test"},
+            population_database={"database_name": "Mock population DB", "version": "test"},
+            population_insights={"variant_population_records": [], "gene_population_patterns": []},
+            variant_interpretations={"gene_name": "TEST", "matched_records": [], "sample_highlights": {"summary": ""}},
+            methylation_insights={
+                "gene_name": "TEST",
+                "clinical_context": "",
+                "summary": "",
+                "mean_beta": 0.42,
+                "mean_beta_label": "Whitelist mean beta",
+                "mean_beta_probe_count": 1,
+                "whitelist_mean_beta": 0.42,
+                "whitelist_mean_beta_label": "Whitelist mean beta",
+                "whitelist_mean_beta_probe_count": 1,
+                "whitelist_probe_count": 1,
+                "whitelist_observed_probe_count": 1,
+                "whitelist_explanation": "",
+                "whitelist_literature_context": "",
+                "whitelist_probe_statuses": [{"probe_id": "cg1", "observed_in_run": True}],
+                "whitelist_probe_reference_rows": [],
+                "whitelist_probe_reference_summary": "",
+                "gene_name_mean_beta": 0.42,
+                "gene_name_mean_beta_label": "TEST-named row mean beta",
+                "gene_name_mean_beta_probe_count": 1,
+                "gene_name_row_count": 1,
+                "gene_name_match_columns": [],
+                "gene_name_match_rule": "",
+                "raw_mean_beta": 0.42,
+                "raw_mean_beta_label": "All numeric-row mean beta",
+                "raw_probe_count": 1,
+                "raw_mean_beta_probe_count": 1,
+                "all_numeric_mean_beta": 0.42,
+                "all_numeric_mean_beta_label": "All numeric-row mean beta",
+                "all_numeric_mean_beta_probe_count": 1,
+                "beta_band": "intermediate",
+                "beta_band_source_label": "Whitelist mean beta",
+                "observed_probe_count": 1,
+                "curated_probe_count": 1,
+                "probe_ids": ["cg1"],
+                "group_breakdown": {},
+                "methylation_effects": [],
+                "methylation_condition_research": [],
+                "evidence": [],
+                "probe_preview": pd.DataFrame([{"probe_id": "cg1", "beta": 0.42}]),
+            },
+        ),
+    )
+
+    client = app.test_client()
+    with client.session_transaction() as session_state:
+        session_state["preprocess_state"] = {
+            "gene_name": "TEST",
+            "region": "11:636000-637000",
+            "manifest_source": "",
+            "filtered_manifest": "",
+            "region_candidates": [],
+            "selected_sources": [],
+            "region_ready": True,
+            "manifest_ready": True,
+            "analysis_ready": True,
+            "probe_count": 1,
+            "build": "hg19",
+            "logs": [],
+            "region_recently_updated": False,
+            "overwrite_filtered_manifest": False,
+        }
+
+    response = client.post(
+        "/",
+        data={
+            "workflow": "analysis",
+            "vcf": "data/mock.vcf.gz",
+            "idat": "data/mock_sample",
+            "out": "results/mock_report.html",
+            "region": "11:636000-637000",
+            "popstats": "",
+            "manifest_file": "",
+        },
+    )
+
+    assert response.status_code == 200
+    result = captured_context["context"]["result"]
+    assert "Unlabeled in source VCF" in result["variant_preview"]
+    assert result["variant_rows"][0]["id"] == "Unlabeled in source VCF"
+    assert result["variant_raw_page_size"] == 25
+
+
+def test_analysis_result_keeps_full_variant_rows_for_pagination(monkeypatch, tmp_path: Path) -> None:
+    """The raw variant panel should keep all rows for client-side pagination."""
+    monkeypatch.setattr("src.webapp.discover_vcf_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_idat_prefixes", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_population_stats_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_manifest_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_report_history", lambda: [])
+
+    captured_context: dict[str, object] = {}
+
+    def fake_render_template(template_name: str, **context: object) -> str:
+        captured_context["template_name"] = template_name
+        captured_context["context"] = context
+        return "ok"
+
+    variant_rows = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": f"rs{i:05d}",
+                "pos": i,
+                "ref": "A",
+                "alt": "G",
+                "qual": 99.0,
+                "filter_pass": True,
+            }
+            for i in range(1, 31)
+        ]
+    )
+
+    monkeypatch.setattr("src.webapp.render_template", fake_render_template)
+    monkeypatch.setattr(
+        "src.webapp.run_analysis",
+        lambda **_: SimpleNamespace(
+            report_path=tmp_path / "mock_report.html",
+            methylation_output_path=tmp_path / "mock_report_methylation.csv",
+            variants=variant_rows.copy(),
+            methylation=pd.DataFrame([{"probe_id": "cg1", "beta": 0.42}]),
+            popstats=None,
+            knowledge_base={"database_name": "Mock interpretation DB", "version": "test"},
+            population_database={"database_name": "Mock population DB", "version": "test"},
+            population_insights={"variant_population_records": [], "gene_population_patterns": []},
+            variant_interpretations={"gene_name": "TEST", "matched_records": [], "sample_highlights": {"summary": ""}},
+            methylation_insights={
+                "gene_name": "TEST",
+                "clinical_context": "",
+                "summary": "",
+                "mean_beta": 0.42,
+                "mean_beta_label": "Whitelist mean beta",
+                "mean_beta_probe_count": 1,
+                "whitelist_mean_beta": 0.42,
+                "whitelist_mean_beta_label": "Whitelist mean beta",
+                "whitelist_mean_beta_probe_count": 1,
+                "whitelist_probe_count": 1,
+                "whitelist_observed_probe_count": 1,
+                "whitelist_explanation": "",
+                "whitelist_literature_context": "",
+                "whitelist_probe_statuses": [{"probe_id": "cg1", "observed_in_run": True}],
+                "whitelist_probe_reference_rows": [],
+                "whitelist_probe_reference_summary": "",
+                "gene_name_mean_beta": 0.42,
+                "gene_name_mean_beta_label": "TEST-named row mean beta",
+                "gene_name_mean_beta_probe_count": 1,
+                "gene_name_row_count": 1,
+                "gene_name_match_columns": [],
+                "gene_name_match_rule": "",
+                "raw_mean_beta": 0.42,
+                "raw_mean_beta_label": "All numeric-row mean beta",
+                "raw_probe_count": 1,
+                "raw_mean_beta_probe_count": 1,
+                "all_numeric_mean_beta": 0.42,
+                "all_numeric_mean_beta_label": "All numeric-row mean beta",
+                "all_numeric_mean_beta_probe_count": 1,
+                "beta_band": "intermediate",
+                "beta_band_source_label": "Whitelist mean beta",
+                "observed_probe_count": 1,
+                "curated_probe_count": 1,
+                "probe_ids": ["cg1"],
+                "group_breakdown": {},
+                "methylation_effects": [],
+                "methylation_condition_research": [],
+                "evidence": [],
+                "probe_preview": pd.DataFrame([{"probe_id": "cg1", "beta": 0.42}]),
+            },
+        ),
+    )
+
+    client = app.test_client()
+    with client.session_transaction() as session_state:
+        session_state["preprocess_state"] = {
+            "gene_name": "TEST",
+            "region": "15:1-1000",
+            "manifest_source": "",
+            "filtered_manifest": "",
+            "region_candidates": [],
+            "selected_sources": [],
+            "region_ready": True,
+            "manifest_ready": True,
+            "analysis_ready": True,
+            "probe_count": 1,
+            "build": "hg19",
+            "logs": [],
+            "region_recently_updated": False,
+            "overwrite_filtered_manifest": False,
+        }
+
+    response = client.post(
+        "/",
+        data={
+            "workflow": "analysis",
+            "vcf": "data/mock.vcf.gz",
+            "idat": "data/mock_sample",
+            "out": "results/mock_report.html",
+            "region": "15:1-1000",
+            "popstats": "",
+            "manifest_file": "",
+        },
+    )
+
+    assert response.status_code == 200
+    result = captured_context["context"]["result"]
+    assert len(result["variant_rows"]) == 30
+    assert "rs00001" in result["variant_preview"]
+    assert "rs00025" in result["variant_preview"]
+    assert "rs00026" not in result["variant_preview"]

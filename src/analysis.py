@@ -371,6 +371,46 @@ def _format_variant_display(row: pd.Series) -> str:
     return f"{row['chrom']}:{int(row['pos'])} {row['ref']}>{row['alt']}"
 
 
+def annotate_known_variant_ids(
+    variants: pd.DataFrame,
+    knowledge_base: dict[str, Any] | None,
+) -> pd.DataFrame:
+    """Fill display-friendly IDs when the curated bundle can name an unlabeled variant."""
+    labeled = variants.copy()
+    if labeled.empty:
+        if "id_source" not in labeled.columns:
+            labeled["id_source"] = pd.Series(dtype="object")
+        return labeled
+
+    variant_records = knowledge_base.get("variant_records", []) if knowledge_base else []
+    resolved_ids: list[Any] = []
+    id_sources: list[str] = []
+
+    for _, row in labeled.iterrows():
+        raw_id = row.get("id")
+        raw_id_text = "" if pd.isna(raw_id) else str(raw_id).strip()
+        matched_record = _match_variant_record(row, variant_records) if variant_records else None
+
+        if raw_id_text and raw_id_text != ".":
+            resolved_ids.append(raw_id_text)
+            id_sources.append("Source VCF")
+            continue
+
+        if matched_record is not None:
+            resolved_ids.append(
+                str(matched_record.get("display_name", matched_record["variant"])).strip()
+            )
+            id_sources.append("Knowledge base match")
+            continue
+
+        resolved_ids.append(None)
+        id_sources.append("Unlabeled in source VCF")
+
+    labeled["id"] = resolved_ids
+    labeled["id_source"] = id_sources
+    return labeled
+
+
 def _match_variant_record(row: pd.Series, variant_records: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Return the first curated record that matches the observed variant row."""
     lookup_keys = _build_variant_lookup_keys(row)
@@ -909,12 +949,23 @@ def _format_probe_locus(annotation: dict[str, Any]) -> str | None:
     return f"chr{chrom_text}:{pos_value:,}"
 
 
-def _build_nearby_manifest_variant_rows(annotation: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_nearby_manifest_variant_rows(
+    annotation: dict[str, Any],
+    *,
+    allowed_variant_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
     """Return nearby manifest SNP annotations paired with their reported distances."""
     variant_ids = _split_semicolon_tokens(annotation.get("SNP_ID"))
     distance_tokens = _split_semicolon_tokens(annotation.get("SNP_DISTANCE"))
+    allowed_lookup = (
+        {_normalize_lookup_key(variant_id) for variant_id in allowed_variant_ids if variant_id}
+        if allowed_variant_ids is not None
+        else None
+    )
     nearby_rows: list[dict[str, Any]] = []
     for index, variant_id in enumerate(variant_ids):
+        if allowed_lookup is not None and _normalize_lookup_key(variant_id) not in allowed_lookup:
+            continue
         distance = distance_tokens[index] if index < len(distance_tokens) else ""
         nearby_rows.append(
             {
@@ -968,7 +1019,10 @@ def _collect_variant_record_papers(record: dict[str, Any]) -> list[dict[str, Any
 
 
 def _build_whitelist_probe_reference_rows(
-    methylation: pd.DataFrame, knowledge_base: dict[str, Any]
+    methylation: pd.DataFrame,
+    knowledge_base: dict[str, Any],
+    *,
+    matched_variant_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Map each whitelist probe to curated variants, nearby loci, and supporting papers."""
     gene_context = knowledge_base.get("gene_context", {})
@@ -989,6 +1043,11 @@ def _build_whitelist_probe_reference_rows(
     )
     manifest_lookup = _load_gene_manifest_probe_lookup(gene_name, relevant_probe_ids)
     variant_records = knowledge_base.get("variant_records", [])
+    matched_variant_lookup = (
+        {_normalize_lookup_key(variant_id) for variant_id in matched_variant_ids if variant_id}
+        if matched_variant_ids is not None
+        else None
+    )
 
     reference_rows: list[dict[str, Any]] = []
     for probe_id in relevant_probe_ids:
@@ -1001,6 +1060,10 @@ def _build_whitelist_probe_reference_rows(
             record
             for record in variant_records
             if probe_id in record.get("relevant_methylation_probe_ids", [])
+            and (
+                matched_variant_lookup is None
+                or _normalize_lookup_key(str(record.get("variant", ""))) in matched_variant_lookup
+            )
         ]
         linked_variants = []
         for record in linked_variant_records:
@@ -1036,6 +1099,15 @@ def _build_whitelist_probe_reference_rows(
                 seen_papers.add(dedupe_key)
                 papers.append(paper)
 
+        nearby_manifest_variants = _build_nearby_manifest_variant_rows(
+            merged_annotation,
+            allowed_variant_ids=matched_variant_ids,
+        )
+        if matched_variant_lookup is not None and not (
+            linked_variants or nearby_manifest_variants or papers
+        ):
+            continue
+
         reference_rows.append(
             {
                 "probe_id": probe_id,
@@ -1043,7 +1115,7 @@ def _build_whitelist_probe_reference_rows(
                 "beta": _round_beta(float(observed_beta)) if pd.notna(observed_beta) else None,
                 "probe_locus": _format_probe_locus(merged_annotation),
                 "linked_variants": linked_variants,
-                "nearby_manifest_variants": _build_nearby_manifest_variant_rows(merged_annotation),
+                "nearby_manifest_variants": nearby_manifest_variants,
                 "papers": papers,
             }
         )
@@ -1321,7 +1393,10 @@ def build_population_insights(
 
 
 def build_methylation_insights(
-    methylation: pd.DataFrame, knowledge_base: dict[str, Any]
+    methylation: pd.DataFrame,
+    knowledge_base: dict[str, Any],
+    *,
+    matched_variant_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Build a gene-level methylation interpretation from the current probe table."""
     gene_context = knowledge_base.get("gene_context", {})
@@ -1419,7 +1494,25 @@ def build_methylation_insights(
         if gene_named_match_columns
         else f"No gene-annotation column in the current methylation table explicitly mentioned {gene_name}."
     )
-    whitelist_probe_reference_rows = _build_whitelist_probe_reference_rows(methylation, knowledge_base)
+    whitelist_probe_reference_rows = _build_whitelist_probe_reference_rows(
+        methylation,
+        knowledge_base,
+        matched_variant_ids=matched_variant_ids,
+    )
+    if matched_variant_ids is None:
+        whitelist_probe_reference_summary = (
+            "Each whitelist probe is cross-referenced to any curated variant records that explicitly cite it, "
+            "plus nearby manifest SNP annotations and the bundled papers behind those variant interpretations."
+        )
+    elif matched_variant_ids:
+        whitelist_probe_reference_summary = (
+            "Each whitelist probe is cross-referenced only to curated variant records observed in the current run, "
+            "plus any matching manifest SNP annotations and bundled papers for those same observed variants."
+        )
+    else:
+        whitelist_probe_reference_summary = (
+            "No curated variant observed in the current run has a probe-specific reference map, so the probe-to-variant table is hidden."
+        )
 
     return {
         "gene_name": gene_name,
@@ -1466,10 +1559,7 @@ def build_methylation_insights(
         "evidence": gene_context.get("evidence", []),
         "probe_preview": observed_relevant[available_preview_columns].copy(),
         "whitelist_probe_reference_rows": whitelist_probe_reference_rows,
-        "whitelist_probe_reference_summary": (
-            "Each whitelist probe is cross-referenced to any curated variant records that explicitly cite it, "
-            "plus nearby manifest SNP annotations and the bundled papers behind those variant interpretations."
-        ),
+        "whitelist_probe_reference_summary": whitelist_probe_reference_summary,
     }
 
 
@@ -1815,7 +1905,15 @@ def load_variants(vcf_path: str, region: str) -> pd.DataFrame:
     if df.empty:
         raise AnalysisError(f"No PASS variants found in {region} for {vcf_path}")
 
-    logger.info("Loaded %d PASS variants from %s in region %s", len(df), vcf_path, region)
+    named_id_count = int(df["id"].notna().sum())
+    logger.info(
+        "Loaded %d PASS variants from %s in region %s (%d named IDs, %d unlabeled in source VCF)",
+        len(df),
+        vcf_path,
+        region,
+        named_id_count,
+        len(df) - named_id_count,
+    )
     return df
 
 
@@ -2061,6 +2159,15 @@ def _render_section_table(df: pd.DataFrame, title: str, rows: int = 20) -> str:
     return f"<section><h2>{html.escape(title)}</h2>{preview}</section>"
 
 
+def _prepare_variant_table_for_output(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize missing IDs so exported reports stay readable."""
+    preview_df = df.copy()
+    if "id" in preview_df.columns:
+        preview_df["id"] = preview_df["id"].where(preview_df["id"].notna(), "Unlabeled in source VCF")
+        preview_df["id"] = preview_df["id"].replace({"": "Unlabeled in source VCF", ".": "Unlabeled in source VCF"})
+    return preview_df
+
+
 def generate_report(
     variants: pd.DataFrame,
     methylation: pd.DataFrame,
@@ -2256,7 +2363,7 @@ def generate_report(
         </article>
       </div>
     </section>
-    {_render_section_table(variants, "Variant Preview")}
+    {_render_section_table(_prepare_variant_table_for_output(variants), "Variant Preview")}
     {_render_section_table(methylation, "Methylation Preview")}
     {popstats_section}
   </main>
@@ -2346,8 +2453,18 @@ def run_analysis(
 
     knowledge_base = load_gene_interpretation_database(normalized_gene_name)
     if knowledge_base is not None:
+        variants = annotate_known_variant_ids(variants, knowledge_base)
         variant_interpretations = build_variant_interpretations(variants, knowledge_base, region=region)
-        methylation_insights = build_methylation_insights(methylation, knowledge_base)
+        matched_variant_ids = {
+            str(record.get("variant", "")).strip()
+            for record in variant_interpretations.get("matched_records", [])
+            if str(record.get("variant", "")).strip()
+        }
+        methylation_insights = build_methylation_insights(
+            methylation,
+            knowledge_base,
+            matched_variant_ids=matched_variant_ids,
+        )
     else:
         knowledge_base = {
             "database_name": f"No curated {normalized_gene_name} interpretation database loaded",
