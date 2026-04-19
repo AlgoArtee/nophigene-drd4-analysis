@@ -41,6 +41,11 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "central-database-table" in template_text
     assert "One row per observed variant" in template_text
     assert "curated biological context" in template_text
+    assert "Only labeled variants" in template_text
+    assert 'data-general-database-labeled-filter' in template_text
+    assert 'data-general-database-row' in template_text
+    assert 'data-variant-labeled="{{' in template_text
+    assert "function updateGeneralDatabaseFilter()" in template_text
     assert 'data-analysis-shell' in template_text
     assert 'class="analysis-shell is-form-collapsed"' in template_text
     assert 'id="analysis-form"' in template_text
@@ -240,7 +245,7 @@ def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: P
                 "gene": "HERC2",
                 "variant key": "chr15:28356859:C>T",
                 "observed gene variant": "rs1129038",
-                "gene variant label": "rs1129038",
+                "gene variant label": "None",
                 "change": "C -> T",
                 "chromosome": "chr15",
                 "position": 28356859,
@@ -277,6 +282,9 @@ def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: P
     assert "HERC2" in page
     assert "rs12913832" in page
     assert "rs1129038" in page
+    assert "Only labeled variants" in page
+    assert 'data-variant-labeled="true"' in page
+    assert 'data-variant-labeled="false"' in page
     assert "variant key" in page
     assert "curated biological significance" in page
     assert "OCA2 enhancer activity" in page

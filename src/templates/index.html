@@ -380,6 +380,20 @@
     .database-actions {
       margin-top: 16px;
     }
+    .database-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.70);
+      border: 1px solid rgba(118, 19, 45, 0.10);
+    }
+    .database-filter-empty {
+      margin-top: 16px;
+    }
     .protein-shell {
       display: grid;
       min-height: calc(100vh - 168px);
@@ -2115,6 +2129,23 @@
           {% endif %}
         </div>
 
+        <div class="database-filter-bar database-actions">
+          <label class="toggle-row">
+            <input type="checkbox" data-general-database-labeled-filter>
+            <span>Only labeled variants</span>
+          </label>
+          <span class="subtle" data-general-database-filter-summary>
+            Showing {{ general_database.row_count }} of {{ general_database.row_count }} row{{ "" if general_database.row_count == 1 else "s" }}
+          </span>
+        </div>
+
+        <section class="empty-state database-filter-empty" data-general-database-filter-empty hidden>
+          <div class="empty-state-inner">
+            <h3>No labeled variants in this view</h3>
+            <p>Turn off the filter to show unlabeled observed variants whose <code>gene variant label</code> is empty, <code>None</code>, <code>.</code>, or <code>n/a</code>.</p>
+          </div>
+        </section>
+
         <div class="table-shell database-table-shell">
           <table class="preview-table central-database-table">
             <thead>
@@ -2126,7 +2157,10 @@
             </thead>
             <tbody>
               {% for row in general_database.rows %}
-              <tr>
+              {% set variant_label = (row.get("gene variant label", "") or "") | string | trim %}
+              {% set normalized_variant_label = variant_label | lower %}
+              {% set is_labeled_variant = variant_label and normalized_variant_label not in ["none", "n/a", ".", "nan"] %}
+              <tr data-general-database-row data-variant-labeled="{{ 'true' if is_labeled_variant else 'false' }}">
                 {% for column in general_database.columns %}
                 <td>{{ row.get(column, "") or "n/a" }}</td>
                 {% endfor %}
@@ -3562,6 +3596,10 @@
       const variantRawSummary = document.querySelector("[data-variant-raw-summary]");
       const variantRawPrevButton = document.querySelector("[data-variant-raw-prev]");
       const variantRawNextButton = document.querySelector("[data-variant-raw-next]");
+      const generalDatabaseLabeledFilter = document.querySelector("[data-general-database-labeled-filter]");
+      const generalDatabaseRows = Array.from(document.querySelectorAll("[data-general-database-row]"));
+      const generalDatabaseFilterSummary = document.querySelector("[data-general-database-filter-summary]");
+      const generalDatabaseFilterEmpty = document.querySelector("[data-general-database-filter-empty]");
       const preprocessViewerStage = document.getElementById("preprocess-viewer-stage");
       const analysisViewerStage = document.getElementById("viewer-stage");
       const proteinApiUrl = "/api/human-proteins";
@@ -3992,6 +4030,32 @@
         }
       }
 
+      function updateGeneralDatabaseFilter() {
+        if (!generalDatabaseRows.length) {
+          return;
+        }
+
+        const onlyLabeled = generalDatabaseLabeledFilter ? generalDatabaseLabeledFilter.checked : false;
+        let visibleRows = 0;
+        generalDatabaseRows.forEach((row) => {
+          const isLabeled = row.dataset.variantLabeled === "true";
+          const shouldShow = !onlyLabeled || isLabeled;
+          row.hidden = !shouldShow;
+          if (shouldShow) {
+            visibleRows += 1;
+          }
+        });
+
+        if (generalDatabaseFilterSummary) {
+          const rowWord = visibleRows === 1 ? "row" : "rows";
+          const suffix = onlyLabeled ? " with labeled variants" : "";
+          generalDatabaseFilterSummary.textContent = `Showing ${visibleRows} of ${generalDatabaseRows.length} ${rowWord}${suffix}`;
+        }
+        if (generalDatabaseFilterEmpty) {
+          generalDatabaseFilterEmpty.hidden = visibleRows > 0;
+        }
+      }
+
       function setAnalysisFormCollapsed(collapsed) {
         if (!analysisShell) {
           return;
@@ -4129,6 +4193,11 @@
           setAnalysisFormCollapsed(!currentlyCollapsed);
         });
       });
+
+      if (generalDatabaseLabeledFilter) {
+        generalDatabaseLabeledFilter.addEventListener("change", updateGeneralDatabaseFilter);
+        updateGeneralDatabaseFilter();
+      }
 
       subtabButtons.forEach((button) => {
         button.addEventListener("click", () => activateSubtab(button.dataset.subtabTarget));
