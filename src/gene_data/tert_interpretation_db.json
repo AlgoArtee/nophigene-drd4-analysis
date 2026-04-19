@@ -24,7 +24,7 @@
       "end": 1295073,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "5:1295184-1295183",
+    "recommended_promoter_plus_gene_region": "5:1253282-1296183",
     "gene_summary": "TERT encodes telomerase reverse transcriptase, the catalytic core of telomerase that maintains telomere repeats and influences replicative lifespan, genome stability, stem-cell function, and oncogenesis.",
     "clinical_context": "The local TERT knowledge base spans telomere biology, cancer susceptibility, and promoter regulation. Common TERT variants are interpreted as research and risk-modifier signals, while the strongest clinical events often involve promoter mutations or rare high-impact pathogenic alleles.",
     "variant_effect_overview": [

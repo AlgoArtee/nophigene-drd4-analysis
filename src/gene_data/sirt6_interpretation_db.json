@@ -24,7 +24,7 @@
       "end": 4182521,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "19:4182561-4182560",
+    "recommended_promoter_plus_gene_region": "19:4174106-4183560",
     "gene_summary": "SIRT6 encodes a nuclear NAD-dependent deacylase and mono-ADP-ribosyltransferase that supports DNA repair, telomere maintenance, transposon suppression, inflammation control, and energy homeostasis.",
     "clinical_context": "The bundled SIRT6 knowledge base is centered on aging and genome-maintenance biology. Most currently relevant human variants are interpreted as research-grade longevity or regulatory signals rather than as routine pathogenic clinical alleles.",
     "variant_effect_overview": [

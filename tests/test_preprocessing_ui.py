@@ -46,6 +46,12 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert 'data-general-database-row' in template_text
     assert 'data-variant-labeled="{{' in template_text
     assert "function updateGeneralDatabaseFilter()" in template_text
+    assert 'name="analysis_scope"' in template_text
+    assert "Report focus" in template_text
+    assert "Promoter + gene" in template_text
+    assert "focused reports do not update the central database" in template_text
+    assert "function updateAnalysisScopeFields()" in template_text
+    assert "Report focus" in template_text
     assert 'data-analysis-shell' in template_text
     assert 'class="analysis-shell is-form-collapsed"' in template_text
     assert 'id="analysis-form"' in template_text
@@ -111,17 +117,21 @@ def test_preprocess_find_region_submission_updates_session(monkeypatch) -> None:
     )
 
     assert response.status_code == 200
-    assert "Resolved DRD4 to chr11:639677-643057." in response.get_data(as_text=True)
+    assert "Resolved DRD4 to standard promoter+gene region 11:636269-640706." in response.get_data(as_text=True)
 
     with client.session_transaction() as session_state:
         preprocess_state = session_state["preprocess_state"]
 
     assert preprocess_state["gene_name"] == "DRD4"
-    assert preprocess_state["region"] == "chr11:639677-643057"
+    assert preprocess_state["region"] == "11:636269-640706"
+    assert preprocess_state["analysis_scope"] == "promoter_plus_gene"
+    assert preprocess_state["scope_regions"]["promoter_plus_gene"] == "11:636269-640706"
+    assert preprocess_state["scope_regions"]["promoter_only"] == "11:636269-637268"
+    assert preprocess_state["scope_regions"]["gene_only"] == "11:637269-640706"
     assert preprocess_state["region_ready"] is True
     assert preprocess_state["manifest_ready"] is False
     assert preprocess_state["analysis_ready"] is False
-    assert preprocess_state["selected_sources"] == ["NCBI RefSeq"]
+    assert preprocess_state["selected_sources"] == ["NCBI RefSeq", "Local curated promoter/gene intervals"]
 
 
 def test_get_request_resets_preprocessing_workspace(monkeypatch) -> None:
@@ -176,6 +186,10 @@ def test_app_structure_page_includes_general_probe_mapping_qa(monkeypatch) -> No
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
+    assert "How are gene regions retrieved, and how are promoter-only, gene-only, and promoter+gene scopes computed?" in page
+    assert "NCBI Entrez Gene, Ensembl GRCh37, and UCSC hg19" in page
+    assert "UCSC now uses the assembly-wide" in page
+    assert "SIRT6, where the valid standard region is" in page
     assert "How are the local databases built from literature, and how does a probe get mapped to a locus or variant?" in page
     assert "the current whitelist probes are usually not stored as" in page
     assert "SIRT6 on the reverse strand" in page
@@ -469,6 +483,7 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
             "vcf": "data/mock.vcf.gz",
             "idat": "data/mock_sample",
             "out": "results/mock_report.html",
+            "analysis_scope": "promoter_only",
             "region": "1:1-100",
             "popstats": "",
             "manifest_file": "",
@@ -484,6 +499,8 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
     assert "cg00000014" in probe_preview_html
     assert result["predictive_theses"]["matched_case_count"] == 1
     assert result["predictive_theses"]["variant_prediction_rows"][0]["prediction"] == "Mock variant prediction"
+    assert result["analysis_scope_label"] == "Promoter only"
+    assert captured_run_kwargs["analysis_scope"] == "promoter_only"
     assert captured_run_kwargs["overwrite_general_database"] is True
 
 

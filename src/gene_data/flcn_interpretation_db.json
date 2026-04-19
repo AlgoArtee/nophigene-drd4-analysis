@@ -24,7 +24,7 @@
       "end": 17140463,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "17:17140483-17140482",
+    "recommended_promoter_plus_gene_region": "17:17115526-17141482",
     "gene_summary": "FLCN encodes folliculin, a tumor suppressor involved in lysosomal signaling, AMPK-mTOR regulation, TFEB-TFE3 control, and renal and pulmonary homeostasis.",
     "clinical_context": "The strongest clinical interpretation for FLCN is rare-disease oriented. Germline loss-of-function variants cause Birt-Hogg-Dube syndrome, so the local database emphasizes rare pathogenic and tumor-suppressor biology rather than common-SNP association signals.",
     "variant_effect_overview": [

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from typing import Any, Iterable
 
 import requests
 
@@ -110,47 +110,99 @@ def fetch_ensembl_region(
     return f"{seq_region_name}:{start}-{end}"
 
 
-def fetch_ucsc_region(gene_symbol: str = "DRD4") -> str | None:
-    """Look up a gene interval from the UCSC knownGene track.
+_UCSC_PREFERRED_TRACKS = [
+    "hgnc",
+    "ncbiRefSeqCurated",
+    "knownGene",
+    "refGene",
+    "wgEncodeGencodeBasicV49lift37",
+    "wgEncodeGencodeBasicV48lift37",
+    "wgEncodeGencodeCompV49lift37",
+    "wgEncodeGencodeCompV48lift37",
+    "ensGene",
+]
 
-    Notes
-    -----
-    This helper currently queries chromosome 11 directly because it was created
-    for DRD4-focused exploratory work. It still filters by ``gene_symbol`` once
-    the UCSC payload is downloaded, but it should be generalized before being
-    reused for genes outside chromosome 11.
+
+def _parse_ucsc_position(position: str) -> tuple[str, int, int] | None:
+    """Parse a UCSC position string into normalized chromosome coordinates."""
+    match = re.fullmatch(
+        r"chr(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)",
+        str(position).replace(",", "").strip(),
+    )
+    if match is None:
+        return None
+
+    start = int(match.group("start"))
+    end = int(match.group("end"))
+    if start > end:
+        start, end = end, start
+    return match.group("chrom"), start, end
+
+
+def _ucsc_match_symbol(match: dict[str, Any]) -> str:
+    """Extract the leading gene symbol from a UCSC search match."""
+    pos_name = str(match.get("posName", "")).strip()
+    if not pos_name:
+        return ""
+    return re.split(r"[\s(]", pos_name, maxsplit=1)[0].strip()
+
+
+def fetch_ucsc_region(gene_symbol: str = "DRD4", genome: str = "hg19") -> str | None:
+    """Look up a gene interval from UCSC search results for the chosen assembly.
 
     Parameters
     ----------
     gene_symbol : str, optional
-        Gene symbol to match against the UCSC ``name2`` field.
+        HGNC-style gene symbol to match against UCSC position search results.
+    genome : str, optional
+        UCSC genome assembly name. Defaults to ``"hg19"`` to match the rest of
+        this project and the Illumina EPIC manifest coordinates.
 
     Returns
     -------
     str | None
-        Widest transcript interval returned by the UCSC payload, or ``None`` if
-        no matching gene entries are found.
+        Preferred exact-symbol interval returned by UCSC, or ``None`` if no
+        matching genomic position is found.
     """
-    base_url = "https://api.genome.ucsc.edu/getData/track?genome=hg19;track=knownGene;chrom=chr11"
+    cleaned_symbol = _validate_gene_symbol(gene_symbol).upper()
 
     try:
-        response = requests.get(base_url, timeout=DEFAULT_TIMEOUT_SECONDS)
+        response = requests.get(
+            "https://api.genome.ucsc.edu/search",
+            params={"search": cleaned_symbol, "genome": genome},
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+        )
         response.raise_for_status()
-        entries = response.json().get("knownGene", [])
+        data = response.json()
     except (requests.RequestException, ValueError):
         return None
 
-    regions: list[tuple[int, int]] = []
-    for entry in entries:
-        if entry.get("name2") == gene_symbol:
-            regions.append((entry["txStart"], entry["txEnd"]))
+    regions_by_track: dict[str, list[tuple[str, int, int]]] = {}
+    for track_group in data.get("positionMatches", []):
+        track_name = str(track_group.get("trackName") or track_group.get("name") or "")
+        if not track_name:
+            continue
+        for match in track_group.get("matches", []):
+            if _ucsc_match_symbol(match).upper() != cleaned_symbol:
+                continue
+            parsed = _parse_ucsc_position(str(match.get("position", "")))
+            if parsed is None:
+                continue
+            regions_by_track.setdefault(track_name, []).append(parsed)
 
-    if not regions:
-        return None
+    for track_name in _UCSC_PREFERRED_TRACKS:
+        regions = regions_by_track.get(track_name)
+        if not regions:
+            continue
+        chroms = {chrom for chrom, _start, _end in regions}
+        if len(chroms) != 1:
+            continue
+        chrom = next(iter(chroms))
+        start = min(start for _chrom, start, _end in regions)
+        end = max(end for _chrom, _start, end in regions)
+        return f"{chrom}:{start}-{end}"
 
-    start = min(start for start, _ in regions)
-    end = max(end for _, end in regions)
-    return f"11:{start}-{end}"
+    return None
 
 
 def _validate_gene_symbol(gene_symbol: str) -> str:

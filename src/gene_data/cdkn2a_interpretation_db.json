@@ -24,7 +24,7 @@
       "end": 21995312,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "9:21995324-21995323",
+    "recommended_promoter_plus_gene_region": "9:21967751-21996323",
     "gene_summary": "CDKN2A encodes multiple tumor-suppressor products, including p16INK4A and p14ARF, that regulate the RB and p53 pathways, G1 cell-cycle control, senescence, and oncogenic stress responses.",
     "clinical_context": "The bundled CDKN2A knowledge base is tumor-suppressor focused. Clinically important CDKN2A events are often rare germline variants, deletions, or promoter methylation changes rather than common low-effect polymorphisms.",
     "variant_effect_overview": [

@@ -24,7 +24,7 @@
       "end": 116969101,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "11:116969145-116969144",
+    "recommended_promoter_plus_gene_region": "11:116714118-116970144",
     "gene_summary": "SIK3 encodes a salt-inducible serine-threonine kinase in the AMPK-related kinase family that participates in metabolic control, sleep regulation, transcriptional programs, and TOR-linked signaling.",
     "clinical_context": "The local SIK3 knowledge base focuses on emerging functional and sleep-trait biology. The locus has a growing GWAS and mechanistic literature, but interpretation is still mainly research grade for most variants.",
     "variant_effect_overview": [

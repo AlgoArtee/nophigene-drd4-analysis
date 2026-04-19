@@ -1191,7 +1191,7 @@ def _build_promoter_region(meta: dict[str, Any]) -> dict[str, int | str]:
             "used to flag promoter-adjacent coverage before the canonical gene interval."
         )
     else:
-        promoter_start = start - 1000
+        promoter_start = max(1, start - 1000)
         promoter_end = start - 1
         definition = (
             "A practical 1 kb upstream window used by this app to flag promoter-adjacent coverage "
@@ -1268,7 +1268,19 @@ def _build_interpretation_database(meta: dict[str, Any], subset_df: pd.DataFrame
     hotspot_region = _build_hotspot_region(subset_df, meta, promoter_region)
     probe_ids = _select_relevant_probe_ids(subset_df, meta)
 
-    recommended_region = f"{meta['chromosome']}:{promoter_region['start']}-{meta['end']}"
+    combined_start = min(
+        int(meta["start"]),
+        int(meta["end"]),
+        int(promoter_region["start"]),
+        int(promoter_region["end"]),
+    )
+    combined_end = max(
+        int(meta["start"]),
+        int(meta["end"]),
+        int(promoter_region["start"]),
+        int(promoter_region["end"]),
+    )
+    recommended_region = f"{meta['chromosome']}:{combined_start}-{combined_end}"
     gene_context = {
         "gene_name": meta["gene_name"],
         "assembly": ASSEMBLY,

@@ -7,7 +7,7 @@ Usage examples:
         --vcf data/GFXC926398.filtered.snp.vcf.gz \
         --idat data/202277800037_R01C01 \
         --out results/drd4_report.html \
-        --region 11:637269-640706
+        --region 11:636269-640706
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import allel
 import pandas as pd
@@ -29,15 +29,34 @@ from methylprep import run_pipeline
 
 try:
     from .helper_functions.filter_manifest_region import (
+        parse_region_string,
         sanitize_gene_name_for_filename,
         save_filtered_manifest,
     )
 except ImportError:
-    from helper_functions.filter_manifest_region import sanitize_gene_name_for_filename, save_filtered_manifest
+    from helper_functions.filter_manifest_region import parse_region_string, sanitize_gene_name_for_filename, save_filtered_manifest
 
-DEFAULT_REGION = "11:637269-640706"
+DEFAULT_REGION = "11:636269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
 DEFAULT_GENE_NAME = "DRD4"
+DEFAULT_ANALYSIS_SCOPE = "promoter_plus_gene"
+ANALYSIS_SCOPE_OPTIONS = {
+    "promoter_plus_gene": {
+        "label": "Promoter + gene",
+        "slug": "promoter_plus_gene",
+        "description": "Standard full context: upstream promoter review window plus the transcribed gene body.",
+    },
+    "promoter_only": {
+        "label": "Promoter only",
+        "slug": "promoter_only",
+        "description": "Focused report for the upstream promoter review window only.",
+    },
+    "gene_only": {
+        "label": "Gene only",
+        "slug": "gene_only",
+        "description": "Focused report for the canonical transcribed gene interval only.",
+    },
+}
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GENE_DATA_DIR = Path(__file__).resolve().parent / "gene_data"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
@@ -74,6 +93,24 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+
+
+def normalize_analysis_scope(scope: str | None) -> str:
+    """Return a supported report focus key."""
+    normalized_scope = str(scope or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized_scope in ANALYSIS_SCOPE_OPTIONS:
+        return normalized_scope
+    return DEFAULT_ANALYSIS_SCOPE
+
+
+def get_analysis_scope_label(scope: str | None) -> str:
+    """Return a user-facing report focus label."""
+    return ANALYSIS_SCOPE_OPTIONS[normalize_analysis_scope(scope)]["label"]
+
+
+def get_analysis_scope_slug(scope: str | None) -> str:
+    """Return a filesystem-friendly report focus suffix."""
+    return ANALYSIS_SCOPE_OPTIONS[normalize_analysis_scope(scope)]["slug"]
 
 
 def _candidate_gene_database_paths(gene_name: str, suffix: str) -> list[Path]:
@@ -127,6 +164,10 @@ class AnalysisResult:
         Path to the exported methylation CSV companion file.
     region : str
         Genomic interval used for the run.
+    analysis_scope : str
+        Machine-readable report focus key.
+    analysis_scope_label : str
+        Human-readable report focus shown in the UI and exported report.
     vcf_path : Path
         Input VCF path used during execution.
     idat_base : Path
@@ -154,7 +195,7 @@ class AnalysisResult:
         Path to the central variant-level analysis database.
     general_database_status : str
         Human-readable status describing whether this run added, skipped, or
-        overwrote the central database row.
+        overwrote central database rows.
     """
 
     variants: pd.DataFrame
@@ -163,6 +204,8 @@ class AnalysisResult:
     report_path: Path
     methylation_output_path: Path
     region: str
+    analysis_scope: str
+    analysis_scope_label: str
     vcf_path: Path
     idat_base: Path
     variant_interpretations: dict[str, Any]
@@ -211,7 +254,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--region",
         default=DEFAULT_REGION,
-        help="Genomic region in chr:start-end format. Defaults to the DRD4 GRCh37 interval.",
+        help="Genomic region in chr:start-end format. Defaults to the DRD4 promoter+gene GRCh37 interval.",
+    )
+    parser.add_argument(
+        "--analysis-scope",
+        choices=sorted(ANALYSIS_SCOPE_OPTIONS),
+        default=DEFAULT_ANALYSIS_SCOPE,
+        help="Report focus label for this run: promoter_plus_gene, promoter_only, or gene_only.",
     )
     parser.add_argument(
         "--popstats",
@@ -382,6 +431,38 @@ def _parse_region_string(region: str) -> dict[str, Any]:
 def _format_interval(chrom: str, start: int, end: int) -> str:
     """Format a genomic interval for human-readable summaries."""
     return f"chr{chrom}:{start:,}-{end:,}"
+
+
+def _format_plain_interval_union(chrom: str, records: Iterable[dict[str, Any]]) -> str:
+    """Format the coordinate union for interval records without display commas."""
+    intervals = [
+        (int(record["start"]), int(record["end"]))
+        for record in records
+        if record and record.get("start") is not None and record.get("end") is not None
+    ]
+    if not intervals:
+        return ""
+    start = min(min(start, end) for start, end in intervals)
+    end = max(max(start, end) for start, end in intervals)
+    return f"{str(chrom).removeprefix('chr')}:{start}-{end}"
+
+
+def _region_text_covers_records(region: str, records: Iterable[dict[str, Any]], *, chrom: str) -> bool:
+    """Return whether a plain region string covers all supplied interval records."""
+    try:
+        parsed_region = _parse_region_string(region)
+    except AnalysisError:
+        return False
+    if str(parsed_region["chrom"]).removeprefix("chr") != str(chrom).removeprefix("chr"):
+        return False
+    for record in records:
+        record_start = int(record["start"])
+        record_end = int(record["end"])
+        if min(record_start, record_end) < int(parsed_region["start"]):
+            return False
+        if max(record_start, record_end) > int(parsed_region["end"]):
+            return False
+    return True
 
 
 def _format_point(chrom: str, position: int) -> str:
@@ -969,6 +1050,7 @@ def _build_region_recommendations(
     gene_name: str,
 ) -> list[dict[str, str]]:
     """Return practical region-span recommendations for common DRD4 review goals."""
+    _ = combined_region
     return [
         {
             "title": "Promoter only",
@@ -983,13 +1065,6 @@ def _build_region_recommendations(
             "region": gene_region_record["display"],
             "purpose": (
                 f"Use this when you want the canonical {gene_name} transcribed interval but do not need the upstream promoter review window."
-            ),
-        },
-        {
-            "title": "Promoter plus gene body",
-            "region": combined_region,
-            "purpose": (
-                f"Use this when you want the full audit: upstream promoter context plus the canonical {gene_name} gene interval in one search."
             ),
         },
     ]
@@ -1413,6 +1488,16 @@ def build_variant_interpretations(
         for record in variant_records
         if record.get("region_class") in {"coding_repeat", "gene_body"}
     ]
+    region_records_for_union = [promoter_region_record, gene_region_record]
+    recommended_region = str(gene_context.get("recommended_promoter_plus_gene_region") or "")
+    if recommended_region and _region_text_covers_records(
+        recommended_region,
+        region_records_for_union,
+        chrom=chrom,
+    ):
+        combined_region = recommended_region
+    else:
+        combined_region = _format_plain_interval_union(chrom, region_records_for_union)
 
     matched_records: list[dict[str, Any]] = []
     seen_matches: set[tuple[str, str]] = set()
@@ -1462,7 +1547,7 @@ def build_variant_interpretations(
         gene_name=gene_name,
         inclusion_hint=(
             "Use the promoter-plus-gene interval "
-            f"{gene_context.get('recommended_promoter_plus_gene_region', _format_interval(chrom, promoter_region_record['start'], gene_region_record['end']))} "
+            f"{combined_region} "
             f"if you want the upstream {gene_name} promoter reviewed alongside the gene."
         ),
     )
@@ -1477,10 +1562,6 @@ def build_variant_interpretations(
 
     promoter_phrase = "overlaps" if promoter_analysis["included"] else "does not overlap"
     gene_phrase = "overlaps" if gene_analysis["included"] else "does not overlap"
-    combined_region = gene_context.get(
-        "recommended_promoter_plus_gene_region",
-        _format_interval(chrom, promoter_region_record["start"], gene_region_record["end"]),
-    )
     summary = (
         f"{gene_name} is located at {gene_region_record['display']} on {gene_context.get('cytoband', 'the reported cytoband')} "
         f"and spans {gene_region_record['length_bp']:,} bp on the {gene_context.get('assembly', 'GRCh37 / hg19')} assembly. "
@@ -3010,6 +3091,16 @@ def load_methylation(
     except Exception as exc:
         raise AnalysisError(f"Failed to read region manifest file '{region_manifest_file}': {exc}") from exc
 
+    if {"CHR", "MAPINFO"}.issubset(manifest_region.columns):
+        region_chrom, region_start, region_end = parse_region_string(region)
+        region_chrom = str(region_chrom).removeprefix("chr")
+        region_positions = pd.to_numeric(manifest_region["MAPINFO"], errors="coerce")
+        manifest_region = manifest_region[
+            (manifest_region["CHR"].astype(str).str.removeprefix("chr") == region_chrom)
+            & (region_positions >= region_start)
+            & (region_positions <= region_end)
+        ].copy()
+
     rename_cols = {
         "IlmnID": "probe_id",
         "CHR": "chrom",
@@ -3696,6 +3787,7 @@ def generate_report(
     methylation_insights: dict[str, Any] | None = None,
     population_insights: dict[str, Any] | None = None,
     predictive_theses: dict[str, Any] | None = None,
+    analysis_scope: str = DEFAULT_ANALYSIS_SCOPE,
 ) -> Path:
     """Generate a report artifact from the assembled analysis tables.
 
@@ -3733,6 +3825,8 @@ def generate_report(
     report_path = Path(output_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     suffix = report_path.suffix.lower() or ".html"
+    normalized_analysis_scope = normalize_analysis_scope(analysis_scope)
+    analysis_scope_label = get_analysis_scope_label(normalized_analysis_scope)
 
     popstats_section = ""
     if isinstance(popstats, pd.DataFrame):
@@ -3765,7 +3859,7 @@ def generate_report(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{html.escape(gene_name)} Analysis Report</title>
+  <title>{html.escape(gene_name)} {html.escape(analysis_scope_label)} Analysis Report</title>
   <style>
     :root {{
       --bg: #f6efe3;
@@ -3914,6 +4008,7 @@ def generate_report(
     <section class="hero">
       <h1>{html.escape(gene_name)} Analysis Report</h1>
       <p>This report summarizes the current {html.escape(gene_name)} variant and methylation analysis run.</p>
+      <p><strong>Report focus:</strong> {html.escape(analysis_scope_label)}</p>
       <p><strong>Region:</strong> {html.escape(region)}</p>
       <p><strong>Report path:</strong> {html.escape(str(report_path))}</p>
       {methylation_path_markup}
@@ -3948,6 +4043,8 @@ def generate_report(
     if suffix == ".json":
         payload = {
             "region": region,
+            "analysis_scope": normalized_analysis_scope,
+            "analysis_scope_label": analysis_scope_label,
             "variants": variants.to_dict(orient="records"),
             "methylation": methylation.to_dict(orient="records"),
             "population_statistics": _serialize_popstats(popstats),
@@ -3961,6 +4058,8 @@ def generate_report(
         summary = pd.DataFrame(
             [
                 {"metric": "region", "value": region},
+                {"metric": "analysis_scope", "value": normalized_analysis_scope},
+                {"metric": "analysis_scope_label", "value": analysis_scope_label},
                 {"metric": "variant_count", "value": len(variants)},
                 {"metric": "methylation_probe_count", "value": len(methylation)},
                 {"metric": "has_population_stats", "value": popstats is not None},
@@ -3991,6 +4090,7 @@ def run_analysis(
     region: str = DEFAULT_REGION,
     popstats_source: str | None = None,
     manifest_filepath: str | None = None,
+    analysis_scope: str = DEFAULT_ANALYSIS_SCOPE,
     overwrite_general_database: bool = False,
     general_database_path: str | Path = GENERAL_ANALYSIS_DATABASE_PATH,
 ) -> AnalysisResult:
@@ -4008,6 +4108,9 @@ def run_analysis(
         Gene symbol associated with the current run.
     region : str, optional
         Genomic region to inspect.
+    analysis_scope : str, optional
+        Report focus for the run. The central database is only updated for the
+        standard promoter_plus_gene scope.
     popstats_source : str | None, optional
         Optional population statistics sidecar file path.
     manifest_filepath : str | None, optional
@@ -4026,6 +4129,8 @@ def run_analysis(
         output paths.
     """
     normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
+    normalized_analysis_scope = normalize_analysis_scope(analysis_scope)
+    analysis_scope_label = get_analysis_scope_label(normalized_analysis_scope)
 
     variants = load_variants(vcf_path, region)
     methylation = load_methylation(
@@ -4099,14 +4204,23 @@ def run_analysis(
     if popstats_source:
         popstats = fetch_population_stats(popstats_source, variants)
 
-    general_database_result = update_general_analysis_database(
-        gene_name=normalized_gene_name,
-        variants=variants,
-        variant_interpretations=variant_interpretations,
-        methylation_insights=methylation_insights,
-        overwrite=overwrite_general_database,
-        database_path=general_database_path,
-    )
+    if normalized_analysis_scope == DEFAULT_ANALYSIS_SCOPE:
+        general_database_result = update_general_analysis_database(
+            gene_name=normalized_gene_name,
+            variants=variants,
+            variant_interpretations=variant_interpretations,
+            methylation_insights=methylation_insights,
+            overwrite=overwrite_general_database,
+            database_path=general_database_path,
+        )
+    else:
+        general_database_result = {
+            "path": Path(general_database_path),
+            "message": (
+                f"Central database was not updated for the {analysis_scope_label} focused report; "
+                "the general database remains tied to the standard Promoter + gene run."
+            ),
+        }
 
     final_report_path = generate_report(
         variants,
@@ -4120,6 +4234,7 @@ def run_analysis(
         methylation_insights=methylation_insights,
         population_insights=population_insights,
         predictive_theses=predictive_theses,
+        analysis_scope=normalized_analysis_scope,
     )
 
     return AnalysisResult(
@@ -4129,6 +4244,8 @@ def run_analysis(
         report_path=final_report_path,
         methylation_output_path=methylation_output_path,
         region=region,
+        analysis_scope=normalized_analysis_scope,
+        analysis_scope_label=analysis_scope_label,
         vcf_path=Path(vcf_path),
         idat_base=Path(idat_base),
         variant_interpretations=variant_interpretations,
@@ -4154,6 +4271,7 @@ def main(argv: list[str] | None = None) -> int:
             region=args.region,
             popstats_source=args.popstats,
             manifest_filepath=args.manifest_file,
+            analysis_scope=args.analysis_scope,
         )
     except AnalysisError as exc:
         logger.error("%s", exc)

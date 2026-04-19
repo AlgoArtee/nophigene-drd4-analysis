@@ -68,7 +68,11 @@ def test_coordinate_alias_can_match_curated_variant_record() -> None:
     assert interpretation["sample_highlights"]["result_table_rows"][0]["variant_label"] == "None"
     assert interpretation["sample_highlights"]["result_table_rows"][0]["change"] == "C -> T"
     assert interpretation["sample_highlights"]["result_table_rows"][0]["linked_to"]
-    assert len(interpretation["region_recommendations"]) == 3
+    assert len(interpretation["region_recommendations"]) == 2
+    assert [item["title"] for item in interpretation["region_recommendations"]] == [
+        "Promoter only",
+        "Gene body only",
+    ]
 
 
 def test_gene_interval_without_promoter_is_reported_cleanly() -> None:
@@ -389,6 +393,7 @@ def test_generate_report_includes_variant_and_methylation_interpretation_section
     assert "Sample Results" in report_html
     assert "Matched Variant Interpretations" in report_html
     assert "Predictive Theses" in report_html
+    assert "Report focus:</strong> Promoter + gene" in report_html
     assert "Variant Prediction" in report_html
     assert "Methylation Prediction" in report_html
     assert "Synthesis" in report_html

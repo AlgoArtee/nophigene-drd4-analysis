@@ -19,6 +19,7 @@ from src.analysis import (
 )
 from src.webapp import (
     _apply_preprocessing_defaults,
+    _build_analysis_scope_regions,
     _build_field_info,
     _build_population_context_status,
     discover_population_stats_files,
@@ -60,6 +61,9 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     assert population_database["database_name"].startswith("NophiGene HERC2 Population")
     assert len(population_database["variant_population_records"]) >= 5
     assert population_database["gene_population_patterns"]
+    assert population_database["gene_population_patterns_intro"].startswith(
+        "Broader population patterns curated from HERC2/OCA2"
+    )
     assert synthesis_database["database_name"].startswith("NophiGene HERC2 Predictive")
     assert synthesis_database["case_count"] == 10
     assert len(synthesis_database["cases"]) == 10
@@ -80,9 +84,38 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
         rule.get("change") == "G -> A" and rule.get("alt_allele") == "A"
         for rule in rs12913832_rule["allele_change_rules"]
     )
-    assert population_database["gene_population_patterns_intro"].startswith(
-        "Broader population patterns curated from HERC2/OCA2"
-    )
+
+
+def test_reverse_strand_scope_regions_use_valid_promoter_gene_union() -> None:
+    """Reverse-strand promoter+gene regions should cover both body and upstream promoter."""
+    scope_regions = _build_analysis_scope_regions("SIRT6", "19:4174106-4182560")
+
+    assert scope_regions["gene_only"] == "19:4174106-4182560"
+    assert scope_regions["promoter_only"] == "19:4182561-4183560"
+    assert scope_regions["promoter_plus_gene"] == "19:4174106-4183560"
+
+
+def test_all_local_interpretation_databases_have_valid_combined_regions() -> None:
+    """Every bundled promoter+gene recommendation should cover promoter and gene body."""
+    gene_data_dir = Path(__file__).resolve().parents[1] / "src" / "gene_data"
+
+    for database_path in gene_data_dir.glob("*_interpretation_db.json"):
+        gene_name = database_path.name.removesuffix("_interpretation_db.json")
+        knowledge_base = load_gene_interpretation_database(gene_name)
+        assert knowledge_base is not None
+        gene_context = knowledge_base["gene_context"]
+        combined = gene_context["recommended_promoter_plus_gene_region"].replace("chr", "")
+        combined_chrom, combined_span = combined.split(":")
+        combined_start, combined_end = [int(value) for value in combined_span.split("-")]
+        gene_region = gene_context["gene_region"]
+        promoter_region = gene_context["promoter_review_region"]
+
+        assert combined_start <= combined_end, database_path.name
+        assert str(gene_context["chromosome"]).removeprefix("chr") == combined_chrom
+        assert combined_start <= min(gene_region["start"], gene_region["end"])
+        assert combined_end >= max(gene_region["start"], gene_region["end"])
+        assert combined_start <= min(promoter_region["start"], promoter_region["end"])
+        assert combined_end >= max(promoter_region["start"], promoter_region["end"])
 
 
 def test_herc2_predictive_theses_use_concrete_eye_colour_variant_rules() -> None:
@@ -566,6 +599,7 @@ def test_preprocessing_defaults_do_not_force_custom_manifest() -> None:
         "idat": "",
         "out": "results/drd4_report.html",
         "region": "",
+        "analysis_scope": "",
         "popstats": "",
         "manifest_file": "",
         "suggested_popstats": "",
@@ -580,8 +614,9 @@ def test_preprocessing_defaults_do_not_force_custom_manifest() -> None:
     _apply_preprocessing_defaults(form, preprocess_state)
 
     assert form["region"] == "15:99191768-99507759"
+    assert form["analysis_scope"] == "promoter_plus_gene"
     assert form["manifest_file"] == ""
-    assert form["out"] == "results/igf1r_report.html"
+    assert form["out"] == "results/igf1r_promoter_plus_gene_report.html"
 
 
 def test_population_stats_suggestions_ignore_processed_sample_outputs(

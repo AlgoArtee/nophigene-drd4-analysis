@@ -24,7 +24,7 @@
       "end": 19380225,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "9:19380235-19380234",
+    "recommended_promoter_plus_gene_region": "9:19375713-19381234",
     "gene_summary": "RPS6 encodes the ribosomal protein S6, a core 40S subunit protein and major substrate of S6 kinases downstream of mTOR signaling. Its phosphorylation state is widely used as a readout of growth-factor and nutrient-responsive translation control.",
     "clinical_context": "The bundled RPS6 knowledge base is pathway oriented. RPS6 is typically interpreted as a translational-control and mTOR-output node rather than as a common-SNP clinical gene in routine VCF review.",
     "variant_effect_overview": [

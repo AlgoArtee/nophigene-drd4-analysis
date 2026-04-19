@@ -24,7 +24,7 @@
       "end": 11322531,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "1:11322609-11322608",
+    "recommended_promoter_plus_gene_region": "1:11166592-11323608",
     "gene_summary": "MTOR encodes the catalytic kinase shared by mTORC1 and mTORC2, integrating nutrient availability, growth-factor signaling, stress cues, and cellular energy state to regulate protein synthesis, autophagy, survival, and cytoskeletal programs.",
     "clinical_context": "The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context.",
     "variant_effect_overview": [

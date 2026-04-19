@@ -24,7 +24,7 @@
       "end": 40798458,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "5:40798477-40798476",
+    "recommended_promoter_plus_gene_region": "5:40759491-40799476",
     "gene_summary": "PRKAA1 encodes the alpha-1 catalytic subunit of AMPK, the major cellular energy sensor that restrains anabolic signaling, supports metabolic adaptation, and suppresses mTORC1 under low-energy conditions.",
     "clinical_context": "The local PRKAA1 knowledge base is built around metabolic and cancer-association literature. Common PRKAA1 variants are best interpreted as pathway modifiers rather than as highly penetrant clinical alleles.",
     "variant_effect_overview": [

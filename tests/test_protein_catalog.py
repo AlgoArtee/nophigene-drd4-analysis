@@ -23,7 +23,8 @@ def test_build_human_protein_query_supports_symbol_search() -> None:
     assert '"DRD4"' in query
     assert "protein_name:" not in query
     assert "accession:" not in query
-    assert "id:" not in query
+    assert " id:" not in query
+    assert "(id:" not in query
 
 
 def test_build_human_protein_query_relaxed_mode_uses_free_text_only() -> None:

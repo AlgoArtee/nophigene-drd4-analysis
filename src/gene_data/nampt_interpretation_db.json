@@ -24,7 +24,7 @@
       "end": 105925381,
       "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
     },
-    "recommended_promoter_plus_gene_region": "7:105925430-105925429",
+    "recommended_promoter_plus_gene_region": "7:105888744-105926429",
     "gene_summary": "NAMPT encodes nicotinamide phosphoribosyltransferase, the rate-limiting enzyme in the major NAD salvage pathway and a key regulator of metabolic stress, inflammation, and cellular resilience.",
     "clinical_context": "The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent.",
     "variant_effect_overview": [

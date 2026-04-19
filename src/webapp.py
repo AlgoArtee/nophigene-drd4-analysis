@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import io
+import json
 import os
+import re
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
@@ -15,13 +17,19 @@ from flask import Flask, jsonify, render_template, request, send_from_directory,
 
 try:
     from .analysis import (
+        ANALYSIS_SCOPE_OPTIONS,
         AnalysisError,
+        DEFAULT_ANALYSIS_SCOPE,
         DEFAULT_GENE_NAME,
         DEFAULT_REGION,
         DEFAULT_REPORT_NAME,
         GENERAL_ANALYSIS_DATABASE_COLUMNS,
         _prepare_methylation_table_for_output,
         _prepare_variant_table_for_output,
+        get_analysis_scope_label,
+        get_analysis_scope_slug,
+        load_gene_interpretation_database,
+        normalize_analysis_scope,
         run_analysis,
     )
     from .gene_region_extraction import find_gene_region
@@ -32,13 +40,19 @@ try:
     from .human_protein_catalog import FEATURED_HUMAN_PROTEIN_QUERIES, get_human_protein_catalog
 except ImportError:
     from analysis import (
+        ANALYSIS_SCOPE_OPTIONS,
         AnalysisError,
+        DEFAULT_ANALYSIS_SCOPE,
         DEFAULT_GENE_NAME,
         DEFAULT_REGION,
         DEFAULT_REPORT_NAME,
         GENERAL_ANALYSIS_DATABASE_COLUMNS,
         _prepare_methylation_table_for_output,
         _prepare_variant_table_for_output,
+        get_analysis_scope_label,
+        get_analysis_scope_slug,
+        load_gene_interpretation_database,
+        normalize_analysis_scope,
         run_analysis,
     )
     from gene_region_extraction import find_gene_region
@@ -60,6 +74,55 @@ app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
 def _build_app_structure_qa_items() -> list[dict[str, object]]:
     """Return general app-structure Q&A content for the static architecture page."""
     return [
+        {
+            "question": "How are gene regions retrieved, and how are promoter-only, gene-only, and promoter+gene scopes computed?",
+            "answer_lines": [
+                (
+                    "The preprocessing `Find Region from Gene Name` action starts with public annotation lookup, but the public lookup is used to identify the gene-body interval, not to invent a promoter. "
+                    "The app asks NCBI Entrez Gene, Ensembl GRCh37, and UCSC hg19 for candidate intervals for the submitted HGNC-style gene symbol."
+                ),
+                (
+                    "NCBI contributes the Gene `genomicinfo` interval, Ensembl contributes the GRCh37 `lookup/symbol/homo_sapiens/{gene}` interval, and UCSC now uses the assembly-wide `/search` endpoint instead of the older DRD4-only `chr11` prototype. "
+                    "UCSC results are filtered to exact leading symbol matches so similarly named or merely related genes do not contaminate the region."
+                ),
+                (
+                    "The public source candidates are still recorded in preprocessing as `candidate_regions`, and the app picks the widest usable public interval as the provisional `selected_region`. "
+                    "This widest interval is a practical reconciliation step across RefSeq, Ensembl, UCSC, HGNC, GENCODE, and transcript-track differences."
+                ),
+                (
+                    "Biologically, those public database intervals should be read as gene/transcript-body coordinates. "
+                    "In common annotation formats, fields such as UCSC genePred `txStart` and `txEnd`, Ensembl gene `start` and `end`, and NCBI Gene genomic coordinates describe the transcribed locus; the promoter is not automatically part of that interval."
+                ),
+                (
+                    "Because promoter definitions vary by assay and biological question, this app computes the operational promoter locally. "
+                    "For curated genes, the local `{gene}_interpretation_db.json` stores `gene_region`, `promoter_review_region`, and `recommended_promoter_plus_gene_region` under `gene_context`."
+                ),
+                (
+                    "The local standard promoter window is strand-aware. "
+                    "For plus-strand genes, promoter-only is the 1 kb window immediately before the gene start. "
+                    "For reverse-strand genes, promoter-only is the 1 kb window immediately after the gene end, because the transcription start is at the higher genomic coordinate."
+                ),
+                (
+                    "Promoter+gene is therefore not made by simply writing `promoter_start-gene_end`. "
+                    "It is the coordinate union of the promoter interval and gene-body interval: `min(all starts and ends)` through `max(all starts and ends)` on the same chromosome. "
+                    "This is what fixes reverse-strand genes such as SIRT6, where the valid standard region is `19:4174106-4183560`, not the invalid `19:4182561-4182560`."
+                ),
+                (
+                    "When a curated local interpretation database exists, its validated scope regions override the raw public `selected_region` for the UI. "
+                    "The Run Analysis selector then maps `Promoter + gene` to the standard union region, `Promoter only` to `promoter_review_region`, and `Gene only` to `gene_region`."
+                ),
+                (
+                    "When no curated local database exists for a gene, the app falls back conservatively: gene-only is the public selected interval, promoter+gene is the selected interval padded 1 kb upstream from the lower coordinate, and promoter-only is left unavailable because the app does not yet know the strand-specific TSS with enough confidence."
+                ),
+                (
+                    "The filtered methylation manifest is built for the standard promoter+gene region during preprocessing. "
+                    "Focused promoter-only or gene-only reports then narrow the loaded manifest rows again to the selected report-focus interval, while the central analysis database remains tied to the standard promoter+gene run."
+                ),
+                (
+                    "The intended lookup policy is therefore: use public databases for robust gene-body coordinate discovery, use the local curated knowledge database for biologically explicit promoter/TSS scope, and store promoter+gene as a validated coordinate union so both plus- and reverse-strand genes behave correctly."
+                ),
+            ],
+        },
         {
             "question": "How are the local databases built from literature, and how does a probe get mapped to a locus or variant?",
             "answer_lines": [
@@ -135,6 +198,149 @@ def _resolve_user_path(raw_path: str) -> Path:
     if candidate.is_absolute():
         return candidate
     return PROJECT_ROOT / candidate
+
+
+def _format_interval_from_record(record: dict[str, Any] | None, *, default_chrom: str = "") -> str:
+    """Format a local knowledge-base interval record as a region string."""
+    if not record:
+        return ""
+    chrom = str(record.get("chrom") or record.get("chromosome") or default_chrom).strip().removeprefix("chr")
+    start = record.get("start")
+    end = record.get("end")
+    if not chrom or start is None or end is None:
+        return ""
+    try:
+        return f"{chrom}:{int(start)}-{int(end)}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _parse_interval_text(region: str) -> tuple[str, int, int] | None:
+    """Parse ``chrom:start-end`` text without raising for optional UI state."""
+    match = re.fullmatch(
+        r"(?:chr)?(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)",
+        str(region).replace(",", "").strip(),
+    )
+    if match is None:
+        return None
+    start = int(match.group("start"))
+    end = int(match.group("end"))
+    if start > end:
+        return None
+    return match.group("chrom"), start, end
+
+
+def _region_covers(candidate_region: str, required_regions: list[str]) -> bool:
+    """Return whether one interval covers all required same-chromosome intervals."""
+    candidate = _parse_interval_text(candidate_region)
+    if candidate is None:
+        return False
+    candidate_chrom, candidate_start, candidate_end = candidate
+    for required_region in required_regions:
+        required = _parse_interval_text(required_region)
+        if required is None:
+            return False
+        required_chrom, required_start, required_end = required
+        if str(required_chrom).removeprefix("chr") != str(candidate_chrom).removeprefix("chr"):
+            return False
+        if required_start < candidate_start or required_end > candidate_end:
+            return False
+    return True
+
+
+def _format_region_union(regions: list[str]) -> str:
+    """Return the coordinate union of valid same-chromosome intervals."""
+    parsed_regions = [_parse_interval_text(region) for region in regions if region]
+    parsed_regions = [region for region in parsed_regions if region is not None]
+    if not parsed_regions:
+        return ""
+    chrom = str(parsed_regions[0][0]).removeprefix("chr")
+    if any(str(region[0]).removeprefix("chr") != chrom for region in parsed_regions):
+        return ""
+    start = min(region[1] for region in parsed_regions)
+    end = max(region[2] for region in parsed_regions)
+    return f"{chrom}:{start}-{end}"
+
+
+def _format_region_with_padding(region: str, upstream_bp: int = 1000) -> str:
+    """Return a conservative promoter+gene fallback when no curated scope exists."""
+    cleaned = region.strip().replace(",", "")
+    if ":" not in cleaned or "-" not in cleaned:
+        return region
+    chrom, span = cleaned.split(":", 1)
+    start_text, end_text = span.split("-", 1)
+    try:
+        start = max(1, int(start_text) - upstream_bp)
+        end = int(end_text)
+    except ValueError:
+        return region
+    return f"{chrom}:{start}-{end}"
+
+
+def _build_analysis_scope_regions(gene_name: str, selected_gene_region: str) -> dict[str, str]:
+    """Build promoter+gene, promoter-only, and gene-only regions for the UI."""
+    normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
+    knowledge_base = load_gene_interpretation_database(normalized_gene_name)
+    if knowledge_base is not None:
+        gene_context = knowledge_base.get("gene_context", {})
+        context_chrom = str(gene_context.get("chromosome", "")).strip()
+        promoter_region = _format_interval_from_record(
+            gene_context.get("promoter_review_region"),
+            default_chrom=context_chrom,
+        )
+        gene_region = (
+            _format_interval_from_record(gene_context.get("gene_region"), default_chrom=context_chrom)
+            or selected_gene_region
+        )
+        recommended_region = str(gene_context.get("recommended_promoter_plus_gene_region") or "")
+        required_regions = [region for region in [promoter_region, gene_region] if region]
+        if recommended_region and _region_covers(recommended_region, required_regions):
+            promoter_plus_gene = recommended_region
+        else:
+            promoter_plus_gene = _format_region_union(required_regions) or _format_region_with_padding(gene_region)
+        return {
+            "promoter_plus_gene": promoter_plus_gene,
+            "promoter_only": promoter_region,
+            "gene_only": gene_region,
+        }
+
+    promoter_plus_gene = _format_region_with_padding(selected_gene_region)
+    return {
+        "promoter_plus_gene": promoter_plus_gene,
+        "promoter_only": "",
+        "gene_only": selected_gene_region,
+    }
+
+
+def _build_analysis_scope_options(preprocess_state: dict[str, Any]) -> list[dict[str, str]]:
+    """Return report-focus options with the current gene's regions attached."""
+    scope_regions = dict(preprocess_state.get("scope_regions") or {})
+    selected_scope = normalize_analysis_scope(str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE)))
+    options: list[dict[str, str]] = []
+    for scope_key, scope_config in ANALYSIS_SCOPE_OPTIONS.items():
+        region = str(scope_regions.get(scope_key, "")).strip()
+        options.append(
+            {
+                "key": scope_key,
+                "label": scope_config["label"],
+                "description": scope_config["description"],
+                "region": region,
+                "output": _default_report_path_for_scope(
+                    str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
+                    scope_key,
+                ),
+                "selected": "true" if scope_key == selected_scope else "false",
+                "disabled": "true" if not region else "false",
+            }
+        )
+    return options
+
+
+def _default_report_path_for_scope(gene_name: str, analysis_scope: str = DEFAULT_ANALYSIS_SCOPE) -> str:
+    """Return the default report path for a gene and report focus."""
+    sanitized_gene_name = sanitize_gene_name_for_filename(gene_name).lower()
+    scope_slug = get_analysis_scope_slug(analysis_scope)
+    return f"results/{sanitized_gene_name}_{scope_slug}_report.html"
 
 
 def discover_vcf_files() -> list[str]:
@@ -404,8 +610,9 @@ def _empty_form_state() -> dict[str, str]:
     return {
         "vcf": vcf_files[0] if vcf_files else "",
         "idat": idat_prefixes[0] if idat_prefixes else "",
-        "out": f"results/{DEFAULT_REPORT_NAME}",
+        "out": _default_report_path_for_scope(DEFAULT_GENE_NAME, DEFAULT_ANALYSIS_SCOPE),
         "region": DEFAULT_REGION,
+        "analysis_scope": DEFAULT_ANALYSIS_SCOPE,
         "popstats": "",
         "manifest_file": "",
         "overwrite_general_database": "",
@@ -418,6 +625,13 @@ def _empty_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
     return {
         "gene_name": DEFAULT_GENE_NAME,
         "region": DEFAULT_REGION,
+        "analysis_scope": DEFAULT_ANALYSIS_SCOPE,
+        "scope_regions": {
+            "promoter_plus_gene": DEFAULT_REGION,
+            "promoter_only": "",
+            "gene_only": DEFAULT_REGION,
+        },
+        "scope_region_source": "Default DRD4 promoter+gene scope",
         "manifest_source": manifest_files[0] if manifest_files else "",
         "filtered_manifest": "",
         "region_candidates": [],
@@ -440,6 +654,13 @@ def _load_preprocess_state(manifest_files: list[str]) -> dict[str, Any]:
     if isinstance(saved_state, dict):
         state.update(saved_state)
 
+    if not state.get("scope_regions"):
+        state["scope_regions"] = {
+            "promoter_plus_gene": str(state.get("region", DEFAULT_REGION)),
+            "promoter_only": "",
+            "gene_only": str(state.get("region", DEFAULT_REGION)),
+        }
+
     if not state.get("manifest_source") and manifest_files:
         state["manifest_source"] = manifest_files[0]
     return state
@@ -450,6 +671,9 @@ def _store_preprocess_state(state: dict[str, Any]) -> None:
     session[SESSION_PREPROCESS_KEY] = {
         "gene_name": str(state.get("gene_name", DEFAULT_GENE_NAME)),
         "region": str(state.get("region", DEFAULT_REGION)),
+        "analysis_scope": normalize_analysis_scope(str(state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE))),
+        "scope_regions": dict(state.get("scope_regions") or {}),
+        "scope_region_source": str(state.get("scope_region_source", "")),
         "manifest_source": str(state.get("manifest_source", "")),
         "filtered_manifest": str(state.get("filtered_manifest", "")),
         "region_candidates": list(state.get("region_candidates", [])),
@@ -503,14 +727,54 @@ def _summarize_existing_filtered_manifest(output_path: Path) -> dict[str, object
     }
 
 
+def _filtered_manifest_metadata_path(output_path: Path) -> Path:
+    """Return the small metadata sidecar for a filtered manifest subset."""
+    return output_path.with_suffix(output_path.suffix + ".meta.json")
+
+
+def _write_filtered_manifest_metadata(
+    output_path: Path,
+    *,
+    gene_name: str,
+    region: str,
+    analysis_scope: str,
+) -> None:
+    """Persist the exact region used to create a filtered manifest subset."""
+    metadata = {
+        "gene_name": gene_name,
+        "region": region,
+        "analysis_scope": normalize_analysis_scope(analysis_scope),
+    }
+    _filtered_manifest_metadata_path(output_path).write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+
+def _filtered_manifest_covers_region(output_path: Path, region: str) -> bool:
+    """Return whether an existing subset appears to span the requested interval."""
+    try:
+        metadata = json.loads(_filtered_manifest_metadata_path(output_path).read_text(encoding="utf-8"))
+    except Exception:
+        return False
+
+    return str(metadata.get("region", "")).replace(",", "") == str(region).replace(",", "")
+
+
 def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[str, Any]) -> None:
     """Propagate preprocessing results into the analysis form defaults."""
-    if preprocess_state.get("region"):
-        form["region"] = str(preprocess_state["region"])
+    analysis_scope = normalize_analysis_scope(str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE)))
+    scope_regions = dict(preprocess_state.get("scope_regions") or {})
+    scoped_region = str(scope_regions.get(analysis_scope) or preprocess_state.get("region") or DEFAULT_REGION)
+    form["analysis_scope"] = analysis_scope
+    if scoped_region:
+        form["region"] = scoped_region
 
-    default_output = f"results/{DEFAULT_REPORT_NAME}"
-    if form["out"] == default_output and preprocess_state.get("gene_name"):
-        form["out"] = f"results/{str(preprocess_state['gene_name']).lower()}_report.html"
+    default_outputs = {
+        f"results/{DEFAULT_REPORT_NAME}",
+        _default_report_path_for_scope(DEFAULT_GENE_NAME, DEFAULT_ANALYSIS_SCOPE),
+    }
+    if form["out"] in default_outputs and preprocess_state.get("gene_name"):
+        form["out"] = _default_report_path_for_scope(str(preprocess_state["gene_name"]), analysis_scope)
+    elif not form["out"] and preprocess_state.get("gene_name"):
+        form["out"] = _default_report_path_for_scope(str(preprocess_state["gene_name"]), analysis_scope)
 
 
 def _build_field_info(
@@ -549,9 +813,9 @@ def _build_field_info(
         "region": {
             "example": form["region"] or str(preprocess_state.get("region", DEFAULT_REGION)),
             "details": (
-                "The genomic region limits the analysis to a specific coordinate interval. "
-                "In this workflow it should usually come from preprocessing, where the gene name "
-                "is resolved to the active genome interval."
+                "The genomic region limits the analysis to the selected report focus. "
+                "The default focus is promoter plus gene body; switch to promoter-only or gene-only "
+                "only when you want a narrower report artifact."
             ),
         },
         "popstats": {
@@ -594,14 +858,15 @@ def _build_preprocess_field_info(
         "region": {
             "example": str(preprocess_state.get("region") or DEFAULT_REGION),
             "details": (
-                "This field is filled by the gene-region lookup step and can also be adjusted manually if "
-                "you want to use a custom span such as promoter-plus-gene coverage."
+                "This field is filled by the gene-region lookup step. The standard preprocessing span is "
+                "promoter plus gene body, because promoter regulatory variants and methylation probes often sit "
+                "just upstream of the transcribed interval."
             ),
         },
         "manifest_source": {
             "example": str(preprocess_state.get("manifest_source") or (manifest_files[0] if manifest_files else "data/infinium-methylationepic-manifest.csv")),
             "details": (
-                "Use the full EPIC manifest here. The app will filter it down to just the selected gene interval "
+                "Use the full EPIC manifest here. The app will filter it down to the standard promoter+gene interval "
                 "and save a much smaller CSV subset into src/gene_data for downstream methylation processing."
             ),
         },
@@ -634,6 +899,10 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
     return {
         "gene_name": str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
         "region": str(preprocess_state.get("region", "")),
+        "analysis_scope": normalize_analysis_scope(str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE))),
+        "analysis_scope_label": get_analysis_scope_label(str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE))),
+        "scope_regions": dict(preprocess_state.get("scope_regions") or {}),
+        "scope_region_source": str(preprocess_state.get("scope_region_source", "")),
         "manifest_source": str(preprocess_state.get("manifest_source", "")),
         "filtered_manifest": filtered_manifest,
         "region_ready": bool(preprocess_state.get("region_ready", False)),
@@ -658,7 +927,7 @@ def _build_preprocess_result(preprocess_state: dict[str, Any]) -> dict[str, Any]
                 "title": "Find Region from Gene Name",
                 "status": "complete" if preprocess_state.get("region_ready") else "pending",
                 "summary": (
-                    f"Resolved to {preprocess_state.get('region', DEFAULT_REGION)}"
+                    f"Resolved standard promoter+gene scope to {preprocess_state.get('region', DEFAULT_REGION)}"
                     if preprocess_state.get("region_ready")
                     else "Waiting for a gene-symbol lookup."
                 ),
@@ -782,6 +1051,9 @@ def index() -> str:
                 preprocess_state["probe_count"] = 0
                 preprocess_state["selected_sources"] = []
                 preprocess_state["region_candidates"] = []
+                preprocess_state["analysis_scope"] = DEFAULT_ANALYSIS_SCOPE
+                preprocess_state["scope_regions"] = {}
+                preprocess_state["scope_region_source"] = ""
                 preprocess_state["logs"] = []
                 preprocess_state["region_recently_updated"] = False
             preprocess_action = request.form.get("preprocess_action", "").strip()
@@ -799,8 +1071,23 @@ def index() -> str:
                     _append_preprocess_log(preprocess_state, captured_stdout, stream="stdout")
                     _append_preprocess_log(preprocess_state, captured_stderr, stream="stderr")
                     preprocess_state["gene_name"] = str(lookup["gene_name"])
-                    preprocess_state["region"] = str(lookup["selected_region"])
-                    preprocess_state["selected_sources"] = list(lookup["selected_sources"])
+                    scope_regions = _build_analysis_scope_regions(
+                        str(lookup["gene_name"]),
+                        str(lookup["selected_region"]),
+                    )
+                    preprocess_state["analysis_scope"] = DEFAULT_ANALYSIS_SCOPE
+                    preprocess_state["scope_regions"] = scope_regions
+                    preprocess_state["scope_region_source"] = (
+                        "Local curated promoter/gene intervals"
+                        if scope_regions.get("promoter_only")
+                        else "Generic upstream promoter heuristic"
+                    )
+                    preprocess_state["region"] = str(
+                        scope_regions.get(DEFAULT_ANALYSIS_SCOPE) or lookup["selected_region"]
+                    )
+                    preprocess_state["selected_sources"] = list(lookup["selected_sources"]) + [
+                        preprocess_state["scope_region_source"]
+                    ]
                     preprocess_state["region_candidates"] = list(lookup["candidate_regions"])
                     preprocess_state["region_ready"] = True
                     preprocess_state["manifest_ready"] = False
@@ -810,10 +1097,13 @@ def index() -> str:
                     preprocess_state["region_recently_updated"] = True
                     _append_preprocess_log(
                         preprocess_state,
-                        f"Resolved {preprocess_state['gene_name']} to {preprocess_state['region']} using {', '.join(preprocess_state['selected_sources']) or 'the available sources'}.",
+                        (
+                            f"Resolved {preprocess_state['gene_name']} to standard promoter+gene region "
+                            f"{preprocess_state['region']} using {', '.join(preprocess_state['selected_sources']) or 'the available sources'}."
+                        ),
                     )
                     preprocess_notice = (
-                        f"Resolved {preprocess_state['gene_name']} to {preprocess_state['region']}."
+                        f"Resolved {preprocess_state['gene_name']} to standard promoter+gene region {preprocess_state['region']}."
                     )
                 elif preprocess_action == "select_methylation":
                     if not preprocess_state.get("region"):
@@ -841,7 +1131,11 @@ def index() -> str:
                             f"Overwrite existing subset: {'yes' if overwrite_filtered_manifest else 'no'}."
                         ),
                     )
-                    if target_output_path.exists() and not overwrite_filtered_manifest:
+                    existing_subset_matches_region = (
+                        target_output_path.exists()
+                        and _filtered_manifest_covers_region(target_output_path, str(preprocess_state["region"]))
+                    )
+                    if target_output_path.exists() and not overwrite_filtered_manifest and existing_subset_matches_region:
                         selection = _summarize_existing_filtered_manifest(target_output_path)
                         _append_preprocess_log(
                             preprocess_state,
@@ -866,8 +1160,14 @@ def index() -> str:
                             (
                                 "Created a fresh filtered manifest subset."
                                 if not target_output_previously_existed
-                                else "Overwrote the existing filtered manifest subset."
+                                else "Refreshed the filtered manifest subset for the current promoter+gene region."
                             ),
+                        )
+                        _write_filtered_manifest_metadata(
+                            Path(selection["output_path"]),
+                            gene_name=str(preprocess_state["gene_name"]),
+                            region=str(preprocess_state["region"]),
+                            analysis_scope=str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE)),
                         )
                     preprocess_state["filtered_manifest"] = _as_relative_display(selection["output_path"])
                     preprocess_state["manifest_ready"] = True
@@ -911,6 +1211,9 @@ def index() -> str:
                         "vcf": request.form.get("vcf", "").strip(),
                         "idat": request.form.get("idat", "").strip(),
                         "out": request.form.get("out", "").strip() or form["out"],
+                        "analysis_scope": normalize_analysis_scope(
+                            request.form.get("analysis_scope", form.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE))
+                        ),
                         "region": request.form.get("region", "").strip() or form["region"],
                         "popstats": request.form.get("popstats", "").strip(),
                         "manifest_file": request.form.get("manifest_file", "").strip() or form["manifest_file"],
@@ -927,6 +1230,7 @@ def index() -> str:
                         output_path=str(_resolve_user_path(form["out"])),
                         gene_name=str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
                         region=form["region"],
+                        analysis_scope=form["analysis_scope"],
                         popstats_source=str(_resolve_user_path(form["popstats"])) if form["popstats"] else None,
                         manifest_filepath=(
                             str(_resolve_user_path(form["manifest_file"])) if form["manifest_file"] else None
@@ -944,6 +1248,12 @@ def index() -> str:
                         "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
                         "variant_count": len(analysis_result.variants),
                         "methylation_count": len(analysis_result.methylation),
+                        "analysis_scope": getattr(analysis_result, "analysis_scope", form["analysis_scope"]),
+                        "analysis_scope_label": getattr(
+                            analysis_result,
+                            "analysis_scope_label",
+                            get_analysis_scope_label(form["analysis_scope"]),
+                        ),
                         "variant_preview": _render_table(variant_preview, rows=VARIANT_RAW_PAGE_SIZE),
                         "variant_rows": variant_rows,
                         "variant_raw_page_size": VARIANT_RAW_PAGE_SIZE,
@@ -992,6 +1302,7 @@ def index() -> str:
     preprocess_result = _build_preprocess_result(preprocess_state)
     report_history = discover_report_history()
     general_database = load_general_analysis_database()
+    analysis_scope_options = _build_analysis_scope_options(preprocess_state)
     available_tabs = ["overview", "preprocessing", "central_database", "history", "proteins", "structure"]
     if analysis_unlocked:
         available_tabs.insert(2, "analysis")
@@ -1030,6 +1341,7 @@ def index() -> str:
         manifest_files=manifest_files,
         report_history=report_history,
         general_database=general_database,
+        analysis_scope_options=analysis_scope_options,
         featured_protein_queries=FEATURED_HUMAN_PROTEIN_QUERIES,
         app_structure_qa_items=_build_app_structure_qa_items(),
     )

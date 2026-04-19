@@ -679,7 +679,8 @@
       color: var(--accent-3);
       word-break: break-all;
     }
-    input {
+    input,
+    select {
       width: 100%;
       padding: 13px 14px;
       border-radius: 14px;
@@ -689,7 +690,8 @@
       font: inherit;
       transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
     }
-    input:focus {
+    input:focus,
+    select:focus {
       outline: none;
       border-color: rgba(161, 20, 61, 0.42);
       box-shadow: 0 0 0 4px rgba(161, 20, 61, 0.12);
@@ -1966,6 +1968,7 @@
                         </div>
                         <div class="preprocess-step-details">
                           <div><strong>Gene:</strong> <code>{{ preprocess_state.gene_name }}</code></div>
+                          <div><strong>Standard scope:</strong> {{ preprocess_result.analysis_scope_label if preprocess_result else "Promoter + gene" }}</div>
                           <div><strong>Region field:</strong> <code>{{ preprocess_state.region or "Waiting for lookup" }}</code></div>
                           {% if preprocess_result and preprocess_result.selected_sources %}
                           <div>
@@ -1990,6 +1993,7 @@
                         <div class="preprocess-step-details">
                           <div><strong>Manifest source:</strong> <code>{{ preprocess_state.manifest_source or "Waiting for source file" }}</code></div>
                           <div><strong>Saved subset:</strong> <code>{{ preprocess_state.filtered_manifest or "Not created yet" }}</code></div>
+                          <div><strong>Subset scope:</strong> {{ preprocess_result.analysis_scope_label if preprocess_result else "Promoter + gene" }}</div>
                           <div><strong>Probe count:</strong> {{ preprocess_state.probe_count if preprocess_state.manifest_ready else "Pending" }}</div>
                         </div>
                       </article>
@@ -2497,7 +2501,7 @@
                   <article class="field-card">
                     <label for="out">Report output path</label>
                     <p class="field-example">Current example: <code>{{ field_info.out.example }}</code></p>
-                    <input id="out" name="out" value="{{ form.out }}" placeholder="results/gene_report.html" required>
+                    <input id="out" name="out" value="{{ form.out }}" placeholder="results/gene_promoter_plus_gene_report.html" required data-output-input>
                     <p class="hint">Supported extensions are <code>.html</code>, <code>.json</code>, and <code>.csv</code>.</p>
                     <details class="field-details">
                       <summary>What this means biologically</summary>
@@ -2508,11 +2512,36 @@
                   <article class="field-card">
                     <label for="region">Genomic region</label>
                     <p class="field-example">Current example: <code>{{ field_info.region.example }}</code></p>
-                    <input id="region" name="region" value="{{ form.region }}" placeholder="11:63671737-63677367">
-                    <p class="hint">Use a coordinate span if you want to narrow the locus under review.</p>
+                    <input id="region" name="region" value="{{ form.region }}" placeholder="11:636269-640706" data-region-input>
+                    <p class="hint">This is updated by the report-focus selector below. You can still type a custom span if needed.</p>
                     <details class="field-details">
                       <summary>What this means biologically</summary>
                       <p>{{ field_info.region.details }}</p>
+                    </details>
+                  </article>
+
+                  <article class="field-card">
+                    <label for="analysis_scope">Report focus</label>
+                    <p class="field-example">Standard: <code>Promoter + gene</code></p>
+                    <select id="analysis_scope" name="analysis_scope" data-analysis-scope>
+                      {% for scope in analysis_scope_options %}
+                      <option
+                        value="{{ scope.key }}"
+                        data-scope-region="{{ scope.region }}"
+                        data-scope-output="{{ scope.output }}"
+                        {% if scope.selected == "true" %}selected{% endif %}
+                        {% if scope.disabled == "true" %}disabled{% endif %}
+                      >{{ scope.label }}</option>
+                      {% endfor %}
+                    </select>
+                    <p class="hint">Preprocessing defaults to promoter+gene. Use promoter-only or gene-only when you want a narrower report artifact; focused reports do not update the central database.</p>
+                    <details class="field-details">
+                      <summary>Available scope regions</summary>
+                      <ul class="insight-list">
+                        {% for scope in analysis_scope_options %}
+                        <li><strong>{{ scope.label }}:</strong> <code>{{ scope.region or "Unavailable for this gene" }}</code>. {{ scope.description }}</li>
+                        {% endfor %}
+                      </ul>
                     </details>
                   </article>
 
@@ -2653,6 +2682,10 @@
                   <article class="metric">
                     <span>Population context</span>
                     <strong>{{ result.population_context_status }}</strong>
+                  </article>
+                  <article class="metric">
+                    <span>Report focus</span>
+                    <strong>{{ result.analysis_scope_label }}</strong>
                   </article>
                 </div>
 
@@ -3584,6 +3617,9 @@
       const analysisShell = document.querySelector("[data-analysis-shell]");
       const analysisInputPanel = document.getElementById("analysis-input-panel");
       const analysisFormToggleButtons = Array.from(document.querySelectorAll("[data-analysis-form-toggle]"));
+      const analysisScopeSelect = document.querySelector("[data-analysis-scope]");
+      const analysisRegionInput = document.querySelector("[data-region-input]");
+      const analysisOutputInput = document.querySelector("[data-output-input]");
       const proteinForm = document.querySelector("[data-protein-search-form]");
       const proteinQueryInput = document.querySelector("[data-protein-query]");
       const proteinReviewedOnlyInput = document.querySelector("[data-protein-reviewed-only]");
@@ -4056,6 +4092,24 @@
         }
       }
 
+      function updateAnalysisScopeFields() {
+        if (!analysisScopeSelect) {
+          return;
+        }
+        const selectedOption = analysisScopeSelect.selectedOptions[0];
+        if (!selectedOption) {
+          return;
+        }
+        const nextRegion = selectedOption.dataset.scopeRegion || "";
+        const nextOutput = selectedOption.dataset.scopeOutput || "";
+        if (analysisRegionInput && nextRegion) {
+          analysisRegionInput.value = nextRegion;
+        }
+        if (analysisOutputInput && nextOutput) {
+          analysisOutputInput.value = nextOutput;
+        }
+      }
+
       function setAnalysisFormCollapsed(collapsed) {
         if (!analysisShell) {
           return;
@@ -4197,6 +4251,10 @@
       if (generalDatabaseLabeledFilter) {
         generalDatabaseLabeledFilter.addEventListener("change", updateGeneralDatabaseFilter);
         updateGeneralDatabaseFilter();
+      }
+
+      if (analysisScopeSelect) {
+        analysisScopeSelect.addEventListener("change", updateAnalysisScopeFields);
       }
 
       subtabButtons.forEach((button) => {
