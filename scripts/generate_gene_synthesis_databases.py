@@ -14,6 +14,7 @@ TARGET_GENES = [
     "HERC2",
     "DRD4",
     "IGF1R",
+    "GLP1R",
     "FOXO3",
     "MTOR",
     "RPS6",
@@ -63,6 +64,10 @@ GENE_CONCRETE_VARIANT_PREDICTIONS = {
     "IGF1R": (
         "The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. "
         "The prediction is pathway-contextual rather than a direct disease call."
+    ),
+    "GLP1R": (
+        "The variant observed in this sample suggests an incretin-receptor response thesis: the individual may carry a research-grade modifier of GLP-1 receptor signaling, glucose-dependent insulin secretion, appetite or gastric-emptying biology, BMI/metabolic traits, or response patterns to GLP-1 receptor agonists and DPP-4 inhibitors. "
+        "This is pharmacogenetic and metabolic context, not a medication-selection rule or deterministic diabetes/obesity prediction."
     ),
     "FOXO3": (
         "The variant observed in this sample suggests a FOXO3 healthy-aging and stress-resilience thesis: the individual may carry a longevity-associated regulatory background, especially if the matched marker is rs2802292-like, because FOXO3 controls stress response, autophagy, inflammation, and metabolic adaptation. "
@@ -140,6 +145,24 @@ VARIANT_CONCRETE_PREDICTION_OVERRIDES = {
     "SIRT6": {
         "centSIRT6 (N308K/A313S)": (
             "Observed centSIRT6-like N308K/A313S suggests a centenarian-enriched SIRT6 thesis: the sample may carry a rare functional background linked to stronger genome-maintenance activity in experimental follow-up."
+        ),
+    },
+    "GLP1R": {
+        "rs6923761": (
+            "Observed GLP1R rs6923761 / Gly168Ser suggests a pharmacogenetic response-context thesis: the sample carries a GLP-1 receptor missense marker studied in gliptin response and GLP-1 receptor agonist response cohorts. "
+            "The concrete prediction is possible heterogeneity in incretin-drug glycemic response, not a universal prediction of semaglutide, liraglutide, dulaglutide, or gliptin benefit."
+        ),
+        "rs10305420": (
+            "Observed GLP1R rs10305420 suggests a liraglutide and metabolic-trait response-context thesis. "
+            "In the bundled evidence, T-allele homozygosity was associated with optimal glycemic response to liraglutide in one Iranian type 2 diabetes cohort, but this app cannot infer homozygosity from a single REF -> ALT row."
+        ),
+        "rs3765467": (
+            "Observed GLP1R rs3765467 / p.R131Q suggests a metabolic disease and GLP-1 receptor agonist response-context thesis. "
+            "It has been discussed in early-onset type 2 diabetes, dyslipidemia, gestational diabetes, and case-level dulaglutide response literature, so interpretation should stay cohort specific."
+        ),
+        "rs1042044": (
+            "Observed GLP1R rs1042044 suggests a BMI and glucose-insulin trait interaction thesis, especially in developmental or gestational-diabetes exposure cohorts. "
+            "This is a metabolic-trait context signal rather than a direct obesity or diabetes prediction."
         ),
     },
 }
@@ -250,6 +273,85 @@ VARIANT_ALLELE_CHANGE_PREDICTION_OVERRIDES = {
                     "Interpret this as IGF1R regulatory background rather than applying the T-carrier protective-context thesis."
                 ),
                 "basis": "Observed ALT G at rs2016347, interpreted as the contrast state to the T-carrier cohort findings.",
+            },
+        ],
+    },
+    "GLP1R": {
+        "rs6923761": [
+            {
+                "alt_allele": "A",
+                "prediction": (
+                    "This sample row reports A as the observed alternate allele at GLP1R rs6923761 / Gly168Ser. "
+                    "A is the minor allele in the local Ensembl record and represents the Ser-direction state commonly discussed in GLP1R Gly168Ser literature. "
+                    "The bundled gliptin study found lower HbA1c reduction in Ser/Ser homozygotes than in Gly-allele carriers, so ALT A supports a possible reduced gliptin-response thesis only when genotype dosage and treatment context are compatible."
+                ),
+                "basis": "Observed ALT A at rs6923761, interpreted through GLP1R Gly168Ser pharmacogenetic evidence.",
+            },
+            {
+                "alt_allele": "G",
+                "prediction": (
+                    "This sample row reports G as the observed alternate allele at GLP1R rs6923761. "
+                    "G is the ancestral/reference Gly-direction state in the local Ensembl record, so this row should not be labelled as carrying the Ser/Ser reduced-gliptin-response signal from the bundled study. "
+                    "Keep the conclusion at GLP1R incretin-response context unless full genotype dosage is available."
+                ),
+                "basis": "Observed ALT G at rs6923761, interpreted as the Gly-direction contrast state to the Ser-focused pharmacogenetic evidence.",
+            },
+        ],
+        "rs10305420": [
+            {
+                "alt_allele": "T",
+                "prediction": (
+                    "This sample row reports T as the observed alternate allele at GLP1R rs10305420. "
+                    "In the bundled liraglutide pharmacogenetic study, T-allele homozygosity was associated with optimal glycemic response in an Iranian type 2 diabetes cohort. "
+                    "Because this app does not infer homozygosity, treat ALT T as directional response-context evidence rather than a final liraglutide-responder call."
+                ),
+                "basis": "Observed ALT T at rs10305420, the allele highlighted in local liraglutide-response evidence.",
+            },
+            {
+                "alt_allele": "C",
+                "prediction": (
+                    "This sample row reports C as the observed alternate allele at GLP1R rs10305420. "
+                    "C is the contrast state to the T-homozygous response signal in the bundled liraglutide study, so the sample should not be described as carrying that T-direction thesis from this row alone."
+                ),
+                "basis": "Observed ALT C at rs10305420, interpreted as the contrast state to the T-homozygous response evidence.",
+            },
+        ],
+        "rs3765467": [
+            {
+                "alt_allele": "A",
+                "prediction": (
+                    "This sample row reports A as the observed alternate allele at GLP1R rs3765467 / p.R131Q. "
+                    "The bundled literature discusses rs3765467 in early-onset type 2 diabetes and GLP-1 receptor agonist response contexts, including a dulaglutide case report. "
+                    "ALT A therefore supports a cohort-specific metabolic and medication-response context thesis, not a deterministic therapy prediction."
+                ),
+                "basis": "Observed ALT A at rs3765467, interpreted through p.R131Q diabetes and GLP-1 receptor agonist response-context evidence.",
+            },
+            {
+                "alt_allele": "G",
+                "prediction": (
+                    "This sample row reports G as the observed alternate allele at GLP1R rs3765467. "
+                    "G is the ancestral/reference state in the local Ensembl record, so avoid applying the alternate p.R131Q direction without full genotype and allele-orientation context."
+                ),
+                "basis": "Observed ALT G at rs3765467, interpreted as the contrast state to the p.R131Q-focused evidence.",
+            },
+        ],
+        "rs1042044": [
+            {
+                "alt_allele": "A",
+                "prediction": (
+                    "This sample row reports A as the observed alternate allele at GLP1R rs1042044. "
+                    "The bundled EPOCH studies discuss rs1042044 carrier states as modifiers of BMI growth or metabolic traits in gestational-diabetes exposure and pediatric metabolic contexts. "
+                    "ALT A supports a developmental metabolic-trait interaction thesis, not a direct obesity or diabetes prediction."
+                ),
+                "basis": "Observed ALT A at rs1042044, interpreted through GLP-1R pediatric BMI and metabolic-trait interaction evidence.",
+            },
+            {
+                "alt_allele": "C",
+                "prediction": (
+                    "This sample row reports C as the observed alternate allele at GLP1R rs1042044. "
+                    "C is the ancestral/reference state in the local Ensembl record; keep the sample interpretation at general GLP1R metabolic context unless genotype dosage supports a carrier-state thesis."
+                ),
+                "basis": "Observed ALT C at rs1042044, interpreted as the contrast state to carrier-state EPOCH evidence.",
             },
         ],
     },

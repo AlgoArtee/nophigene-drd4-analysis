@@ -1,0 +1,348 @@
+{
+  "database_name": "NophiGene GLP1R Interpretation Database",
+  "version": "2026-04-15",
+  "gene_context": {
+    "gene_name": "GLP1R",
+    "assembly": "GRCh37 / hg19",
+    "cytoband": "6p21.2",
+    "chromosome": "6",
+    "gene_region": {
+      "label": "GLP1R transcribed interval",
+      "start": 39016574,
+      "end": 39055519,
+      "definition": "Canonical GLP1R genomic interval on GRCh37 / hg19 from Ensembl GRCh37 lookup for ENSG00000112164, aligned to the hg19 coordinate system used by this app."
+    },
+    "promoter_review_region": {
+      "label": "Operational promoter review window",
+      "start": 39015574,
+      "end": 39016573,
+      "definition": "A practical 1 kb upstream window used by this app to flag promoter-adjacent coverage before the canonical gene interval begins."
+    },
+    "promoter_hotspot_region": {
+      "label": "Promoter-associated CpG review window",
+      "start": 39016590,
+      "end": 39016590,
+      "definition": "Promoter-proximal CpG-focused span represented by the bundled EPIC subset and used here as the main methylation-review hotspot."
+    },
+    "recommended_promoter_plus_gene_region": "6:39015574-39055519",
+    "gene_summary": "GLP1R encodes the glucagon-like peptide-1 receptor, a class B G-protein-coupled receptor for GLP-1. Ligand binding activates cAMP signaling and helps regulate glucose-dependent insulin secretion, appetite, gastric emptying, energy balance, cardiometabolic biology, and neuroprotective research pathways.",
+    "clinical_context": "The bundled GLP1R database is pharmacogenetic and metabolic-research oriented. GLP1R is a major drug target for GLP-1 receptor agonists used in type 2 diabetes and obesity, but the common variants seeded here are best interpreted as response or metabolic-trait modifiers rather than as diagnostic pathogenic alleles.",
+    "variant_effect_overview": [
+      "Several GLP1R missense polymorphisms have been studied as modifiers of incretin effect, glycemic response, BMI trajectories, insulin secretion, and GLP-1 receptor agonist or DPP-4 inhibitor response.",
+      "Current evidence is cohort and treatment-context dependent; variant effects should not be treated as universal predictions of semaglutide, liraglutide, dulaglutide, or gliptin response.",
+      "Observed GLP1R variants are most useful as a pharmacogenetic and metabolic context layer alongside phenotype, treatment, ancestry, and genotype dosage."
+    ],
+    "condition_research_overview": [
+      "Type 2 diabetes and glucose-lowering treatment response studies involving GLP-1 receptor agonists and DPP-4 inhibitors.",
+      "Obesity, appetite, gastric emptying, BMI growth, and gestational-diabetes exposure research.",
+      "Cardiometabolic and neuroprotective research that frames GLP1R signaling as a systemic metabolic regulator."
+    ],
+    "relevant_methylation_probe_ids": [
+      "cg15041550"
+    ],
+    "methylation_interpretation": "GLP1R methylation should be treated as local regulatory context around an incretin-receptor gene. Promoter-proximal methylation may help frame transcriptional accessibility, but it should not be used as a direct substitute for receptor genotype, receptor expression, or medication-response testing.",
+    "methylation_effects": [
+      "Promoter-focused methylation may suggest a more restrained or permissive local regulatory state for GLP1R expression potential.",
+      "Because GLP1R biology is strongly tissue and treatment dependent, methylation values should be read as context rather than a stand-alone clinical biomarker.",
+      "Variant and methylation signals are most defensible when interpreted as combined incretin-receptor regulatory background."
+    ],
+    "methylation_condition_research": [
+      "Diabetes and obesity pharmacogenetic studies in which receptor signaling can modify treatment response.",
+      "Metabolic-trait research linking GLP-1 receptor signaling to insulin secretion, appetite, gastric emptying, and BMI trajectories.",
+      "Epigenetic regulation studies that use promoter or TSS-proximal methylation as chromatin accessibility context."
+    ],
+    "evidence": [
+      {
+        "label": "NCBI Gene 2740: GLP1R gene summary",
+        "url": "https://www.ncbi.nlm.nih.gov/gene/2740"
+      },
+      {
+        "label": "UniProt P43220: GLP1R_HUMAN",
+        "url": "https://www.uniprot.org/uniprotkb/P43220/entry"
+      },
+      {
+        "label": "PubMed 27160388: GLP1R Gly168Ser and gliptin response",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/27160388/"
+      },
+      {
+        "label": "PubMed 38172377: GLP1R variants and liraglutide response",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/38172377/"
+      },
+      {
+        "label": "PubMed 40443355: GLP-1R polymorphisms, GDM exposure, and offspring BMI",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+      }
+    ]
+  },
+  "variant_records": [
+    {
+      "variant": "rs6923761",
+      "display_name": "rs6923761 (Gly168Ser)",
+      "common_name": "GLP1R Gly168Ser missense pharmacogenetic marker",
+      "position": 39034072,
+      "lookup_keys": [
+        "rs6923761",
+        "GLP1R:rs6923761",
+        "6:39034072",
+        "6:39034072:G>A",
+        "6:39034072:G>C"
+      ],
+      "region_class": "gene_body",
+      "interpretation_scope": "Pharmacogenetic research marker / metabolic response modifier",
+      "clinical_interpretation": "rs6923761, commonly described as Gly168Ser, is a GLP1R missense variant studied as a modifier of incretin-related treatment response and metabolic traits. A gliptin-response study reported lower HbA1c reduction in Ser/Ser homozygotes than in Gly-allele carriers, while later GLP-1 receptor agonist studies show treatment- and cohort-specific results.",
+      "clinical_significance": "Research-level pharmacogenetic association; not curated here as a diagnostic pathogenic allele.",
+      "functional_effects": [
+        "Missense GLP1R variation may alter receptor signaling context or drug-response phenotype.",
+        "Reported response effects are medication and cohort dependent, with gliptin and GLP-1 receptor agonist literature not always pointing in the same direction."
+      ],
+      "associated_conditions": [
+        "Type 2 diabetes treatment response",
+        "GLP-1 receptor agonist and DPP-4 inhibitor pharmacogenetics",
+        "BMI and gestational-diabetes exposure interaction studies"
+      ],
+      "research_context": [
+        "Use this marker as a candidate pharmacogenetic response signal, not as a deterministic medication-selection rule.",
+        "Genotype dosage matters because several cited findings compare homozygous or carrier groups."
+      ],
+      "usual_variant_note": "Common GLP1R missense marker often discussed as Gly168Ser.",
+      "methylation_interpretation": "Pair rs6923761 with GLP1R methylation only as receptor-locus regulatory context; the drug-response evidence is primarily sequence and treatment based.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 27160388: Gly168Ser and gliptin response",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27160388/"
+        },
+        {
+          "label": "PubMed 41307691: rs6923761 and oral semaglutide response",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/41307691/"
+        },
+        {
+          "label": "PubMed 40443355: GLP-1R polymorphisms and offspring BMI",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Javorsky et al., 2016 (PMID 27160388)",
+          "genotypes": "GLP1R Gly168Ser, including Ser/Ser versus Gly-allele carriers",
+          "phenotype": "HbA1c response after 6 months of gliptin treatment",
+          "finding": "The pilot study reported that Gly168Ser was associated with glycemic response to gliptins, with Ser/Ser homozygotes showing lower mean HbA1c reduction than Gly-allele carriers.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27160388/"
+        },
+        {
+          "paper": "Candido et al., 2026 (PMID 41307691)",
+          "genotypes": "rs6923761 and rs761387",
+          "phenotype": "Oral semaglutide response in type 2 diabetes",
+          "finding": "The study title reports evaluation of GLP1 receptor rs6923761 and rs761387 as modifiers of oral semaglutide response, supporting pharmacogenetic response-context curation.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/41307691/"
+        }
+      ],
+      "gene_name": "GLP1R",
+      "chromosome": "6",
+      "relevant_methylation_probe_ids": [
+        "cg15041550"
+      ]
+    },
+    {
+      "variant": "rs10305420",
+      "common_name": "GLP1R missense liraglutide-response marker",
+      "position": 39016636,
+      "lookup_keys": [
+        "rs10305420",
+        "GLP1R:rs10305420",
+        "6:39016636",
+        "6:39016636:C>T"
+      ],
+      "region_class": "gene_body",
+      "interpretation_scope": "Pharmacogenetic research marker / metabolic trait modifier",
+      "clinical_interpretation": "rs10305420 is a GLP1R missense polymorphism studied in GLP-1 receptor agonist response and pediatric metabolic-trait cohorts. In an Iranian type 2 diabetes liraglutide study, T-allele homozygosity was associated with optimal glycemic response; EPOCH analyses also frame this SNP as a modifier of BMI growth or metabolic traits.",
+      "clinical_significance": "Research-level pharmacogenetic and metabolic association; not diagnostic.",
+      "functional_effects": [
+        "May mark altered receptor-response background for GLP-1 receptor agonist therapy in selected cohorts.",
+        "Also appears in pediatric and gestational-diabetes exposure interaction studies of BMI or metabolic traits."
+      ],
+      "associated_conditions": [
+        "Type 2 diabetes glycemic response to liraglutide",
+        "BMI growth and metabolic traits during childhood/adolescence",
+        "Gestational diabetes exposure interaction research"
+      ],
+      "research_context": [
+        "Interpret directionally only when the observed allele and genotype dosage are known.",
+        "The local app reports REF -> ALT evidence and does not infer homozygosity from a single variant row."
+      ],
+      "usual_variant_note": "GLP1R missense marker studied in liraglutide and EPOCH metabolic cohorts.",
+      "methylation_interpretation": "Methylation provides GLP1R regulatory context but does not substitute for genotype-dose pharmacogenetic analysis.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 38172377: rs10305420 and liraglutide response",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38172377/"
+        },
+        {
+          "label": "PubMed 39693247: GLP-1R polymorphisms and pediatric metabolic traits",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/39693247/"
+        },
+        {
+          "label": "PubMed 40443355: GLP-1R polymorphisms and offspring BMI",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Eghbali et al., 2024 (PMID 38172377)",
+          "genotypes": "rs10305420 T-allele homozygosity versus heterozygous and wild-type homozygous states",
+          "phenotype": "HbA1c response to liraglutide in Iranian people with type 2 diabetes",
+          "finding": "The study reported that rs10305420 T-allele homozygosity was associated with optimal glycemic response to liraglutide.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38172377/"
+        },
+        {
+          "paper": "Harrall et al., 2025 (PMID 40443355)",
+          "genotypes": "rs10305420 CT or TT carrier states",
+          "phenotype": "Relationship between gestational diabetes exposure and offspring BMI growth",
+          "finding": "The EPOCH study reported that GLP-1R polymorphisms, including rs10305420, modified the association between gestational diabetes exposure and BMI growth among youth.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ],
+      "gene_name": "GLP1R",
+      "chromosome": "6",
+      "display_name": "rs10305420",
+      "relevant_methylation_probe_ids": [
+        "cg15041550"
+      ]
+    },
+    {
+      "variant": "rs3765467",
+      "display_name": "rs3765467 (p.R131Q)",
+      "common_name": "GLP1R R131Q missense metabolic marker",
+      "position": 39033595,
+      "lookup_keys": [
+        "rs3765467",
+        "GLP1R:rs3765467",
+        "6:39033595",
+        "6:39033595:G>A",
+        "6:39033595:G>C",
+        "6:39033595:G>T"
+      ],
+      "region_class": "gene_body",
+      "interpretation_scope": "Metabolic disease association / pharmacogenetic case-context marker",
+      "clinical_interpretation": "rs3765467 is a GLP1R missense variant described as p.R131Q in recent literature and studied in early-onset type 2 diabetes, dyslipidemia, gestational diabetes, and GLP-1 receptor agonist response contexts. The bundled interpretation treats it as a cohort-specific metabolic marker rather than a deterministic disease allele.",
+      "clinical_significance": "Research-level metabolic association; not curated as pathogenic.",
+      "functional_effects": [
+        "Missense change in the receptor protein with potential relevance to incretin signaling context.",
+        "Reported associations include early-onset type 2 diabetes risk and GLP-1 receptor agonist response case observations."
+      ],
+      "associated_conditions": [
+        "Early-onset type 2 diabetes",
+        "Dyslipidemia in type 2 diabetes cohorts",
+        "Gestational diabetes susceptibility and glucose metabolism",
+        "Dulaglutide response case context"
+      ],
+      "research_context": [
+        "Most evidence is association or case-based; avoid upgrading this to a clinical call without external pathogenicity review.",
+        "Medication-response interpretation should remain cautious and cohort specific."
+      ],
+      "usual_variant_note": "GLP1R p.R131Q missense marker studied in diabetes and treatment-response contexts.",
+      "methylation_interpretation": "Methylation should be read as general GLP1R locus accessibility context, not a known direct consequence of rs3765467.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 38131033: rs3765467 and early-onset type 2 diabetes",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38131033/"
+        },
+        {
+          "label": "PubMed 38986908: p.R131Q and dulaglutide response case",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38986908/"
+        },
+        {
+          "label": "PubMed 36528605: GLP1R variants and gestational diabetes",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36528605/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Fang et al., 2023 (PMID 38131033)",
+          "genotypes": "GLP1R rs3765467 genotype groups",
+          "phenotype": "Early-onset type 2 diabetes risk",
+          "finding": "The study title reports an association between GLP1R rs3765467 and risk of early-onset type 2 diabetes, supporting metabolic-risk context curation.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38131033/"
+        },
+        {
+          "paper": "Kato et al., 2025 (PMID 38986908)",
+          "genotypes": "rs3765467 / p.R131Q",
+          "phenotype": "Dulaglutide response in diabetes with myotonic dystrophy",
+          "finding": "The case report describes p.R131Q at GLP1R with marked effects of the GLP-1 receptor agonist dulaglutide, but this remains case-level evidence.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38986908/"
+        }
+      ],
+      "gene_name": "GLP1R",
+      "chromosome": "6",
+      "relevant_methylation_probe_ids": [
+        "cg15041550"
+      ]
+    },
+    {
+      "variant": "rs1042044",
+      "common_name": "GLP1R missense BMI/metabolic-trait marker",
+      "position": 39041502,
+      "lookup_keys": [
+        "rs1042044",
+        "GLP1R:rs1042044",
+        "6:39041502",
+        "6:39041502:C>A",
+        "6:39041502:C>G",
+        "6:39041502:C>T"
+      ],
+      "region_class": "gene_body",
+      "interpretation_scope": "Metabolic trait interaction marker",
+      "clinical_interpretation": "rs1042044 is a GLP1R missense variant included in EPOCH analyses of childhood and adolescent metabolic traits. The local database treats it as a BMI and glucose-insulin homeostasis interaction marker rather than as a medication-response or diagnostic variant.",
+      "clinical_significance": "Research-level metabolic trait association; not diagnostic.",
+      "functional_effects": [
+        "May tag receptor coding variation relevant to BMI and glucose-insulin trait heterogeneity.",
+        "Best interpreted in developmental, gestational-exposure, and metabolic-cohort context."
+      ],
+      "associated_conditions": [
+        "BMI growth among youth",
+        "Insulin sensitivity and compensatory insulin secretion research",
+        "Gestational diabetes exposure interaction studies"
+      ],
+      "research_context": [
+        "EPOCH findings require replication and should not be converted into deterministic obesity or diabetes predictions."
+      ],
+      "usual_variant_note": "GLP1R missense marker in pediatric BMI and metabolic-trait studies.",
+      "methylation_interpretation": "No direct methylation consequence is bundled for rs1042044; read methylation as broader GLP1R regulatory context.",
+      "is_assayable_in_snp_vcf": true,
+      "evidence": [
+        {
+          "label": "PubMed 39693247: GLP-1R polymorphisms and pediatric metabolic traits",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/39693247/"
+        },
+        {
+          "label": "PubMed 40443355: GLP-1R polymorphisms and offspring BMI",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ],
+      "literature_findings": [
+        {
+          "paper": "Harrall et al., 2025 (PMID 39693247)",
+          "genotypes": "GLP-1R polymorphisms including rs1042044",
+          "phenotype": "Metabolic traits during childhood and adolescence",
+          "finding": "The study reported associations between GLP-1R polymorphisms and BMI, pubertal development, insulin sensitivity, and compensatory insulin secretion during adolescence.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/39693247/"
+        },
+        {
+          "paper": "Harrall et al., 2025 (PMID 40443355)",
+          "genotypes": "rs1042044 carrier states",
+          "phenotype": "Gestational diabetes exposure and offspring BMI growth",
+          "finding": "The EPOCH study reported that GLP-1R polymorphisms, including rs1042044, modified the relationship between gestational diabetes exposure and BMI growth.",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ],
+      "gene_name": "GLP1R",
+      "chromosome": "6",
+      "display_name": "rs1042044",
+      "relevant_methylation_probe_ids": [
+        "cg15041550"
+      ]
+    }
+  ]
+}

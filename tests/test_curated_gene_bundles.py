@@ -8,15 +8,19 @@ import pandas as pd
 import pytest
 
 from src.analysis import (
+    build_methylation_insights,
     build_population_insights,
+    build_predictive_theses,
     build_variant_interpretations,
     load_gene_interpretation_database,
     load_gene_population_database,
+    load_gene_synthesis_database,
 )
 
 
 CURATED_GENES = {
     "FOXO3": 108881028,
+    "GLP1R": 39016574,
     "MTOR": 11166592,
     "RPS6": 19375713,
     "SIK3": 116714118,
@@ -89,4 +93,67 @@ def test_foxo3_curated_bundle_drives_interpretation_and_population_helpers() -> 
     assert "No embedded allele-frequency panel is bundled for FOXO3 yet" in population_insights["summary"]
     assert population_insights["gene_population_patterns_intro"].startswith(
         "Broader population patterns curated from FOXO3"
+    )
+
+
+def test_glp1r_curated_bundle_drives_prediction_helpers() -> None:
+    """GLP1R should provide pharmacogenetic interpretation and synthesis rules."""
+    knowledge_base = load_gene_interpretation_database("GLP1R")
+    population_database = load_gene_population_database("GLP1R")
+    synthesis_database = load_gene_synthesis_database("GLP1R")
+
+    assert knowledge_base is not None
+    assert population_database is not None
+    assert synthesis_database is not None
+    assert knowledge_base["gene_context"]["recommended_promoter_plus_gene_region"] == "6:39015574-39055519"
+    assert any(record["variant"] == "rs6923761" for record in knowledge_base["variant_records"])
+    assert synthesis_database["case_count"] == 10
+    assert "incretin-receptor response thesis" in synthesis_database["concrete_variant_prediction"]
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "6",
+                "id": ".",
+                "pos": 39034072,
+                "ref": "G",
+                "alt": "A",
+                "qual": 77.0,
+                "filter_pass": True,
+            }
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg15041550",
+                "beta": 0.74,
+                "chrom": "6",
+                "pos": 39016590,
+                "GencodeBasicV12_NAME": "GLP1R",
+                "UCSC_RefGene_Group": "TSS1500",
+                "Relation_to_UCSC_CpG_Island": "Island",
+            }
+        ]
+    )
+
+    interpretation = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="6:39015574-39055519",
+    )
+    methylation_insights = build_methylation_insights(methylation, knowledge_base)
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=interpretation,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=synthesis_database,
+    )
+
+    assert interpretation["matched_records"][0]["variant"] == "rs6923761 (Gly168Ser)"
+    assert methylation_insights["whitelist_mean_beta"] == 0.74
+    assert predictive_theses["matched_case_count"] >= 1
+    assert any(
+        "reduced gliptin-response thesis" in row["prediction"]
+        for row in predictive_theses["variant_prediction_rows"]
     )

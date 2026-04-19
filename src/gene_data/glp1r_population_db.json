@@ -1,0 +1,112 @@
+{
+  "database_name": "NophiGene GLP1R Population Database",
+  "version": "2026-04-15",
+  "assembly": "GRCh37 / hg19",
+  "coverage_note": "The bundled GLP1R population database is literature oriented. It summarizes cohort and treatment-response patterns rather than providing a full ancestry-frequency panel.",
+  "gene_population_patterns_intro": "Broader population patterns curated from GLP1R pharmacogenetic, diabetes, obesity, and metabolic-trait literature.",
+  "population_categories": [
+    {
+      "key": "Global pattern",
+      "label": "Global pattern"
+    },
+    {
+      "key": "Longevity cohorts",
+      "label": "Longevity and healthy-aging cohorts"
+    },
+    {
+      "key": "Disease cohorts",
+      "label": "Disease-focused cohorts"
+    },
+    {
+      "key": "Cancer cohorts",
+      "label": "Cancer-focused cohorts"
+    },
+    {
+      "key": "Metabolic cohorts",
+      "label": "Metabolic and endocrine cohorts"
+    },
+    {
+      "key": "Rare disease families",
+      "label": "Rare-disease and familial series"
+    }
+  ],
+  "sources": [
+    {
+      "label": "NCBI Gene 2740: GLP1R gene summary",
+      "url": "https://www.ncbi.nlm.nih.gov/gene/2740"
+    },
+    {
+      "label": "UniProt P43220: GLP1R_HUMAN",
+      "url": "https://www.uniprot.org/uniprotkb/P43220/entry"
+    },
+    {
+      "label": "PubMed 27160388: Gly168Ser gliptin response",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27160388/"
+    },
+    {
+      "label": "PubMed 38172377: GLP1R variants and liraglutide response",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38172377/"
+    },
+    {
+      "label": "PubMed 39693247: pediatric metabolic traits",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/39693247/"
+    },
+    {
+      "label": "PubMed 40443355: GDM exposure and offspring BMI",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+    }
+  ],
+  "variant_population_records": [],
+  "gene_population_patterns": [
+    {
+      "variant": "rs6923761 / Gly168Ser",
+      "location_group": "Metabolic cohorts",
+      "summary": "The Gly168Ser signal is most often interpreted in type 2 diabetes treatment-response cohorts, with reported effects differing across gliptin and GLP-1 receptor agonist settings.",
+      "evidence": [
+        {
+          "label": "PubMed 27160388",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27160388/"
+        },
+        {
+          "label": "PubMed 41307691",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/41307691/"
+        }
+      ]
+    },
+    {
+      "variant": "rs10305420",
+      "location_group": "Metabolic cohorts",
+      "summary": "rs10305420 has been reported as a liraglutide-response marker in an Iranian type 2 diabetes cohort and as part of GLP-1R metabolic-trait interaction analyses in youth.",
+      "evidence": [
+        {
+          "label": "PubMed 38172377",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38172377/"
+        },
+        {
+          "label": "PubMed 40443355",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/40443355/"
+        }
+      ]
+    },
+    {
+      "variant": "rs3765467 / p.R131Q",
+      "location_group": "Disease cohorts",
+      "summary": "rs3765467 is discussed in early-onset type 2 diabetes, dyslipidemia, gestational diabetes, and case-level GLP-1 receptor agonist response literature, so population interpretation should remain cohort specific.",
+      "evidence": [
+        {
+          "label": "PubMed 38131033",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38131033/"
+        },
+        {
+          "label": "PubMed 38986908",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38986908/"
+        }
+      ]
+    },
+    {
+      "variant": "Common GLP1R coding polymorphisms",
+      "location_group": "Global pattern",
+      "summary": "Across GLP1R studies, medication, ancestry, baseline metabolic state, and genotype dosage are key modifiers, so a single common SNP should not be treated as a universal predictor of GLP-1 therapy outcome."
+    }
+  ]
+}
