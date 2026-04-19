@@ -3,10 +3,67 @@
   "version": "2026-04-18",
   "gene_name": "NAMPT",
   "source_interpretation_database": "NophiGene NAMPT Interpretation Database",
-  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation.",
+  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation. Variant prediction rules also receive the actual sample REF -> ALT change; curated allele-change rules take precedence when the observed ALT allele or exact change has a known direction.",
   "disclaimer": "Predictive theses in this database are literature-guided research summaries derived from the bundled gene interpretation bundle. They are designed for exploratory synthesis in the UI and should not be treated as diagnostic or therapeutic claims.",
   "seeded_markers": [
     "rs61330082 (regulatory NAMPT SNP)"
+  ],
+  "concrete_variant_prediction": "The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented.",
+  "variant_prediction_rules": [
+    {
+      "variant": "rs61330082",
+      "display_name": "rs61330082",
+      "common_name": "regulatory NAMPT SNP",
+      "lookup_keys": [
+        "rs61330082",
+        "nampt:rs61330082"
+      ],
+      "prediction": "Observed rs61330082 suggests this sample carries the NAMPT prediction context described by the gene-level thesis. The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. This specific marker is curated as regulatory NAMPT SNP. rs61330082 is a promoter-facing NAMPT variant studied in cancer, lipid, and cardiovascular-risk cohorts. The local database treats it as a research association marker for inflammatory-metabolic signaling rather than as a pathogenic clinical allele.",
+      "sample_change_template": "This sample matched rs61330082 with the actual DNA change {change}. Anchor the NAMPT prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [
+        {
+          "prediction": "This sample row reports T as the observed alternate allele at NAMPT rs61330082. The bundled cardiovascular follow-up evidence highlights TT as the higher-event group after HCV clearance, so ALT T supports a metabolic-inflammatory risk-context thesis when genotype and clinical context are compatible. This remains cohort-specific research evidence.",
+          "basis": "Observed ALT T at rs61330082, interpreted through NAMPT cardiovascular-event and inflammatory-metabolic association evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 25896907: NAMPT polymorphisms in esophageal carcinoma",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+            },
+            {
+              "label": "PubMed 33446046: NAMPT rs61330082 and cardiovascular risk",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+            }
+          ],
+          "alt_allele": "T"
+        },
+        {
+          "prediction": "This sample row reports C as the observed alternate allele at NAMPT rs61330082. C is the contrast state to the TT-focused cardiovascular-event signal in the bundled evidence, so the sample should be framed as NAMPT regulatory context rather than as carrying that T-direction thesis from this row alone.",
+          "basis": "Observed ALT C at rs61330082, interpreted as the contrast state to the TT-focused NAMPT evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 25896907: NAMPT polymorphisms in esophageal carcinoma",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+            },
+            {
+              "label": "PubMed 33446046: NAMPT rs61330082 and cardiovascular risk",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+            }
+          ],
+          "alt_allele": "C"
+        }
+      ],
+      "basis": "Likely regulatory or linked-locus effects on NAMPT expression and pathway tone.",
+      "evidence": [
+        {
+          "label": "PubMed 25896907: NAMPT polymorphisms in esophageal carcinoma",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/25896907/"
+        },
+        {
+          "label": "PubMed 33446046: NAMPT rs61330082 and cardiovascular risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33446046/"
+        }
+      ]
+    }
   ],
   "case_count": 10,
   "methylation_sources": [
@@ -33,7 +90,7 @@
       "requires_variant": true,
       "methylation_source": null,
       "methylation_band": null,
-      "prediction": "An observed NAMPT variant places this sample in the curated NAMPT research context. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. An observed NAMPT variant places this sample in the curated NAMPT research context. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "This is the base thesis that activates as soon as any promoter or gene-body variant is visible in the current sample.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -47,7 +104,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "high",
-      "prediction": "When a NAMPT variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -61,7 +118,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "medium",
-      "prediction": "When a NAMPT variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -75,7 +132,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "low",
-      "prediction": "When a NAMPT variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -89,7 +146,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "high",
-      "prediction": "When a NAMPT variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -103,7 +160,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "medium",
-      "prediction": "When a NAMPT variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -117,7 +174,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "low",
-      "prediction": "When a NAMPT variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -131,7 +188,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "high",
-      "prediction": "When a NAMPT variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -145,7 +202,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "medium",
-      "prediction": "When a NAMPT variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",
@@ -159,7 +216,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "low",
-      "prediction": "When a NAMPT variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
+      "prediction": "When a NAMPT variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an NAD-salvage and inflammatory-metabolic thesis: the individual may carry a regulatory modifier of NAMPT expression, lipid or cardiovascular cohorts, inflammation, cancer metabolism, or cellular resilience because NAMPT controls a major route of NAD regeneration. This prediction is biomarker and pathway oriented. NAMPT methylation is best interpreted as regulatory context around NAD-salvage capacity and inflammatory-metabolic signaling. It should be integrated with broader pathway state rather than read as a direct biomarker for any one common SNP. The bundled NAMPT database is focused on metabolism, inflammation, and disease-association research. Most current human variant interpretation at this locus is research grade and cohort dependent. Common NAMPT variants are usually interpreted as regulatory or biomarker-linked modifiers rather than as high-penetrance alleles.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "NAMPT is studied in metabolism, obesity, inflammation, cardiovascular disease, cancer, and aging.",

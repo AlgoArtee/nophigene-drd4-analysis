@@ -19,6 +19,7 @@ try:
         DEFAULT_GENE_NAME,
         DEFAULT_REGION,
         DEFAULT_REPORT_NAME,
+        GENERAL_ANALYSIS_DATABASE_COLUMNS,
         _prepare_methylation_table_for_output,
         _prepare_variant_table_for_output,
         run_analysis,
@@ -35,6 +36,7 @@ except ImportError:
         DEFAULT_GENE_NAME,
         DEFAULT_REGION,
         DEFAULT_REPORT_NAME,
+        GENERAL_ANALYSIS_DATABASE_COLUMNS,
         _prepare_methylation_table_for_output,
         _prepare_variant_table_for_output,
         run_analysis,
@@ -49,6 +51,7 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 PREPROCESSED_MANIFEST_DIR = Path(__file__).resolve().parent / "gene_data"
 SESSION_PREPROCESS_KEY = "preprocess_state"
 VARIANT_RAW_PAGE_SIZE = 25
+GENERAL_ANALYSIS_DATABASE_FILENAME = "general_gene_analysis_database.csv"
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
 app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
@@ -253,6 +256,60 @@ def _infer_report_label(report_path: Path) -> str:
     return stem.replace("_", " ").strip() or report_path.name
 
 
+def _general_analysis_database_path() -> Path:
+    """Return the central one-row-per-gene database path used by the UI."""
+    return RESULTS_DIR / GENERAL_ANALYSIS_DATABASE_FILENAME
+
+
+def load_general_analysis_database() -> dict[str, Any]:
+    """Load the central analysis database for the dedicated UI tab."""
+    database_path = _general_analysis_database_path()
+    payload: dict[str, Any] = {
+        "path": _as_relative_display(database_path),
+        "url": "",
+        "exists": database_path.exists(),
+        "columns": list(GENERAL_ANALYSIS_DATABASE_COLUMNS),
+        "rows": [],
+        "row_count": 0,
+        "modified_display": "",
+        "size_display": "",
+        "error": "",
+    }
+
+    if not database_path.exists():
+        return payload
+
+    try:
+        stats = database_path.stat()
+        database = pd.read_csv(database_path, dtype=object, keep_default_na=False)
+    except Exception as exc:
+        payload["error"] = f"Could not read the central database: {exc}"
+        return payload
+
+    for column in GENERAL_ANALYSIS_DATABASE_COLUMNS:
+        if column not in database.columns:
+            database[column] = ""
+
+    primary_columns = list(GENERAL_ANALYSIS_DATABASE_COLUMNS)
+    extra_columns = [column for column in database.columns if column not in primary_columns]
+    database = database[primary_columns + extra_columns].fillna("")
+
+    payload.update(
+        {
+            "url": url_for(
+                "result_artifact",
+                artifact_path=database_path.relative_to(RESULTS_DIR).as_posix(),
+            ),
+            "columns": primary_columns + extra_columns,
+            "rows": database.to_dict(orient="records"),
+            "row_count": int(len(database)),
+            "modified_display": datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M"),
+            "size_display": _format_artifact_size(stats.st_size),
+        }
+    )
+    return payload
+
+
 def discover_report_history() -> list[dict[str, str]]:
     """List previously generated reports under ``results/`` for the History tab."""
     if not RESULTS_DIR.exists():
@@ -263,6 +320,8 @@ def discover_report_history() -> list[dict[str, str]]:
         if not path.is_file():
             continue
         if path.suffix.lower() not in {".html", ".json", ".csv"}:
+            continue
+        if path.name == GENERAL_ANALYSIS_DATABASE_FILENAME:
             continue
         if path.name.endswith("_methylation.csv"):
             continue
@@ -349,6 +408,7 @@ def _empty_form_state() -> dict[str, str]:
         "region": DEFAULT_REGION,
         "popstats": "",
         "manifest_file": "",
+        "overwrite_general_database": "",
         "suggested_popstats": popstats_files[0] if popstats_files else "",
     }
 
@@ -854,6 +914,9 @@ def index() -> str:
                         "region": request.form.get("region", "").strip() or form["region"],
                         "popstats": request.form.get("popstats", "").strip(),
                         "manifest_file": request.form.get("manifest_file", "").strip() or form["manifest_file"],
+                        "overwrite_general_database": (
+                            "1" if request.form.get("overwrite_general_database") else ""
+                        ),
                     }
                 )
 
@@ -868,6 +931,8 @@ def index() -> str:
                         manifest_filepath=(
                             str(_resolve_user_path(form["manifest_file"])) if form["manifest_file"] else None
                         ),
+                        overwrite_general_database=bool(form["overwrite_general_database"]),
+                        general_database_path=_general_analysis_database_path(),
                     )
 
                     methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
@@ -914,13 +979,20 @@ def index() -> str:
                             "version", "curated"
                         ),
                         "predictive_theses": getattr(analysis_result, "predictive_theses", {}),
+                        "general_database_path": (
+                            _as_relative_display(getattr(analysis_result, "general_database_path"))
+                            if getattr(analysis_result, "general_database_path", None)
+                            else ""
+                        ),
+                        "general_database_status": getattr(analysis_result, "general_database_status", ""),
                     }
                 except AnalysisError as exc:
                     analysis_error = str(exc)
 
     preprocess_result = _build_preprocess_result(preprocess_state)
     report_history = discover_report_history()
-    available_tabs = ["overview", "preprocessing", "history", "proteins", "structure"]
+    general_database = load_general_analysis_database()
+    available_tabs = ["overview", "preprocessing", "central_database", "history", "proteins", "structure"]
     if analysis_unlocked:
         available_tabs.insert(2, "analysis")
     if result and result.get("predictive_theses"):
@@ -957,6 +1029,7 @@ def index() -> str:
         popstats_files=popstats_files,
         manifest_files=manifest_files,
         report_history=report_history,
+        general_database=general_database,
         featured_protein_queries=FEATURED_HUMAN_PROTEIN_QUERIES,
         app_structure_qa_items=_build_app_structure_qa_items(),
     )

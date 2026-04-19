@@ -3,11 +3,158 @@
   "version": "2026-04-18",
   "gene_name": "IGF1R",
   "source_interpretation_database": "NophiGene IGF1R Interpretation Database",
-  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation.",
+  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation. Variant prediction rules also receive the actual sample REF -> ALT change; curated allele-change rules take precedence when the observed ALT allele or exact change has a known direction.",
   "disclaimer": "Predictive theses in this database are literature-guided research summaries derived from the bundled gene interpretation bundle. They are designed for exploratory synthesis in the UI and should not be treated as diagnostic or therapeutic claims.",
   "seeded_markers": [
     "rs2229765 (G3174A / p.Glu1043Glu synonymous variant)",
     "rs2016347 (functional 3' regulatory IGF1R SNP)"
+  ],
+  "concrete_variant_prediction": "The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call.",
+  "variant_prediction_rules": [
+    {
+      "variant": "rs2229765",
+      "display_name": "rs2229765",
+      "common_name": "G3174A / p.Glu1043Glu synonymous variant",
+      "lookup_keys": [
+        "rs2229765",
+        "igf1r:rs2229765"
+      ],
+      "prediction": "Observed rs2229765 suggests this sample carries the IGF1R prediction context described by the gene-level thesis. The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. This specific marker is curated as G3174A / p.Glu1043Glu synonymous variant. rs2229765 is a common synonymous IGF1R polymorphism that has been studied as a signaling-set-point or haplotype marker in aging, pregnancy, endocrine, and cancer cohorts. The local database does not treat it as a pathogenic diagnostic variant; instead it is curated as a research association marker with context-dependent effects.",
+      "sample_change_template": "This sample matched rs2229765 with the actual DNA change {change}. Anchor the IGF1R prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [
+        {
+          "prediction": "This sample row reports A as the observed alternate allele at IGF1R rs2229765. In the bundled studies, A-containing states were linked to male longevity and lower free IGF-1 in older AA men, and GA/AA was associated with reduced spontaneous-preterm-birth risk in one cohort. The resulting thesis is an IGF1R signaling-set-point modifier, not a deterministic endocrine or pregnancy prediction.",
+          "basis": "Observed ALT A at rs2229765, the allele highlighted in local longevity and pregnancy-outcome association evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 19460140 / PMCID PMC2692840: rs2229765 and male longevity",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+            },
+            {
+              "label": "PubMed 28213921: rs2229765 and spontaneous preterm birth risk",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+            },
+            {
+              "label": "PubMed 34527927: rs2229765 distribution in inflammatory arthritides and controls",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/34527927/"
+            }
+          ],
+          "alt_allele": "A"
+        },
+        {
+          "prediction": "This sample row reports G as the observed alternate allele at IGF1R rs2229765. G is the contrast state to the A-linked findings in the bundled longevity and pregnancy studies, so the sample should not be described as carrying the A-direction signal from those papers on this row. Keep the prediction at IGF1R pathway-context level unless genotype dosage is available.",
+          "basis": "Observed ALT G at rs2229765, interpreted as the contrast state to the A-linked cohort findings.",
+          "evidence": [
+            {
+              "label": "PubMed 19460140 / PMCID PMC2692840: rs2229765 and male longevity",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+            },
+            {
+              "label": "PubMed 28213921: rs2229765 and spontaneous preterm birth risk",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+            },
+            {
+              "label": "PubMed 34527927: rs2229765 distribution in inflammatory arthritides and controls",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/34527927/"
+            }
+          ],
+          "alt_allele": "G"
+        }
+      ],
+      "basis": "Synonymous coding change usually interpreted as a marker of subtle regulatory or linkage effects rather than a protein-altering lesion.",
+      "evidence": [
+        {
+          "label": "PubMed 19460140 / PMCID PMC2692840: rs2229765 and male longevity",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19460140/"
+        },
+        {
+          "label": "PubMed 28213921: rs2229765 and spontaneous preterm birth risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28213921/"
+        },
+        {
+          "label": "PubMed 34527927: rs2229765 distribution in inflammatory arthritides and controls",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/34527927/"
+        }
+      ]
+    },
+    {
+      "variant": "rs2016347",
+      "display_name": "rs2016347",
+      "common_name": "functional 3' regulatory IGF1R SNP",
+      "lookup_keys": [
+        "rs2016347",
+        "igf1r:rs2016347"
+      ],
+      "prediction": "Observed rs2016347 suggests this sample carries the IGF1R prediction context described by the gene-level thesis. The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. This specific marker is curated as functional 3' regulatory IGF1R SNP. rs2016347 is curated here as a functional common IGF1R regulatory polymorphism that has been associated with altered breast involution, breast-cancer risk modification after hypertensive pregnancy, and selected cardiovascular or cancer outcomes in women with specific reproductive histories. The local database does not seed it as a pathogenic clinical allele.",
+      "sample_change_template": "This sample matched rs2016347 with the actual DNA change {change}. Anchor the IGF1R prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [
+        {
+          "prediction": "This sample row reports T as the observed alternate allele at IGF1R rs2016347. The bundled reproductive-history studies associate T-carrier states with reduced terminal duct lobular unit counts and lower hormone-receptor-positive breast-cancer risk in specific hypertensive-pregnancy or preeclampsia contexts. The prediction is a context-dependent IGF-axis regulatory thesis, not an unconditional cancer-risk call.",
+          "basis": "Observed ALT T at rs2016347, the allele highlighted in local reproductive-history and breast-involution evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 31687025 / PMCID PMC6800903: rs2016347 and mammary gland involution",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+            },
+            {
+              "label": "PubMed 33168159: rs2016347, cancer, and cardiovascular risk after hypertensive pregnancy",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/33168159/"
+            },
+            {
+              "label": "PubMed 36331687: rs2016347 and later-life breast cancer risk after preeclampsia",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+            },
+            {
+              "label": "PubMed 35362533: rs2016347 and cardiovascular risk in endometriosis or PCOS cohorts",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/35362533/"
+            }
+          ],
+          "alt_allele": "T"
+        },
+        {
+          "prediction": "This sample row reports G as the observed alternate allele at IGF1R rs2016347. G is the contrast state to the T-carrier direction emphasized in the bundled breast-involution and hypertensive-pregnancy literature. Interpret this as IGF1R regulatory background rather than applying the T-carrier protective-context thesis.",
+          "basis": "Observed ALT G at rs2016347, interpreted as the contrast state to the T-carrier cohort findings.",
+          "evidence": [
+            {
+              "label": "PubMed 31687025 / PMCID PMC6800903: rs2016347 and mammary gland involution",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+            },
+            {
+              "label": "PubMed 33168159: rs2016347, cancer, and cardiovascular risk after hypertensive pregnancy",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/33168159/"
+            },
+            {
+              "label": "PubMed 36331687: rs2016347 and later-life breast cancer risk after preeclampsia",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+            },
+            {
+              "label": "PubMed 35362533: rs2016347 and cardiovascular risk in endometriosis or PCOS cohorts",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/35362533/"
+            }
+          ],
+          "alt_allele": "G"
+        }
+      ],
+      "basis": "Used as a common regulatory marker in studies proposing reduced IGF1R expression or attenuated IGF-axis signaling in T-allele carriers.",
+      "evidence": [
+        {
+          "label": "PubMed 31687025 / PMCID PMC6800903: rs2016347 and mammary gland involution",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31687025/"
+        },
+        {
+          "label": "PubMed 33168159: rs2016347, cancer, and cardiovascular risk after hypertensive pregnancy",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/33168159/"
+        },
+        {
+          "label": "PubMed 36331687: rs2016347 and later-life breast cancer risk after preeclampsia",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36331687/"
+        },
+        {
+          "label": "PubMed 35362533: rs2016347 and cardiovascular risk in endometriosis or PCOS cohorts",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/35362533/"
+        }
+      ]
+    }
   ],
   "case_count": 10,
   "methylation_sources": [
@@ -34,7 +181,7 @@
       "requires_variant": true,
       "methylation_source": null,
       "methylation_band": null,
-      "prediction": "An observed IGF1R variant places this sample in the curated IGF1R research context. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. An observed IGF1R variant places this sample in the curated IGF1R research context. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "This is the base thesis that activates as soon as any promoter or gene-body variant is visible in the current sample.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -48,7 +195,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "high",
-      "prediction": "When a IGF1R variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -62,7 +209,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "medium",
-      "prediction": "When a IGF1R variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -76,7 +223,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "low",
-      "prediction": "When a IGF1R variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -90,7 +237,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "high",
-      "prediction": "When a IGF1R variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -104,7 +251,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "medium",
-      "prediction": "When a IGF1R variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -118,7 +265,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "low",
-      "prediction": "When a IGF1R variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -132,7 +279,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "high",
-      "prediction": "When a IGF1R variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -146,7 +293,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "medium",
-      "prediction": "When a IGF1R variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",
@@ -160,7 +307,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "low",
-      "prediction": "When a IGF1R variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
+      "prediction": "When a IGF1R variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an IGF1 receptor signaling-set-point thesis: the individual may carry a low-penetrance modifier of growth, endocrine, aging, pregnancy-history, cardiovascular, or cancer-cohort biology because IGF1R tunes PI3K-AKT and MAPK survival signaling. The prediction is pathway-contextual rather than a direct disease call. IGF1R methylation is best interpreted as regulatory context that may reflect local promoter accessibility or broader IGF-axis state rather than as a stand-alone disease call. The bundled EPIC subset includes promoter-adjacent CpG-island probes and many 5'UTR or gene-body probes, so this workbench should be read as a locus-level methylation view rather than a one-to-one proxy for every published IGF1R epigenetic assay. The bundled IGF1R records are intended as research and pathway-context markers, not as a diagnostic-grade interpretation set. Pathogenic IGF1R coding variants do exist in growth-disorder genetics, but the initial local database added here focuses on commonly studied polymorphisms and regulatory context relevant to the current SNP-and-methylation workflow. Commonly discussed IGF1R SNPs in this local database are best read as pathway modifiers, cohort markers, or regulatory correlates rather than as high-penetrance pathogenic variants.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "IGF1R is heavily studied in cancer biology because altered IGF1 signaling can support proliferation, survival, and therapy resistance.",

@@ -38,10 +38,24 @@ except ImportError:
 DEFAULT_REGION = "11:637269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
 DEFAULT_GENE_NAME = "DRD4"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GENE_DATA_DIR = Path(__file__).resolve().parent / "gene_data"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 POPULATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_population_db.json"
 SYNTHESIS_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_synthesis.json"
+GENERAL_ANALYSIS_DATABASE_PATH = PROJECT_ROOT / "results" / "general_gene_analysis_database.csv"
+GENERAL_ANALYSIS_DATABASE_COLUMNS = [
+    "gene",
+    "observed gene variant",
+    "gene variant label",
+    "change",
+    "gene location",
+    "source",
+    "(VCF) quality (qual)",
+    "mean beta whitelist",
+    "mean beta related to gene",
+    "mean beta on found probes in the area (numerical rows)",
+]
 
 # Configure the root logger once so both CLI and web runs stream progress.
 logging.basicConfig(
@@ -126,6 +140,11 @@ class AnalysisResult:
         Gene-level predictive synthesis payload assembled from the local
         synthesis database plus the current sample's variant and methylation
         results.
+    general_database_path : Path
+        Path to the central one-row-per-gene analysis database.
+    general_database_status : str
+        Human-readable status describing whether this run added, skipped, or
+        overwrote the central database row.
     """
 
     variants: pd.DataFrame
@@ -142,6 +161,8 @@ class AnalysisResult:
     population_insights: dict[str, Any]
     population_database: dict[str, Any]
     predictive_theses: dict[str, Any]
+    general_database_path: Path
+    general_database_status: str
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -311,6 +332,20 @@ def _normalize_lookup_key(value: str) -> str:
     if normalized.startswith("chr"):
         normalized = normalized[3:]
     return normalized
+
+
+def _normalize_allele_change(value: Any) -> str:
+    """Canonicalize allele-change strings such as ``A -> G`` and ``A>G``."""
+    text = str(value or "").strip().upper().replace(" ", "")
+    return text.replace("->", ">")
+
+
+def _extract_alt_allele_from_change(value: Any) -> str:
+    """Return the ALT allele from a display change such as ``A -> G`` when available."""
+    normalized = _normalize_allele_change(value)
+    if ">" not in normalized:
+        return ""
+    return normalized.rsplit(">", 1)[-1].strip()
 
 
 def _parse_region_string(region: str) -> dict[str, Any]:
@@ -853,6 +888,7 @@ def _build_sample_variant_highlights(
             {
                 "title": record["variant"],
                 "observed_variant": record["observed_variant"],
+                "change": record.get("change", "Unavailable"),
                 "category": record.get("interpretation_scope", "Research context"),
                 "description": record.get("clinical_interpretation", ""),
                 "conditions": record.get("associated_conditions", []),
@@ -1385,6 +1421,8 @@ def build_variant_interpretations(
                 "observed_variant": observed_label,
                 "variant_label": _format_variant_label(row.get("id")),
                 "change": _format_variant_change(row.get("ref"), row.get("alt")),
+                "reference_allele": "" if pd.isna(row.get("ref")) else str(row.get("ref")).strip(),
+                "alternate_allele": "" if pd.isna(row.get("alt")) else str(row.get("alt")).strip(),
                 "linked_to": _build_specific_variant_link_summary(
                     matched_record,
                     fallback=f"No curated local {gene_name} link is bundled for this PASS variant yet.",
@@ -2086,13 +2124,150 @@ def _summarize_predictive_observed_variants(
     for item in variant_interpretations.get("sample_highlights", {}).get("highlight_items", []):
         title = str(item.get("title", "")).strip()
         observed_variant = str(item.get("observed_variant", "")).strip()
-        if title and observed_variant and observed_variant != title:
+        change = str(item.get("change", "")).strip()
+        has_change = bool(change and change.casefold() != "unavailable")
+        if title and has_change:
+            observed_items.append(f"{title} {change}")
+        elif title and observed_variant and observed_variant != title:
             observed_items.append(f"{title} ({observed_variant})")
         elif title:
             observed_items.append(title)
         elif observed_variant:
             observed_items.append(observed_variant)
     return _dedupe_text_items(observed_items)
+
+
+def _build_synthesis_variant_prediction_rule_lookup(
+    synthesis_database: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Index concrete variant prediction rules by the labels seen in analysis output."""
+    rule_lookup: dict[str, dict[str, Any]] = {}
+    for rule in synthesis_database.get("variant_prediction_rules", []):
+        lookup_candidates = [
+            rule.get("variant"),
+            rule.get("display_name"),
+            rule.get("common_name"),
+            *rule.get("lookup_keys", []),
+        ]
+        for candidate in lookup_candidates:
+            candidate_text = str(candidate or "").strip()
+            if not candidate_text:
+                continue
+            rule_lookup[_normalize_lookup_key(candidate_text)] = rule
+    return rule_lookup
+
+
+def _find_synthesis_variant_prediction_rule(
+    record: dict[str, Any],
+    rule_lookup: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Return the concrete prediction rule for a matched variant record when available."""
+    lookup_candidates = [
+        record.get("variant"),
+        record.get("variant_label"),
+        record.get("observed_variant"),
+    ]
+    for candidate in lookup_candidates:
+        candidate_text = str(candidate or "").strip()
+        if not candidate_text:
+            continue
+        matched_rule = rule_lookup.get(_normalize_lookup_key(candidate_text))
+        if matched_rule is not None:
+            return matched_rule
+    return None
+
+
+def _format_predictive_observed_signal(record: dict[str, Any]) -> str:
+    """Render the observed variant and its actual REF -> ALT change together."""
+    observed_signal = str(record.get("observed_variant", record.get("variant", ""))).strip()
+    change = str(record.get("change", "")).strip()
+    if change and change.casefold() != "unavailable" and change not in observed_signal:
+        return f"{observed_signal} ({change})" if observed_signal else change
+    return observed_signal
+
+
+def _render_sample_change_template(
+    template: str,
+    *,
+    record: dict[str, Any],
+    concrete_rule: dict[str, Any],
+) -> str:
+    """Fill a controlled sample-change template from the synthesis database."""
+    replacements = {
+        "{change}": str(record.get("change", "Unavailable")).strip() or "Unavailable",
+        "{variant}": str(record.get("variant", concrete_rule.get("variant", ""))).strip(),
+        "{display_name}": str(concrete_rule.get("display_name", record.get("variant", ""))).strip(),
+        "{observed_variant}": str(record.get("observed_variant", "")).strip(),
+        "{alt_allele}": _extract_alt_allele_from_change(record.get("change")),
+    }
+    rendered = str(template or "")
+    for placeholder, value in replacements.items():
+        rendered = rendered.replace(placeholder, value)
+    return rendered.strip()
+
+
+def _select_synthesis_prediction_for_record(
+    record: dict[str, Any],
+    concrete_rule: dict[str, Any] | None,
+) -> dict[str, str]:
+    """Choose the most sample-specific prediction text for one matched variant."""
+    if concrete_rule is None:
+        return {
+            "prediction": str(record.get("clinical_interpretation", "")).strip(),
+            "research_focus": "; ".join(
+                _dedupe_text_items(record.get("associated_conditions", []))[:3]
+            ),
+            "source": str(record.get("interpretation_scope", "Curated marker")).strip(),
+        }
+
+    change = str(record.get("change", "")).strip()
+    normalized_change = _normalize_allele_change(change)
+    observed_alt_allele = _extract_alt_allele_from_change(change)
+
+    for allele_rule in concrete_rule.get("allele_change_rules", []):
+        rule_change = _normalize_allele_change(allele_rule.get("change"))
+        rule_alt_allele = str(allele_rule.get("alt_allele", "")).strip().upper()
+        change_matches = bool(rule_change and normalized_change and rule_change == normalized_change)
+        alt_matches = bool(rule_alt_allele and observed_alt_allele and rule_alt_allele == observed_alt_allele)
+        if not change_matches and not alt_matches:
+            continue
+
+        prediction = str(allele_rule.get("prediction", "")).strip()
+        if not prediction:
+            prediction = str(concrete_rule.get("prediction", "")).strip()
+        research_focus = str(allele_rule.get("basis", "")).strip()
+        if not research_focus:
+            research_focus = str(concrete_rule.get("basis", "")).strip()
+        return {
+            "prediction": prediction,
+            "research_focus": research_focus,
+            "source": "Sample allele-change thesis",
+        }
+
+    prediction = str(concrete_rule.get("prediction", "")).strip()
+    research_focus = str(concrete_rule.get("basis", "")).strip()
+    sample_change_template = str(concrete_rule.get("sample_change_template", "")).strip()
+    if change and change.casefold() != "unavailable" and sample_change_template:
+        change_anchor = _render_sample_change_template(
+            sample_change_template,
+            record=record,
+            concrete_rule=concrete_rule,
+        )
+        if change_anchor and prediction:
+            prediction = f"{change_anchor} {prediction}"
+        elif change_anchor:
+            prediction = change_anchor
+        return {
+            "prediction": prediction,
+            "research_focus": research_focus,
+            "source": "Sample change-anchored thesis",
+        }
+
+    return {
+        "prediction": prediction,
+        "research_focus": research_focus,
+        "source": "Concrete variant thesis",
+    }
 
 
 def build_predictive_theses(
@@ -2123,6 +2298,9 @@ def build_predictive_theses(
         str(case["case_id"]).strip(): case
         for case in case_catalog
     }
+    variant_prediction_rule_lookup = _build_synthesis_variant_prediction_rule_lookup(
+        synthesis_database
+    )
 
     matched_records = variant_interpretations.get("matched_records", [])
     highlight_items = variant_interpretations.get("sample_highlights", {}).get("highlight_items", [])
@@ -2169,14 +2347,18 @@ def build_predictive_theses(
         )
 
     for record in matched_records:
+        concrete_rule = _find_synthesis_variant_prediction_rule(
+            record,
+            variant_prediction_rule_lookup,
+        )
+        selected_prediction = _select_synthesis_prediction_for_record(record, concrete_rule)
+
         variant_prediction_rows.append(
             {
-                "observed_signal": str(record.get("observed_variant", record.get("variant", ""))).strip(),
-                "source": str(record.get("interpretation_scope", "Curated marker")).strip(),
-                "prediction": str(record.get("clinical_interpretation", "")).strip(),
-                "research_focus": "; ".join(
-                    _dedupe_text_items(record.get("associated_conditions", []))[:3]
-                ),
+                "observed_signal": _format_predictive_observed_signal(record),
+                "source": selected_prediction["source"],
+                "prediction": selected_prediction["prediction"],
+                "research_focus": selected_prediction["research_focus"],
             }
         )
 
@@ -2327,6 +2509,7 @@ def build_predictive_theses(
             "Predictive theses in this app are literature-guided research summaries, not diagnostic claims.",
         ),
         "seeded_markers": synthesis_database.get("seeded_markers", []),
+        "concrete_variant_prediction": synthesis_database.get("concrete_variant_prediction", ""),
         "variant_found": variant_found,
         "variant_found_label": "Yes" if variant_found else "No",
         "variant_summary": variant_summary,
@@ -2336,6 +2519,153 @@ def build_predictive_theses(
         "matched_case_count": len(matched_cases),
         "case_catalog_size": len(case_catalog),
         "summary": summary,
+    }
+
+
+def _join_unique_database_values(values: list[Any]) -> str:
+    """Join compact central-database values while preserving order."""
+    cleaned_values: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = "" if value is None else str(value).strip()
+        if not text or text.casefold() in seen:
+            continue
+        seen.add(text.casefold())
+        cleaned_values.append(text)
+    return "; ".join(cleaned_values)
+
+
+def _format_database_beta(value: Any) -> float | str:
+    """Return beta values as stable numeric CSV fields when available."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+        return round(float(value), 6)
+    except (TypeError, ValueError):
+        return str(value).strip()
+
+
+def _format_database_quality(value: Any) -> str:
+    """Render VCF quality values for the central one-row-per-gene database."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return str(value).strip()
+
+
+def _build_general_analysis_database_row(
+    *,
+    gene_name: str,
+    variants: pd.DataFrame,
+    variant_interpretations: dict[str, Any],
+    methylation_insights: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the central one-row-per-gene database entry for a completed run."""
+    normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
+
+    observed_variants: list[str] = []
+    variant_labels: list[str] = []
+    changes: list[str] = []
+    qualities: list[str] = []
+
+    for _, row in variants.iterrows():
+        observed_variants.append(_format_variant_display(row))
+        variant_labels.append(_format_variant_label(row.get("id")))
+        changes.append(_format_variant_change(row.get("ref"), row.get("alt")))
+        qualities.append(_format_database_quality(row.get("qual")))
+
+    gene_region = variant_interpretations.get("gene_region", {})
+    search_region = variant_interpretations.get("search_region", {})
+    gene_location = str(
+        gene_region.get("display")
+        or search_region.get("display")
+        or variant_interpretations.get("recommended_promoter_plus_gene_region")
+        or ""
+    ).strip()
+
+    return {
+        "gene": normalized_gene_name,
+        "observed gene variant": _join_unique_database_values(observed_variants),
+        "gene variant label": _join_unique_database_values(variant_labels),
+        "change": _join_unique_database_values(changes),
+        "gene location": gene_location,
+        "source": "VCF" if not variants.empty else "",
+        "(VCF) quality (qual)": _join_unique_database_values(qualities),
+        "mean beta whitelist": _format_database_beta(methylation_insights.get("whitelist_mean_beta")),
+        "mean beta related to gene": _format_database_beta(methylation_insights.get("gene_name_mean_beta")),
+        "mean beta on found probes in the area (numerical rows)": _format_database_beta(
+            methylation_insights.get("all_numeric_mean_beta")
+        ),
+    }
+
+
+def update_general_analysis_database(
+    *,
+    gene_name: str,
+    variants: pd.DataFrame,
+    variant_interpretations: dict[str, Any],
+    methylation_insights: dict[str, Any],
+    overwrite: bool = False,
+    database_path: str | Path = GENERAL_ANALYSIS_DATABASE_PATH,
+) -> dict[str, Any]:
+    """Add or optionally replace the analyzed gene row in the central database."""
+    output_path = Path(database_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
+    new_row = _build_general_analysis_database_row(
+        gene_name=normalized_gene_name,
+        variants=variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+    )
+
+    if output_path.exists():
+        try:
+            database = pd.read_csv(output_path, dtype=object)
+        except pd.errors.EmptyDataError:
+            database = pd.DataFrame(columns=GENERAL_ANALYSIS_DATABASE_COLUMNS)
+    else:
+        database = pd.DataFrame(columns=GENERAL_ANALYSIS_DATABASE_COLUMNS)
+
+    for column in GENERAL_ANALYSIS_DATABASE_COLUMNS:
+        if column not in database.columns:
+            database[column] = ""
+
+    primary_columns = list(GENERAL_ANALYSIS_DATABASE_COLUMNS)
+    extra_columns = [column for column in database.columns if column not in primary_columns]
+    database = database[primary_columns + extra_columns].fillna("")
+
+    existing_mask = database["gene"].astype(str).str.strip().str.upper() == normalized_gene_name
+    if existing_mask.any() and not overwrite:
+        return {
+            "action": "skipped_existing",
+            "path": output_path,
+            "message": (
+                f"Central database already contains {normalized_gene_name}; existing entry was kept. "
+                "Check overwrite in Run Analysis to replace it."
+            ),
+        }
+
+    action = "overwritten" if existing_mask.any() else "added"
+    if existing_mask.any():
+        database = database.loc[~existing_mask].copy()
+
+    database = pd.concat([database, pd.DataFrame([new_row])], ignore_index=True)
+    database = database[primary_columns + extra_columns].fillna("")
+    database.to_csv(output_path, index=False)
+
+    action_text = "Overwrote" if action == "overwritten" else "Added"
+    return {
+        "action": action,
+        "path": output_path,
+        "message": f"{action_text} {normalized_gene_name} in the central analysis database.",
     }
 
 
@@ -2662,7 +2992,11 @@ def _render_section_table(df: pd.DataFrame, title: str, rows: int | None = 20) -
     """Render a DataFrame preview section for the HTML report."""
     preview_df = df if rows is None else df.head(rows)
     preview = preview_df.to_html(index=False, classes="data-table", border=0)
-    return f"<section><h2>{html.escape(title)}</h2>{preview}</section>"
+    return (
+        f"<section><h2>{html.escape(title)}</h2>"
+        f'<div class="report-table-shell">{preview}</div>'
+        "</section>"
+    )
 
 
 def _with_preferred_column_order(df: pd.DataFrame, preferred_columns: list[str]) -> pd.DataFrame:
@@ -3153,6 +3487,97 @@ def _render_methylation_interpretation_report(methylation_insights: dict[str, An
     )
 
 
+def _render_predictive_theses_report(predictive_theses: dict[str, Any]) -> str:
+    """Render the predictive-thesis panels in the exported HTML report."""
+    if not predictive_theses:
+        return ""
+
+    nested_sections: list[str] = []
+    variant_prediction_rows = predictive_theses.get("variant_prediction_rows", [])
+    if variant_prediction_rows:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    variant_prediction_rows,
+                    [
+                        ("observed_signal", "Observed signal"),
+                        ("source", "Source"),
+                        ("prediction", "Prediction"),
+                        ("research_focus", "Research focus"),
+                    ],
+                ),
+                "Variant Prediction",
+                rows=None,
+            )
+        )
+
+    methylation_prediction_rows = predictive_theses.get("methylation_prediction_rows", [])
+    if methylation_prediction_rows:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    methylation_prediction_rows,
+                    [
+                        ("metric_label", "Metric"),
+                        ("mean_beta_display", "Mean beta"),
+                        ("probe_count", "Numeric values"),
+                        ("band_display", "Band"),
+                        ("matched_case_label", "Matched case"),
+                        ("prediction", "Prediction"),
+                        ("research_focus", "Research focus"),
+                    ],
+                ),
+                "Methylation Prediction",
+                rows=None,
+            )
+        )
+
+    matched_cases = predictive_theses.get("matched_cases", [])
+    if matched_cases:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    matched_cases,
+                    [
+                        ("case_label", "Case"),
+                        ("trigger", "Trigger"),
+                        ("source", "Source"),
+                        ("mean_beta_display", "Observed value"),
+                        ("band", "Band"),
+                        ("prediction", "Prediction"),
+                        ("research_focus", "Research focus"),
+                    ],
+                ),
+                "Synthesis",
+                rows=None,
+            )
+        )
+
+    seeded_markers = predictive_theses.get("seeded_markers", [])
+    if seeded_markers:
+        nested_sections.append(
+            _render_section_table(
+                _report_df_from_rows(
+                    [{"marker": marker} for marker in seeded_markers],
+                    [("marker", "Seeded marker")],
+                ),
+                "Seeded Predictive Markers",
+                rows=None,
+            )
+        )
+
+    return _render_report_paragraphs(
+        "Predictive Theses",
+        [
+            predictive_theses.get("summary", ""),
+            predictive_theses.get("variant_summary", ""),
+            predictive_theses.get("matching_rule", ""),
+            predictive_theses.get("disclaimer", ""),
+        ],
+        extra_markup="".join(nested_sections),
+    )
+
+
 def generate_report(
     variants: pd.DataFrame,
     methylation: pd.DataFrame,
@@ -3165,6 +3590,7 @@ def generate_report(
     variant_interpretations: dict[str, Any] | None = None,
     methylation_insights: dict[str, Any] | None = None,
     population_insights: dict[str, Any] | None = None,
+    predictive_theses: dict[str, Any] | None = None,
 ) -> Path:
     """Generate a report artifact from the assembled analysis tables.
 
@@ -3186,6 +3612,8 @@ def generate_report(
         Gene name displayed in the report heading and summary copy.
     methylation_output_path : Path | None, optional
         Path to the exported methylation CSV, shown in the report when provided.
+    predictive_theses : dict[str, Any] | None, optional
+        Predictive thesis payload rendered into the report when available.
 
     Returns
     -------
@@ -3223,6 +3651,9 @@ def generate_report(
         methylation_interpretation_section = _render_methylation_interpretation_report(
             methylation_insights or {},
         )
+        predictive_theses_section = _render_predictive_theses_report(
+            predictive_theses or {},
+        )
 
         report_html = f"""<!doctype html>
 <html lang="en">
@@ -3252,9 +3683,10 @@ def generate_report(
         linear-gradient(180deg, #fbf6ee 0%, var(--bg) 100%);
     }}
     main {{
-      max-width: 1180px;
+      width: min(98vw, 1800px);
+      max-width: none;
       margin: 0 auto;
-      padding: 48px 20px 64px;
+      padding: 38px 12px 64px;
     }}
     .hero {{
       padding: 28px 30px;
@@ -3273,7 +3705,8 @@ def generate_report(
     .hero p {{
       margin: 8px 0;
       color: var(--muted);
-      max-width: 52rem;
+      max-width: 78rem;
+      overflow-wrap: anywhere;
     }}
     .metrics {{
       display: grid;
@@ -3306,16 +3739,33 @@ def generate_report(
       background: var(--panel);
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
     }}
     h2 {{
       margin-top: 0;
       font-size: 1.3rem;
       letter-spacing: -0.02em;
     }}
+    p, li, td, th, strong {{
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }}
+    .report-table-shell {{
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.54);
+    }}
     .data-table {{
       width: 100%;
+      min-width: 760px;
       border-collapse: collapse;
       font-size: 0.92rem;
+      table-layout: fixed;
     }}
     .data-table th,
     .data-table td {{
@@ -3323,6 +3773,9 @@ def generate_report(
       border-bottom: 1px solid var(--line);
       text-align: left;
       vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
     }}
     .data-table th {{
       background: rgba(15, 118, 110, 0.08);
@@ -3330,9 +3783,24 @@ def generate_report(
     pre {{
       padding: 16px;
       overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
       border-radius: 16px;
       background: #172023;
       color: #f4f0e8;
+    }}
+    @media (max-width: 760px) {{
+      main {{
+        width: min(100vw, 100%);
+        padding: 18px 8px 42px;
+      }}
+      .hero,
+      section {{
+        padding: 18px;
+      }}
+      .data-table {{
+        min-width: 680px;
+      }}
     }}
   </style>
 </head>
@@ -3361,6 +3829,7 @@ def generate_report(
     </section>
     {_render_section_table(_prepare_variant_table_for_output(variants), "Genetic Variant Results", rows=None)}
     {variant_interpretation_section}
+    {predictive_theses_section}
     {methylation_interpretation_section}
     {_render_section_table(_prepare_methylation_table_for_output(methylation), "Methylation Raw Results", rows=None)}
     {popstats_section}
@@ -3378,6 +3847,7 @@ def generate_report(
             "methylation": methylation.to_dict(orient="records"),
             "population_statistics": _serialize_popstats(popstats),
             "methylation_output_path": str(methylation_output_path) if methylation_output_path else None,
+            "predictive_theses": predictive_theses or {},
         }
         report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return report_path
@@ -3392,6 +3862,10 @@ def generate_report(
                 {
                     "metric": "methylation_output_path",
                     "value": str(methylation_output_path) if methylation_output_path else "",
+                },
+                {
+                    "metric": "predictive_thesis_matched_cases",
+                    "value": (predictive_theses or {}).get("matched_case_count", 0),
                 },
             ]
         )
@@ -3412,6 +3886,8 @@ def run_analysis(
     region: str = DEFAULT_REGION,
     popstats_source: str | None = None,
     manifest_filepath: str | None = None,
+    overwrite_general_database: bool = False,
+    general_database_path: str | Path = GENERAL_ANALYSIS_DATABASE_PATH,
 ) -> AnalysisResult:
     """Run the end-to-end gene analysis workflow.
 
@@ -3432,6 +3908,11 @@ def run_analysis(
     manifest_filepath : str | None, optional
         Optional full manifest file path passed through to methylprep and used
         to refresh the gene-specific subset stored in ``src/gene_data``.
+    overwrite_general_database : bool, optional
+        When true, replace an existing central-database row for the analyzed
+        gene. When false, an existing row is left unchanged.
+    general_database_path : str | Path, optional
+        Destination CSV for the one-row-per-gene central analysis database.
 
     Returns
     -------
@@ -3513,6 +3994,15 @@ def run_analysis(
     if popstats_source:
         popstats = fetch_population_stats(popstats_source, variants)
 
+    general_database_result = update_general_analysis_database(
+        gene_name=normalized_gene_name,
+        variants=variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        overwrite=overwrite_general_database,
+        database_path=general_database_path,
+    )
+
     final_report_path = generate_report(
         variants,
         methylation,
@@ -3524,6 +4014,7 @@ def run_analysis(
         variant_interpretations=variant_interpretations,
         methylation_insights=methylation_insights,
         population_insights=population_insights,
+        predictive_theses=predictive_theses,
     )
 
     return AnalysisResult(
@@ -3541,6 +4032,8 @@ def run_analysis(
         population_insights=population_insights,
         population_database=population_database,
         predictive_theses=predictive_theses,
+        general_database_path=Path(general_database_result["path"]),
+        general_database_status=str(general_database_result["message"]),
     )
 
 
@@ -3563,6 +4056,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Saved report to {result.report_path}")
     print(f"Saved methylation CSV to {result.methylation_output_path}")
+    print(f"{result.general_database_status} ({result.general_database_path})")
     return 0
 
 

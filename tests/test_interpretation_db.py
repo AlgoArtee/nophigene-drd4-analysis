@@ -5,13 +5,17 @@ from __future__ import annotations
 import pandas as pd
 
 from src.analysis import (
+    GENERAL_ANALYSIS_DATABASE_COLUMNS,
     build_methylation_insights,
     build_population_insights,
+    build_predictive_theses,
     build_variant_interpretations,
     generate_report,
     load_gene_interpretation_database,
     load_interpretation_database,
     load_population_database,
+    load_synthesis_database,
+    update_general_analysis_database,
 )
 
 
@@ -359,6 +363,12 @@ def test_generate_report_includes_variant_and_methylation_interpretation_section
     )
     methylation_insights = build_methylation_insights(methylation, knowledge_base)
     population_insights = build_population_insights(variants, knowledge_base, population_database)
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=load_synthesis_database(),
+    )
 
     report_path = generate_report(
         variants,
@@ -371,11 +381,106 @@ def test_generate_report_includes_variant_and_methylation_interpretation_section
         variant_interpretations=variant_interpretations,
         methylation_insights=methylation_insights,
         population_insights=population_insights,
+        predictive_theses=predictive_theses,
     )
 
     report_html = report_path.read_text(encoding="utf-8")
     assert "Genetic Variant Results" in report_html
     assert "Sample Results" in report_html
     assert "Matched Variant Interpretations" in report_html
+    assert "Predictive Theses" in report_html
+    assert "Variant Prediction" in report_html
+    assert "Methylation Prediction" in report_html
+    assert "Synthesis" in report_html
+    assert "Sample allele-change thesis" in report_html
+    assert "report-table-shell" in report_html
+    assert "table-layout: fixed" in report_html
+    assert "width: min(98vw, 1800px)" in report_html
     assert "Methylation Summary Metrics" in report_html
     assert "Methylation Raw Results" in report_html
+
+
+def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) -> None:
+    """The central database should keep one row per gene unless overwrite is requested."""
+    database_path = tmp_path / "general_gene_analysis_database.csv"
+    variant_interpretations = {
+        "gene_region": {"display": "chr15:28,356,186-28,567,325"},
+        "search_region": {"display": "chr15:28,356,000-28,567,325"},
+    }
+    methylation_insights = {
+        "whitelist_mean_beta": 0.71,
+        "gene_name_mean_beta": 0.62,
+        "all_numeric_mean_beta": 0.53,
+    }
+    first_variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": "rs12913832",
+                "pos": 28365618,
+                "ref": "A",
+                "alt": "G",
+                "qual": 88.0,
+                "filter_pass": True,
+            }
+        ]
+    )
+    second_variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": "rs12913832",
+                "pos": 28365618,
+                "ref": "G",
+                "alt": "A",
+                "qual": 91.25,
+                "filter_pass": True,
+            }
+        ]
+    )
+
+    added = update_general_analysis_database(
+        gene_name="HERC2",
+        variants=first_variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        database_path=database_path,
+    )
+    skipped = update_general_analysis_database(
+        gene_name="herc2",
+        variants=second_variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        database_path=database_path,
+    )
+
+    database = pd.read_csv(database_path)
+    assert added["action"] == "added"
+    assert skipped["action"] == "skipped_existing"
+    assert database.columns.tolist() == GENERAL_ANALYSIS_DATABASE_COLUMNS
+    assert len(database) == 1
+    assert database.loc[0, "gene"] == "HERC2"
+    assert database.loc[0, "observed gene variant"] == "rs12913832"
+    assert database.loc[0, "gene variant label"] == "rs12913832"
+    assert database.loc[0, "change"] == "A -> G"
+    assert database.loc[0, "gene location"] == "chr15:28,356,186-28,567,325"
+    assert database.loc[0, "source"] == "VCF"
+    assert database.loc[0, "(VCF) quality (qual)"] == 88.0
+    assert database.loc[0, "mean beta whitelist"] == 0.71
+    assert database.loc[0, "mean beta related to gene"] == 0.62
+    assert database.loc[0, "mean beta on found probes in the area (numerical rows)"] == 0.53
+
+    overwritten = update_general_analysis_database(
+        gene_name="HERC2",
+        variants=second_variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        overwrite=True,
+        database_path=database_path,
+    )
+
+    database = pd.read_csv(database_path)
+    assert overwritten["action"] == "overwritten"
+    assert len(database) == 1
+    assert database.loc[0, "change"] == "G -> A"
+    assert database.loc[0, "(VCF) quality (qual)"] == 91.25

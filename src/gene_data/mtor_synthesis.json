@@ -3,11 +3,79 @@
   "version": "2026-04-18",
   "gene_name": "MTOR",
   "source_interpretation_database": "NophiGene MTOR Interpretation Database",
-  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation.",
+  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation. Variant prediction rules also receive the actual sample REF -> ALT change; curated allele-change rules take precedence when the observed ALT allele or exact change has a known direction.",
   "disclaimer": "Predictive theses in this database are literature-guided research summaries derived from the bundled gene interpretation bundle. They are designed for exploratory synthesis in the UI and should not be treated as diagnostic or therapeutic claims.",
   "seeded_markers": [
     "rs2295080 (promoter regulatory MTOR SNP)",
     "rs2536 (3'UTR functional MTOR SNP)"
+  ],
+  "concrete_variant_prediction": "The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis.",
+  "variant_prediction_rules": [
+    {
+      "variant": "rs2295080",
+      "display_name": "rs2295080",
+      "common_name": "promoter regulatory MTOR SNP",
+      "lookup_keys": [
+        "rs2295080",
+        "mtor:rs2295080"
+      ],
+      "prediction": "Observed rs2295080 suggests this sample carries the MTOR prediction context described by the gene-level thesis. The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. This specific marker is curated as promoter regulatory MTOR SNP. rs2295080 is a promoter-proximal MTOR polymorphism studied as a transcriptional and cancer-risk modifier. The local database treats it as a regulatory research marker rather than as a pathogenic clinical allele.",
+      "sample_change_template": "This sample matched rs2295080 with the actual DNA change {change}. Anchor the MTOR prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [
+        {
+          "prediction": "This sample row reports T as the observed alternate allele at MTOR rs2295080. The bundled cancer-association evidence discusses TT as a higher-risk genotype in the Chinese studies pooled by the local database, so ALT T supports a promoter-regulatory risk-context thesis when cohort ancestry and genotype dosage are appropriate. It should not be interpreted as a stand-alone cancer diagnosis.",
+          "basis": "Observed ALT T at rs2295080, interpreted through promoter-regulatory MTOR cancer-association evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+            }
+          ],
+          "alt_allele": "T"
+        },
+        {
+          "prediction": "This sample row reports G as the observed alternate allele at MTOR rs2295080. G is the contrast state to the TT-focused higher-risk signal in the bundled cancer-association evidence, so the prediction should stay at pathway-regulatory context unless full genotype and cohort context support a stronger statement.",
+          "basis": "Observed ALT G at rs2295080, interpreted as the contrast state to the TT-focused association evidence.",
+          "evidence": [
+            {
+              "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+            }
+          ],
+          "alt_allele": "G"
+        }
+      ],
+      "basis": "Promoter variation at rs2295080 has been discussed as a potential modifier of MTOR transcriptional output.",
+      "evidence": [
+        {
+          "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+        }
+      ]
+    },
+    {
+      "variant": "rs2536",
+      "display_name": "rs2536",
+      "common_name": "3'UTR functional MTOR SNP",
+      "lookup_keys": [
+        "rs2536",
+        "mtor:rs2536"
+      ],
+      "prediction": "Observed rs2536 suggests this sample carries the MTOR prediction context described by the gene-level thesis. The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. This specific marker is curated as 3'UTR functional MTOR SNP. rs2536 is a commonly discussed MTOR 3'UTR polymorphism curated here as a research association marker for cancer susceptibility and outcome, not as a diagnostic or pathogenic allele.",
+      "sample_change_template": "This sample matched rs2536 with the actual DNA change {change}. Anchor the MTOR prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [],
+      "basis": "The variant is discussed as a post-transcriptional regulatory marker in the MTOR pathway.",
+      "evidence": [
+        {
+          "label": "PubMed 29978580: rs2536 and gastric-cancer survival",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/29978580/"
+        },
+        {
+          "label": "PubMed 24816861: MTOR polymorphism meta-analysis",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24816861/"
+        }
+      ]
+    }
   ],
   "case_count": 10,
   "methylation_sources": [
@@ -34,7 +102,7 @@
       "requires_variant": true,
       "methylation_source": null,
       "methylation_band": null,
-      "prediction": "An observed MTOR variant places this sample in the curated MTOR research context. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. An observed MTOR variant places this sample in the curated MTOR research context. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "This is the base thesis that activates as soon as any promoter or gene-body variant is visible in the current sample.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -48,7 +116,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "high",
-      "prediction": "When a MTOR variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -62,7 +130,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "medium",
-      "prediction": "When a MTOR variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -76,7 +144,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "low",
-      "prediction": "When a MTOR variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -90,7 +158,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "high",
-      "prediction": "When a MTOR variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -104,7 +172,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "medium",
-      "prediction": "When a MTOR variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -118,7 +186,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "low",
-      "prediction": "When a MTOR variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -132,7 +200,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "high",
-      "prediction": "When a MTOR variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -146,7 +214,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "medium",
-      "prediction": "When a MTOR variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",
@@ -160,7 +228,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "low",
-      "prediction": "When a MTOR variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
+      "prediction": "When a MTOR variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests an mTOR pathway-threshold thesis: the individual may carry a regulatory modifier of growth signaling, autophagy restraint, nutrient sensing, or cancer/outcome cohorts because MTOR integrates anabolic and survival signals. This is best interpreted as pathway tuning, not as a stand-alone diagnosis. MTOR methylation is best treated as pathway-regulatory context around a very large signaling locus. Promoter-proximal methylation may reflect transcriptional accessibility, but most interpretation remains pathway level rather than variant specific. The local MTOR knowledge base is designed for signaling and research interpretation. Pathogenic MTOR variants do exist in developmental and focal cortical dysplasia syndromes, but the bundled records here focus on commonly discussed regulatory polymorphisms and pathway context. Common MTOR polymorphisms are mainly interpreted as expression or signaling modifiers with context-dependent effect sizes.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "MTOR sits at the center of growth, anabolic signaling, and autophagy control, making it a core aging and cancer pathway gene.",

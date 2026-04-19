@@ -36,13 +36,23 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert "These are the exact observed whitelist probe rows used to build the whitelist mean beta shown above." in template_text
     assert "Predictive Theses" in template_text
     assert 'data-tab-target="predictive_theses"' in template_text
+    assert 'data-tab-target="central_database"' in template_text
+    assert "Central Analysis Database" in template_text
+    assert "central-database-table" in template_text
     assert "Variant Prediction" in template_text
     assert "Methylation Prediction" in template_text
     assert "matched case{{ \"\" if result.predictive_theses.matched_case_count == 1 else \"s\" }}" in template_text
+    assert 'name="overwrite_general_database"' in template_text
+    assert "Overwrite entry in general database" in template_text
+    assert "results/general_gene_analysis_database.csv" in template_text
+    assert "{{ result.general_database_status }}" in template_text
     assert '<details class="predictive-card">' in template_text
     assert '<article class="predictive-card">' not in template_text
     assert "grid-template-columns: 1fr;" in template_text
     assert "flex-wrap: wrap;" in template_text
+    assert "width: min(98vw, 1920px);" in template_text
+    assert "table-layout: fixed;" in template_text
+    assert "overflow-wrap: anywhere;" in template_text
     assert "window.setTimeout(() => formElement.submit(), 40);" not in template_text
     assert "const preprocessLoadingStepsByAction = {" in template_text
     assert 'data-preprocess-loading-steps' in template_text
@@ -187,6 +197,52 @@ def test_history_tab_lists_saved_reports_and_serves_artifacts(monkeypatch, tmp_p
     assert "IGF1R report" in artifact_response.get_data(as_text=True)
 
 
+def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: Path) -> None:
+    """The Central Database tab should render the one-row-per-gene CSV."""
+    results_dir = tmp_path / "results"
+    results_dir.mkdir()
+    database_path = results_dir / "general_gene_analysis_database.csv"
+    pd.DataFrame(
+        [
+            {
+                "gene": "HERC2",
+                "observed gene variant": "rs12913832",
+                "gene variant label": "rs12913832",
+                "change": "A -> G",
+                "gene location": "chr15:28,356,186-28,567,325",
+                "source": "VCF",
+                "(VCF) quality (qual)": 88.0,
+                "mean beta whitelist": 0.71,
+                "mean beta related to gene": 0.62,
+                "mean beta on found probes in the area (numerical rows)": 0.53,
+            }
+        ]
+    ).to_csv(database_path, index=False)
+
+    monkeypatch.setattr("src.webapp.RESULTS_DIR", results_dir)
+    monkeypatch.setattr("src.webapp.discover_vcf_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_idat_prefixes", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_population_stats_files", lambda: [])
+    monkeypatch.setattr("src.webapp.discover_manifest_files", lambda: [])
+
+    client = app.test_client()
+    response = client.get("/")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'data-tab-target="central_database"' in page
+    assert "Central Analysis Database" in page
+    assert "HERC2" in page
+    assert "rs12913832" in page
+    assert "(VCF) quality (qual)" in page
+    assert "/results/general_gene_analysis_database.csv" in page
+    assert "No reports yet" in page
+
+    database_response = client.get("/results/general_gene_analysis_database.csv")
+    assert database_response.status_code == 200
+    assert "HERC2" in database_response.get_data(as_text=True)
+
+
 def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatch, tmp_path: Path) -> None:
     """The curated methylation probe preview should include every row used for interpretation."""
     monkeypatch.setattr("src.webapp.discover_vcf_files", lambda: [])
@@ -216,9 +272,8 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
     )
 
     monkeypatch.setattr("src.webapp.render_template", fake_render_template)
-    monkeypatch.setattr(
-        "src.webapp.run_analysis",
-        lambda **_: SimpleNamespace(
+    captured_run_kwargs: dict[str, object] = {}
+    mock_analysis_result = SimpleNamespace(
             report_path=tmp_path / "mock_report.html",
             methylation_output_path=tmp_path / "mock_report_methylation.csv",
             variants=pd.DataFrame(
@@ -326,8 +381,13 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
                     }
                 ],
             },
-        ),
     )
+
+    def fake_run_analysis(**kwargs: object) -> SimpleNamespace:
+        captured_run_kwargs.update(kwargs)
+        return mock_analysis_result
+
+    monkeypatch.setattr("src.webapp.run_analysis", fake_run_analysis)
 
     client = app.test_client()
     with client.session_transaction() as session_state:
@@ -358,6 +418,7 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
             "region": "1:1-100",
             "popstats": "",
             "manifest_file": "",
+            "overwrite_general_database": "1",
         },
     )
 
@@ -369,6 +430,7 @@ def test_analysis_result_keeps_full_curated_methylation_probe_preview(monkeypatc
     assert "cg00000014" in probe_preview_html
     assert result["predictive_theses"]["matched_case_count"] == 1
     assert result["predictive_theses"]["variant_prediction_rows"][0]["prediction"] == "Mock variant prediction"
+    assert captured_run_kwargs["overwrite_general_database"] is True
 
 
 def test_analysis_result_labels_missing_variant_ids_in_preview(monkeypatch, tmp_path: Path) -> None:

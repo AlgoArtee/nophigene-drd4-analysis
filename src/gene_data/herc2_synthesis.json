@@ -3,7 +3,7 @@
   "version": "2026-04-18",
   "gene_name": "HERC2",
   "source_interpretation_database": "NophiGene HERC2 Interpretation Database",
-  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation.",
+  "matching_rule": "One base case matches when a promoter or gene-body variant is visible in the current sample. Three additional case families match when the whitelist mean beta, the gene-name-related mean beta, or the all-numeric mean beta resolves to low, medium, or high methylation. Variant prediction rules also receive the actual sample REF -> ALT change; curated allele-change rules take precedence when the observed ALT allele or exact change has a known direction.",
   "disclaimer": "Predictive theses in this database are literature-guided research summaries derived from the bundled gene interpretation bundle. They are designed for exploratory synthesis in the UI and should not be treated as diagnostic or therapeutic claims.",
   "seeded_markers": [
     "rs12913832 (intron 86 eye-colour enhancer SNP)",
@@ -11,6 +11,208 @@
     "rs7170852 (secondary intronic eye-colour predictor)",
     "rs916977 (intronic iris-colour cline marker)",
     "rs11636232 (synonymous secondary eye-colour marker)"
+  ],
+  "concrete_variant_prediction": "The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result.",
+  "variant_prediction_rules": [
+    {
+      "variant": "rs12913832",
+      "display_name": "rs12913832",
+      "common_name": "intron 86 eye-colour enhancer SNP",
+      "lookup_keys": [
+        "rs12913832",
+        "herc2:rs12913832",
+        "15:28365618",
+        "15:28365618:A>G",
+        "15:28365618:G>A"
+      ],
+      "prediction": "Observed rs12913832 is the strongest concrete prediction in this bundle: in the forward-strand A/G representation used here, G supports a lighter or blue-eye tendency and A supports a darker or brown-eye tendency because this enhancer variant changes HERC2-OCA2 looping and OCA2-driven iris melanin production. A single observed allele without full genotype should be treated as directional evidence rather than a final eye-colour call.",
+      "sample_change_template": "This sample matched rs12913832 with the actual DNA change {change}. Anchor the HERC2 prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [
+        {
+          "prediction": "This sample's actual rs12913832 DNA change is A -> G, so the observed alternate allele is G. In the forward-strand hg19 A/G representation used by this workbench, G is the light-eye-associated state: it reduces HERC2 enhancer support for OCA2 expression, lowers iris melanin biology, and therefore supports a blue or lighter-eye tendency. Because the current preview uses REF -> ALT and does not infer genotype dosage, treat this as directional allele evidence rather than a complete eye-colour call.",
+          "basis": "Observed ALT G at rs12913832, the HERC2/OCA2 enhancer state associated with reduced OCA2 expression and lighter iris pigmentation.",
+          "evidence": [
+            {
+              "label": "PubMed 18252222 / PMCID PMC2427173: main eye-colour association study",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+            },
+            {
+              "label": "PubMed 22234890 / PMCID PMC3290780: enhancer-promoter loop mechanism",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+            },
+            {
+              "label": "PubMed 36980970 / PMCID PMC10048254: additional modifiers in rs12913832 AA/AG individuals",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+            },
+            {
+              "label": "PubMed 38928306 / PMCID PMC11204186: conserved chromatin organization around rs12913832",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/38928306/"
+            }
+          ],
+          "change": "A -> G",
+          "alt_allele": "G"
+        },
+        {
+          "prediction": "This sample's actual rs12913832 DNA change is G -> A, so the observed alternate allele is A. In the forward-strand hg19 A/G representation used by this workbench, A is the darker-eye-associated state: it is compatible with stronger enhancer-promoter contact, higher OCA2 expression, and greater iris melanin biology, so it supports a brown or darker-eye tendency. Because the current preview uses REF -> ALT and does not infer genotype dosage, treat this as directional allele evidence rather than a complete eye-colour call.",
+          "basis": "Observed ALT A at rs12913832, the HERC2/OCA2 enhancer state associated with stronger OCA2 expression and darker iris pigmentation.",
+          "evidence": [
+            {
+              "label": "PubMed 18252222 / PMCID PMC2427173: main eye-colour association study",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+            },
+            {
+              "label": "PubMed 22234890 / PMCID PMC3290780: enhancer-promoter loop mechanism",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+            },
+            {
+              "label": "PubMed 36980970 / PMCID PMC10048254: additional modifiers in rs12913832 AA/AG individuals",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+            },
+            {
+              "label": "PubMed 38928306 / PMCID PMC11204186: conserved chromatin organization around rs12913832",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/38928306/"
+            }
+          ],
+          "change": "G -> A",
+          "alt_allele": "A"
+        }
+      ],
+      "basis": "Distal enhancer SNP in HERC2 intron 86 that modulates chromatin looping to the OCA2 promoter.",
+      "evidence": [
+        {
+          "label": "PubMed 18252222 / PMCID PMC2427173: main eye-colour association study",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252222/"
+        },
+        {
+          "label": "PubMed 22234890 / PMCID PMC3290780: enhancer-promoter loop mechanism",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22234890/"
+        },
+        {
+          "label": "PubMed 36980970 / PMCID PMC10048254: additional modifiers in rs12913832 AA/AG individuals",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/36980970/"
+        },
+        {
+          "label": "PubMed 38928306 / PMCID PMC11204186: conserved chromatin organization around rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/38928306/"
+        }
+      ]
+    },
+    {
+      "variant": "rs1129038",
+      "display_name": "rs1129038",
+      "common_name": "linked 3' UTR pigmentation marker",
+      "lookup_keys": [
+        "rs1129038",
+        "herc2:rs1129038",
+        "15:28356859",
+        "15:28356859:C>T",
+        "15:28356859:T>C"
+      ],
+      "prediction": "Observed rs1129038 suggests the sample carries the linked HERC2/OCA2 pigmentation haplotype used in light-versus-dark eye-colour prediction models. It refines the brown/blue eye-colour thesis mainly through linkage with rs12913832 rather than through a stronger independent mechanism.",
+      "sample_change_template": "This sample matched rs1129038 with the actual DNA change {change}. Anchor the HERC2 prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [],
+      "basis": "Acts mainly as a strong linkage and haplotype marker for the HERC2/OCA2 pigmentation background.",
+      "evidence": [
+        {
+          "label": "PubMed 20457063: rs1129038 and rs12913832 as the strongest light-versus-dark eye-colour markers",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 19472299: Japanese genotype and haplotype frequencies for rs1129038 and rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19472299/"
+        },
+        {
+          "label": "PubMed 21926416: melanoma GWAS signal at rs1129038 and rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21926416/"
+        }
+      ]
+    },
+    {
+      "variant": "rs7170852",
+      "display_name": "rs7170852",
+      "common_name": "secondary intronic eye-colour predictor",
+      "lookup_keys": [
+        "rs7170852",
+        "herc2:rs7170852",
+        "15:28427986",
+        "15:28427986:T>A",
+        "15:28427986:A>T"
+      ],
+      "prediction": "Observed rs7170852 suggests secondary HERC2 eye-colour prediction context: it can support a pigmentation-haplotype thesis, but it should not override rs12913832 because its independent effect is weaker and cohort dependent.",
+      "sample_change_template": "This sample matched rs7170852 with the actual DNA change {change}. Anchor the HERC2 prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [],
+      "basis": "Acts as an intronic HERC2 marker that can refine local eye-colour prediction models.",
+      "evidence": [
+        {
+          "label": "PubMed 20457063: additional eye-colour association of rs7170852 in Danish data",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 31762634: rs7170852 significance in a Saudi eye-colour cohort before adjusting for rs12913832",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        }
+      ]
+    },
+    {
+      "variant": "rs916977",
+      "display_name": "rs916977",
+      "common_name": "intronic iris-colour cline marker",
+      "lookup_keys": [
+        "rs916977",
+        "herc2:rs916977",
+        "15:28513364",
+        "15:28513364:T>C",
+        "15:28513364:C>T"
+      ],
+      "prediction": "Observed rs916977 suggests a HERC2 pigmentation-background thesis with European iris-colour cline evidence and pigmentation-linked skin-cancer context. It is a secondary light-versus-dark eye-colour marker rather than the main causal enhancer call.",
+      "sample_change_template": "This sample matched rs916977 with the actual DNA change {change}. Anchor the HERC2 prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [],
+      "basis": "Acts mainly as a population-structure and haplotype marker in the broader HERC2/OCA2 pigmentation region.",
+      "evidence": [
+        {
+          "label": "PubMed 18252221 / PMCID PMC2427174: rs916977 European iris-colour cline",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/18252221/"
+        },
+        {
+          "label": "PubMed 31762634: rs916977 in Saudi eye-colour prediction",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/31762634/"
+        },
+        {
+          "label": "PubMed 27499155 / PMCID PMC4976361: rs916977 and uveal melanoma risk",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/27499155/"
+        },
+        {
+          "label": "PubMed 28456133: rs916977 and time to first cutaneous squamous-cell carcinoma",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/28456133/"
+        }
+      ]
+    },
+    {
+      "variant": "rs11636232",
+      "display_name": "rs11636232",
+      "common_name": "synonymous secondary eye-colour marker",
+      "lookup_keys": [
+        "rs11636232",
+        "herc2:rs11636232",
+        "15:28386626",
+        "15:28386626:C>T",
+        "15:28386626:T>C"
+      ],
+      "prediction": "Observed rs11636232 suggests a secondary HERC2/OCA2 eye-colour prediction signal that can sharpen multilocus pigmentation models, especially when read with rs12913832 and rs1129038.",
+      "sample_change_template": "This sample matched rs11636232 with the actual DNA change {change}. Anchor the HERC2 prediction to that observed REF -> ALT result instead of treating the variant as only a theoretical marker. The current preview does not infer zygosity or allele dose, so dosage-specific conclusions require genotype fields.",
+      "allele_change_rules": [],
+      "basis": "Synonymous HERC2 variant mainly used as a linked pigmentation marker.",
+      "evidence": [
+        {
+          "label": "PubMed 20457063: additional eye-colour association of rs11636232 in Danish data",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/20457063/"
+        },
+        {
+          "label": "PubMed 22065085 / PMCID PMC3325407: global OCA2-HERC2 haplotype structure",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/22065085/"
+        }
+      ]
+    }
   ],
   "case_count": 10,
   "methylation_sources": [
@@ -37,7 +239,7 @@
       "requires_variant": true,
       "methylation_source": null,
       "methylation_band": null,
-      "prediction": "An observed HERC2 variant places this sample in the curated HERC2 research context. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. An observed HERC2 variant places this sample in the curated HERC2 research context. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "This is the base thesis that activates as soon as any promoter or gene-body variant is visible in the current sample.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -51,7 +253,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "high",
-      "prediction": "When a HERC2 variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with high methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -65,7 +267,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "medium",
-      "prediction": "When a HERC2 variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with medium methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -79,7 +281,7 @@
       "requires_variant": true,
       "methylation_source": "whitelist",
       "methylation_band": "low",
-      "prediction": "When a HERC2 variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with low methylation in the whitelist mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses the curated whitelist probes stored in the interpretation database for the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -93,7 +295,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "high",
-      "prediction": "When a HERC2 variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with high methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -107,7 +309,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "medium",
-      "prediction": "When a HERC2 variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with medium methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -121,7 +323,7 @@
       "requires_variant": true,
       "methylation_source": "gene_name_related",
       "methylation_band": "low",
-      "prediction": "When a HERC2 variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with low methylation in the gene-name-related mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses rows whose gene annotation explicitly names the current gene.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -135,7 +337,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "high",
-      "prediction": "When a HERC2 variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with high methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward stronger regulatory restraint or reduced local accessibility around the locus. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -149,7 +351,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "medium",
-      "prediction": "When a HERC2 variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with medium methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern suggests an intermediate or mixed regulatory state rather than a strongly polarized epigenetic signal. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",
@@ -163,7 +365,7 @@
       "requires_variant": true,
       "methylation_source": "all_numeric",
       "methylation_band": "low",
-      "prediction": "When a HERC2 variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
+      "prediction": "When a HERC2 variant is paired with low methylation in the all numeric-row mean beta, the sample best fits a combined regulatory-context thesis. This pattern leans toward a more permissive or less methylated local regulatory state. The variant side of the thesis is: The variant observed in this sample suggests a HERC2/OCA2 pigmentation prediction rather than a HERC2 protein-disease prediction. If the matched marker is rs12913832, the forward-strand G state used by this workbench supports a lighter or blue-eye tendency because it weakens HERC2 enhancer looping to the OCA2 promoter, lowers OCA2 expression, and reduces iris melanin; the A state supports a darker or brown-eye tendency. Linked HERC2 markers should be read as light-versus-dark eye-colour haplotype evidence, with ancestry and additional OCA2 variants able to modify the visible result. The bundled HERC2 EPIC subset should be interpreted as regional regulatory context around the HERC2/OCA2 pigmentation locus, not as a one-to-one substitute for the specific functional assays used in the rs12913832 literature. In practice, these probes are most useful for showing whether the local island, shore, and enhancer-adjacent context looks methylated or accessible in the current sample. This local HERC2 bundle is intentionally pigmentation-focused. Rare pathogenic HERC2 variants are known in neurodevelopmental disease, but the current SNP-and-methylation workflow is much better suited to common pigmentation markers in the HERC2/OCA2 regulatory region than to rare diagnostic HERC2 variant interpretation. The strongest common HERC2 signal for pigmentation is regulatory rather than protein-altering, and is usually interpreted through OCA2 expression control.",
       "rationale": "Uses every numeric beta value that survived preprocessing for the current sample.",
       "research_focus": [
         "Eye-colour, hair-colour, and skin-pigmentation research: HERC2/OCA2 is one of the best-established common pigmentation loci in humans.",

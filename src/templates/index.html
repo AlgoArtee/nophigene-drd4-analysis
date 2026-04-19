@@ -39,9 +39,9 @@
         linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
     }
     .shell {
-      width: min(92vw, 1680px);
+      width: min(98vw, 1920px);
       margin: 0 auto;
-      padding: 24px 0 34px;
+      padding: 18px 0 34px;
     }
     .frame {
       background: var(--panel);
@@ -113,6 +113,8 @@
     .tab-nav {
       display: inline-flex;
       gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       padding: 8px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.58);
@@ -192,6 +194,8 @@
       border-radius: var(--radius-lg);
       background: var(--panel-strong);
       border: 1px solid var(--line);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .overview-card h2,
     .overview-card h3,
@@ -365,6 +369,16 @@
     }
     .protein-panel {
       padding: 18px;
+    }
+    .database-panel {
+      padding: 34px;
+    }
+    .database-table-shell {
+      margin-top: 18px;
+      max-height: calc(100vh - 330px);
+    }
+    .database-actions {
+      margin-top: 16px;
     }
     .protein-shell {
       display: grid;
@@ -600,6 +614,8 @@
       border-radius: 20px;
       border: 1px solid var(--line);
       background: rgba(255, 255, 255, 0.76);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .field-card label {
       display: block;
@@ -732,6 +748,8 @@
       border-radius: 18px;
       background: rgba(255, 255, 255, 0.82);
       border: 1px solid var(--line);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .metric span {
       display: block;
@@ -765,6 +783,7 @@
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       flex: 1;
       padding: 14px;
       border-radius: 22px;
@@ -1191,6 +1210,8 @@
     .table-shell {
       flex: 1;
       min-height: 0;
+      min-width: 0;
+      max-width: 100%;
       overflow: auto;
       border-radius: 16px;
       border: 1px solid rgba(118, 19, 45, 0.10);
@@ -1205,6 +1226,7 @@
       border-radius: 20px;
       background: rgba(255, 255, 255, 0.84);
       border: 1px solid rgba(118, 19, 45, 0.10);
+      min-width: 0;
     }
     .expandable-card {
       padding: 0;
@@ -1310,6 +1332,8 @@
     .predictive-shell {
       display: grid;
       gap: 18px;
+      width: 100%;
+      min-width: 0;
     }
     .predictive-metrics {
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1321,6 +1345,7 @@
     }
     .predictive-card {
       min-height: 0;
+      min-width: 0;
       border-radius: var(--radius-lg);
       background: var(--panel-strong);
       border: 1px solid var(--line);
@@ -1373,6 +1398,7 @@
       display: grid;
       gap: 14px;
       padding: 22px;
+      min-width: 0;
     }
     .predictive-table-shell {
       min-height: 280px;
@@ -1381,6 +1407,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.93rem;
+      table-layout: fixed;
     }
     .predictive-table th,
     .predictive-table td {
@@ -1388,6 +1415,9 @@
       text-align: left;
       vertical-align: top;
       border-bottom: 1px solid rgba(118, 19, 45, 0.10);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
     }
     .predictive-table th {
       position: sticky;
@@ -1535,6 +1565,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.91rem;
+      table-layout: fixed;
     }
     .preview-table th,
     .preview-table td {
@@ -1542,6 +1573,9 @@
       border-bottom: 1px solid rgba(118, 19, 45, 0.08);
       text-align: left;
       vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      white-space: normal;
     }
     .preview-table th {
       position: sticky;
@@ -1549,6 +1583,20 @@
       background: rgba(209, 31, 79, 0.10);
       backdrop-filter: blur(8px);
       z-index: 1;
+    }
+    .central-database-table {
+      min-width: 1500px;
+      table-layout: auto;
+    }
+    .central-database-table th,
+    .central-database-table td {
+      min-width: 140px;
+    }
+    .central-database-table th:first-child,
+    .central-database-table td:first-child {
+      min-width: 90px;
+      font-weight: 800;
+      color: var(--accent-3);
     }
     .empty-state {
       display: grid;
@@ -1600,9 +1648,11 @@
         min-height: auto;
       }
       .scroll-region,
-      .results-viewer,
-      .table-shell {
+      .results-viewer {
         overflow: visible;
+      }
+      .table-shell {
+        overflow: auto;
       }
       .metrics {
         grid-template-columns: 1fr;
@@ -1637,6 +1687,7 @@
       .overview-panel,
       .preprocess-panel,
       .analysis-panel,
+      .database-panel,
       .architecture-panel {
         padding: 16px;
       }
@@ -1682,6 +1733,7 @@
         {% if result and result.predictive_theses %}
         <button type="button" class="tab-button" data-tab-target="predictive_theses" aria-selected="false">Predictive Theses</button>
         {% endif %}
+        <button type="button" class="tab-button" data-tab-target="central_database" aria-selected="false">Central Database</button>
         <button type="button" class="tab-button" data-tab-target="history" aria-selected="false">History</button>
         <button type="button" class="tab-button" data-tab-target="proteins" aria-selected="false">Human Proteins</button>
         <button type="button" class="tab-button" data-tab-target="structure" aria-selected="false">App Structure</button>
@@ -1998,6 +2050,79 @@
             </div>
           </article>
         </div>
+      </section>
+
+      <section class="frame tab-panel database-panel{% if initial_tab == 'central_database' %} is-active{% endif %}" data-tab-panel="central_database"{% if initial_tab != 'central_database' %} hidden{% endif %} style="display:{% if initial_tab == 'central_database' %}block{% else %}none{% endif %};">
+        <span class="overview-badge">One row per analyzed gene</span>
+        <h2 class="architecture-title">Central Analysis Database</h2>
+        <p class="overview-copy">
+          This table reads <code>{{ general_database.path }}</code> directly from the generated results folder. Each row is an analyzed gene, with the observed variant, VCF source quality, genomic location, and methylation beta summaries captured after a run.
+        </p>
+
+        <div class="metrics database-actions">
+          <article class="metric">
+            <span>Rows</span>
+            <strong>{{ general_database.row_count }}</strong>
+          </article>
+          <article class="metric">
+            <span>Status</span>
+            <strong>{{ "Ready" if general_database.exists and not general_database.error else "Waiting" }}</strong>
+          </article>
+          <article class="metric">
+            <span>Updated</span>
+            <strong>{{ general_database.modified_display or "Not created" }}</strong>
+          </article>
+        </div>
+
+        {% if general_database.error %}
+        <div class="error">{{ general_database.error }}</div>
+        {% elif general_database.rows %}
+        <div class="path-chip database-actions">
+          <strong>Source CSV</strong>
+          <code>{{ general_database.path }}</code>
+          <span>{{ general_database.size_display }}</span>
+          {% if general_database.url %}
+          <a href="{{ general_database.url }}" target="_blank" rel="noreferrer">Open CSV</a>
+          {% endif %}
+        </div>
+
+        <div class="table-shell database-table-shell">
+          <table class="preview-table central-database-table">
+            <thead>
+              <tr>
+                {% for column in general_database.columns %}
+                <th>{{ column }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in general_database.rows %}
+              <tr>
+                {% for column in general_database.columns %}
+                <td>{{ row.get(column, "") or "n/a" }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <article class="overview-card database-actions">
+          <h3>No central database rows yet</h3>
+          <p>
+            Run an analysis to create <code>{{ general_database.path }}</code>. The app will add one row for the analyzed gene unless that gene already exists; use the Run Analysis overwrite checkbox to replace an existing gene row.
+          </p>
+          {% if analysis_unlocked %}
+          <div class="overview-actions">
+            <button type="button" class="cta-button" data-go-tab="analysis">Open Run Analysis</button>
+          </div>
+          {% else %}
+          <div class="overview-actions">
+            <button type="button" class="cta-button" data-go-tab="preprocessing">Open Preprocessing</button>
+          </div>
+          {% endif %}
+        </article>
+        {% endif %}
       </section>
 
       <section class="frame tab-panel overview-panel{% if initial_tab == 'history' %} is-active{% endif %}" data-tab-panel="history"{% if initial_tab != 'history' %} hidden{% endif %} style="display:{% if initial_tab == 'history' %}block{% else %}none{% endif %};">
@@ -2346,6 +2471,23 @@
                       <p>{{ field_info.manifest_file.details }}</p>
                     </details>
                   </article>
+
+                  <article class="field-card">
+                    <label class="toggle-row">
+                      <input
+                        type="checkbox"
+                        name="overwrite_general_database"
+                        value="1"
+                        {% if form.overwrite_general_database %}checked{% endif %}
+                      >
+                      <span>Overwrite entry in general database</span>
+                    </label>
+                    <p class="hint">
+                      The central database stores one row per analyzed gene in
+                      <code>results/general_gene_analysis_database.csv</code>. Leave this unchecked to keep an existing
+                      row for the gene; check it to replace that row after this run completes.
+                    </p>
+                  </article>
                 </div>
 
                 <div class="analysis-actions">
@@ -2418,6 +2560,9 @@
                   <div class="path-chip"><strong>Methylation CSV</strong> <code>{{ result.methylation_output_path }}</code></div>
                   <div class="path-chip"><strong>Knowledge base</strong> <code>{{ result.knowledge_base_name }} ({{ result.knowledge_base_version }})</code></div>
                   <div class="path-chip"><strong>Population DB</strong> <code>{{ result.population_database_name }} ({{ result.population_database_version }})</code></div>
+                  {% if result.general_database_path %}
+                  <div class="path-chip"><strong>Central database</strong> <code>{{ result.general_database_path }}</code><span>{{ result.general_database_status }}</span></div>
+                  {% endif %}
                 </div>
 
                 <div class="results-viewer loading-hideable">

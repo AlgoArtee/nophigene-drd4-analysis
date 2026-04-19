@@ -63,9 +63,153 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     assert synthesis_database["database_name"].startswith("NophiGene HERC2 Predictive")
     assert synthesis_database["case_count"] == 10
     assert len(synthesis_database["cases"]) == 10
+    assert "brown-eye tendency" in synthesis_database["concrete_variant_prediction"]
+    assert "blue-eye tendency" in synthesis_database["concrete_variant_prediction"]
+    rs12913832_rule = next(
+        rule
+        for rule in synthesis_database["variant_prediction_rules"]
+        if rule["variant"] == "rs12913832"
+    )
+    assert "OCA2-driven iris melanin" in rs12913832_rule["prediction"]
+    assert "{change}" in rs12913832_rule["sample_change_template"]
+    assert any(
+        rule.get("change") == "A -> G" and rule.get("alt_allele") == "G"
+        for rule in rs12913832_rule["allele_change_rules"]
+    )
+    assert any(
+        rule.get("change") == "G -> A" and rule.get("alt_allele") == "A"
+        for rule in rs12913832_rule["allele_change_rules"]
+    )
     assert population_database["gene_population_patterns_intro"].startswith(
         "Broader population patterns curated from HERC2/OCA2"
     )
+
+
+def test_herc2_predictive_theses_use_concrete_eye_colour_variant_rules() -> None:
+    """Matched HERC2 pigmentation markers should surface concrete eye-colour predictions."""
+    knowledge_base = load_gene_interpretation_database("HERC2")
+    synthesis_database = load_gene_synthesis_database("HERC2")
+
+    assert knowledge_base is not None
+    assert synthesis_database is not None
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": "rs12913832",
+                "pos": 28365618,
+                "ref": "A",
+                "alt": "G",
+                "qual": 88.0,
+                "filter_pass": True,
+            }
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg14091419",
+                "beta": 0.71,
+                "GencodeBasicV12_NAME": "HERC2",
+                "UCSC_RefGene_Group": "TSS1500",
+                "Relation_to_UCSC_CpG_Island": "Island",
+                "UCSC_CpG_Islands_Name": "HERC2_CGI",
+            }
+        ]
+    )
+
+    interpretation = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="15:28356000-28567325",
+    )
+    methylation_insights = build_methylation_insights(
+        methylation,
+        knowledge_base,
+        matched_variant_ids={"rs12913832"},
+    )
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=interpretation,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=synthesis_database,
+    )
+
+    assert predictive_theses["variant_found"] is True
+    assert "blue-eye tendency" in predictive_theses["variant_summary"]
+    concrete_rows = [
+        row
+        for row in predictive_theses["variant_prediction_rows"]
+        if row["source"] == "Sample allele-change thesis"
+    ]
+    assert concrete_rows
+    assert "A -> G" in concrete_rows[0]["observed_signal"]
+    assert "observed alternate allele is G" in concrete_rows[0]["prediction"]
+    assert "blue or lighter-eye tendency" in concrete_rows[0]["prediction"]
+    assert "reduced OCA2 expression" in concrete_rows[0]["research_focus"]
+
+
+def test_herc2_predictive_theses_use_actual_reverse_eye_colour_change() -> None:
+    """The reverse HERC2 REF -> ALT direction should produce the darker-eye thesis."""
+    knowledge_base = load_gene_interpretation_database("HERC2")
+    synthesis_database = load_gene_synthesis_database("HERC2")
+
+    assert knowledge_base is not None
+    assert synthesis_database is not None
+
+    variants = pd.DataFrame(
+        [
+            {
+                "chrom": "15",
+                "id": "rs12913832",
+                "pos": 28365618,
+                "ref": "G",
+                "alt": "A",
+                "qual": 88.0,
+                "filter_pass": True,
+            }
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {
+                "probe_id": "cg14091419",
+                "beta": 0.42,
+                "GencodeBasicV12_NAME": "HERC2",
+                "UCSC_RefGene_Group": "TSS1500",
+                "Relation_to_UCSC_CpG_Island": "Island",
+                "UCSC_CpG_Islands_Name": "HERC2_CGI",
+            }
+        ]
+    )
+
+    interpretation = build_variant_interpretations(
+        variants,
+        knowledge_base,
+        region="15:28356000-28567325",
+    )
+    methylation_insights = build_methylation_insights(
+        methylation,
+        knowledge_base,
+        matched_variant_ids={"rs12913832"},
+    )
+    predictive_theses = build_predictive_theses(
+        variant_interpretations=interpretation,
+        methylation_insights=methylation_insights,
+        knowledge_base=knowledge_base,
+        synthesis_database=synthesis_database,
+    )
+
+    concrete_rows = [
+        row
+        for row in predictive_theses["variant_prediction_rows"]
+        if row["source"] == "Sample allele-change thesis"
+    ]
+    assert concrete_rows
+    assert "G -> A" in concrete_rows[0]["observed_signal"]
+    assert "observed alternate allele is A" in concrete_rows[0]["prediction"]
+    assert "brown or darker-eye tendency" in concrete_rows[0]["prediction"]
 
 
 def test_predictive_theses_match_variant_and_all_three_methylation_views() -> None:
