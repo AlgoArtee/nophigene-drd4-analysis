@@ -46,12 +46,22 @@ SYNTHESIS_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_synthe
 GENERAL_ANALYSIS_DATABASE_PATH = PROJECT_ROOT / "results" / "general_gene_analysis_database.csv"
 GENERAL_ANALYSIS_DATABASE_COLUMNS = [
     "gene",
+    "variant key",
     "observed gene variant",
     "gene variant label",
     "change",
+    "chromosome",
+    "position",
+    "variant location",
     "gene location",
     "source",
     "(VCF) quality (qual)",
+    "matched curated marker",
+    "variant interpretation scope",
+    "curated biological significance",
+    "functional effects",
+    "associated conditions",
+    "methylation-linked probes",
     "mean beta whitelist",
     "mean beta related to gene",
     "mean beta on found probes in the area (numerical rows)",
@@ -141,7 +151,7 @@ class AnalysisResult:
         synthesis database plus the current sample's variant and methylation
         results.
     general_database_path : Path
-        Path to the central one-row-per-gene analysis database.
+        Path to the central variant-level analysis database.
     general_database_status : str
         Human-readable status describing whether this run added, skipped, or
         overwrote the central database row.
@@ -2548,7 +2558,7 @@ def _format_database_beta(value: Any) -> float | str:
 
 
 def _format_database_quality(value: Any) -> str:
-    """Render VCF quality values for the central one-row-per-gene database."""
+    """Render VCF quality values for the central variant-level database."""
     if value is None:
         return ""
     try:
@@ -2559,26 +2569,47 @@ def _format_database_quality(value: Any) -> str:
         return str(value).strip()
 
 
-def _build_general_analysis_database_row(
+def _format_database_position(value: Any) -> str:
+    """Render a stable genomic coordinate for a central database row."""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+        return str(int(value))
+    except (TypeError, ValueError):
+        return str(value).strip()
+
+
+def _build_observed_variant_key(row: pd.Series) -> str:
+    """Return a biologically stable key for one observed variant allele."""
+    chrom = str(row.get("chrom", "")).strip().removeprefix("chr")
+    pos = _format_database_position(row.get("pos"))
+    ref = "" if pd.isna(row.get("ref")) else str(row.get("ref")).strip()
+    alt = "" if pd.isna(row.get("alt")) else str(row.get("alt")).strip()
+    if chrom and pos and (ref or alt):
+        return f"chr{chrom}:{pos}:{ref}>{alt}"
+    return _format_variant_display(row)
+
+
+def _format_variant_location_for_database(row: pd.Series) -> str:
+    """Render the point location used for variant-level central database rows."""
+    chrom = str(row.get("chrom", "")).strip().removeprefix("chr")
+    pos = _format_database_position(row.get("pos"))
+    if chrom and pos:
+        return f"chr{chrom}:{int(pos):,}" if pos.isdigit() else f"chr{chrom}:{pos}"
+    return ""
+
+
+def _build_general_analysis_database_rows(
     *,
     gene_name: str,
     variants: pd.DataFrame,
     variant_interpretations: dict[str, Any],
     methylation_insights: dict[str, Any],
-) -> dict[str, Any]:
-    """Build the central one-row-per-gene database entry for a completed run."""
+) -> list[dict[str, Any]]:
+    """Build central database rows with one entry per observed variant."""
     normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
-
-    observed_variants: list[str] = []
-    variant_labels: list[str] = []
-    changes: list[str] = []
-    qualities: list[str] = []
-
-    for _, row in variants.iterrows():
-        observed_variants.append(_format_variant_display(row))
-        variant_labels.append(_format_variant_label(row.get("id")))
-        changes.append(_format_variant_change(row.get("ref"), row.get("alt")))
-        qualities.append(_format_database_quality(row.get("qual")))
 
     gene_region = variant_interpretations.get("gene_region", {})
     search_region = variant_interpretations.get("search_region", {})
@@ -2589,20 +2620,58 @@ def _build_general_analysis_database_row(
         or ""
     ).strip()
 
-    return {
-        "gene": normalized_gene_name,
-        "observed gene variant": _join_unique_database_values(observed_variants),
-        "gene variant label": _join_unique_database_values(variant_labels),
-        "change": _join_unique_database_values(changes),
-        "gene location": gene_location,
-        "source": "VCF" if not variants.empty else "",
-        "(VCF) quality (qual)": _join_unique_database_values(qualities),
-        "mean beta whitelist": _format_database_beta(methylation_insights.get("whitelist_mean_beta")),
-        "mean beta related to gene": _format_database_beta(methylation_insights.get("gene_name_mean_beta")),
-        "mean beta on found probes in the area (numerical rows)": _format_database_beta(
-            methylation_insights.get("all_numeric_mean_beta")
-        ),
+    matched_records_by_variant = {
+        str(record.get("observed_variant", "")).strip(): record
+        for record in variant_interpretations.get("matched_records", [])
+        if str(record.get("observed_variant", "")).strip()
     }
+
+    output_rows: list[dict[str, Any]] = []
+    for _, row in variants.iterrows():
+        observed_variant = _format_variant_display(row)
+        matched_record = matched_records_by_variant.get(observed_variant, {})
+        variant_label = _format_variant_label(row.get("id"))
+        chrom = str(row.get("chrom", "")).strip().removeprefix("chr")
+        position = _format_database_position(row.get("pos"))
+        output_rows.append(
+            {
+                "gene": normalized_gene_name,
+                "variant key": _build_observed_variant_key(row),
+                "observed gene variant": observed_variant,
+                "gene variant label": variant_label,
+                "change": _format_variant_change(row.get("ref"), row.get("alt")),
+                "chromosome": f"chr{chrom}" if chrom else "",
+                "position": position,
+                "variant location": _format_variant_location_for_database(row),
+                "gene location": gene_location,
+                "source": "VCF",
+                "(VCF) quality (qual)": _format_database_quality(row.get("qual")),
+                "matched curated marker": str(matched_record.get("variant", "")).strip(),
+                "variant interpretation scope": str(
+                    matched_record.get("interpretation_scope", "Unclassified observed variant")
+                ).strip(),
+                "curated biological significance": str(
+                    matched_record.get("clinical_significance")
+                    or matched_record.get("clinical_interpretation")
+                    or f"No curated local {normalized_gene_name} significance is bundled for this observed variant."
+                ).strip(),
+                "functional effects": _join_unique_database_values(
+                    list(matched_record.get("functional_effects") or [])
+                ),
+                "associated conditions": _join_unique_database_values(
+                    list(matched_record.get("associated_conditions") or [])
+                ),
+                "methylation-linked probes": _join_unique_database_values(
+                    list(matched_record.get("relevant_probe_ids") or [])
+                ),
+                "mean beta whitelist": _format_database_beta(methylation_insights.get("whitelist_mean_beta")),
+                "mean beta related to gene": _format_database_beta(methylation_insights.get("gene_name_mean_beta")),
+                "mean beta on found probes in the area (numerical rows)": _format_database_beta(
+                    methylation_insights.get("all_numeric_mean_beta")
+                ),
+            }
+        )
+    return output_rows
 
 
 def update_general_analysis_database(
@@ -2614,17 +2683,23 @@ def update_general_analysis_database(
     overwrite: bool = False,
     database_path: str | Path = GENERAL_ANALYSIS_DATABASE_PATH,
 ) -> dict[str, Any]:
-    """Add or optionally replace the analyzed gene row in the central database."""
+    """Add or optionally replace observed variant rows in the central database."""
     output_path = Path(database_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     normalized_gene_name = gene_name.strip().upper() or DEFAULT_GENE_NAME
-    new_row = _build_general_analysis_database_row(
+    new_rows = _build_general_analysis_database_rows(
         gene_name=normalized_gene_name,
         variants=variants,
         variant_interpretations=variant_interpretations,
         methylation_insights=methylation_insights,
     )
+    if not new_rows:
+        return {
+            "action": "skipped_empty",
+            "path": output_path,
+            "message": f"Central database did not add {normalized_gene_name}; no observed variant rows were available.",
+        }
 
     if output_path.exists():
         try:
@@ -2643,29 +2718,59 @@ def update_general_analysis_database(
     database = database[primary_columns + extra_columns].fillna("")
 
     existing_mask = database["gene"].astype(str).str.strip().str.upper() == normalized_gene_name
-    if existing_mask.any() and not overwrite:
+    if overwrite and existing_mask.any():
+        database = database.loc[~existing_mask].copy()
+        database = pd.concat([database, pd.DataFrame(new_rows)], ignore_index=True)
+        database = database[primary_columns + extra_columns].fillna("")
+        database.to_csv(output_path, index=False)
+        return {
+            "action": "overwritten",
+            "path": output_path,
+            "message": (
+                f"Overwrote {len(new_rows)} observed {normalized_gene_name} variant row(s) "
+                "in the central analysis database."
+            ),
+        }
+
+    legacy_gene_mask = existing_mask & (
+        database["variant key"].astype(str).str.strip() == ""
+    )
+    if legacy_gene_mask.any():
+        database = database.loc[~legacy_gene_mask].copy()
+        existing_mask = database["gene"].astype(str).str.strip().str.upper() == normalized_gene_name
+
+    existing_variant_keys = set(
+        database.loc[existing_mask, "variant key"].astype(str).str.strip().str.casefold()
+    )
+    rows_to_add = [
+        row
+        for row in new_rows
+        if str(row.get("variant key", "")).strip().casefold() not in existing_variant_keys
+    ]
+
+    if not rows_to_add:
         return {
             "action": "skipped_existing",
             "path": output_path,
             "message": (
-                f"Central database already contains {normalized_gene_name}; existing entry was kept. "
-                "Check overwrite in Run Analysis to replace it."
+                f"Central database already contains all {len(new_rows)} observed {normalized_gene_name} "
+                "variant row(s); existing entries were kept. Check overwrite in Run Analysis to replace them."
             ),
         }
 
-    action = "overwritten" if existing_mask.any() else "added"
-    if existing_mask.any():
-        database = database.loc[~existing_mask].copy()
-
-    database = pd.concat([database, pd.DataFrame([new_row])], ignore_index=True)
+    database = pd.concat([database, pd.DataFrame(rows_to_add)], ignore_index=True)
     database = database[primary_columns + extra_columns].fillna("")
     database.to_csv(output_path, index=False)
 
-    action_text = "Overwrote" if action == "overwritten" else "Added"
+    skipped_count = len(new_rows) - len(rows_to_add)
+    skipped_note = f" Kept {skipped_count} existing row(s)." if skipped_count else ""
     return {
-        "action": action,
+        "action": "added",
         "path": output_path,
-        "message": f"{action_text} {normalized_gene_name} in the central analysis database.",
+        "message": (
+            f"Added {len(rows_to_add)} observed {normalized_gene_name} variant row(s) "
+            f"to the central analysis database.{skipped_note}"
+        ),
     }
 
 
@@ -3912,7 +4017,7 @@ def run_analysis(
         When true, replace an existing central-database row for the analyzed
         gene. When false, an existing row is left unchanged.
     general_database_path : str | Path, optional
-        Destination CSV for the one-row-per-gene central analysis database.
+        Destination CSV for the central one-row-per-observed-variant database.
 
     Returns
     -------

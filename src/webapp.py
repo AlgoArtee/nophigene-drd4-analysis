@@ -257,7 +257,7 @@ def _infer_report_label(report_path: Path) -> str:
 
 
 def _general_analysis_database_path() -> Path:
-    """Return the central one-row-per-gene database path used by the UI."""
+    """Return the central one-row-per-observed-variant database path used by the UI."""
     return RESULTS_DIR / GENERAL_ANALYSIS_DATABASE_FILENAME
 
 

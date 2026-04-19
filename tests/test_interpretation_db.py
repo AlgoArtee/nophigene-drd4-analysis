@@ -400,12 +400,23 @@ def test_generate_report_includes_variant_and_methylation_interpretation_section
     assert "Methylation Raw Results" in report_html
 
 
-def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) -> None:
-    """The central database should keep one row per gene unless overwrite is requested."""
+def test_general_analysis_database_adds_once_and_overwrites_variant_rows(tmp_path) -> None:
+    """The central database should keep one row per observed variant unless overwrite is requested."""
     database_path = tmp_path / "general_gene_analysis_database.csv"
     variant_interpretations = {
         "gene_region": {"display": "chr15:28,356,186-28,567,325"},
         "search_region": {"display": "chr15:28,356,000-28,567,325"},
+        "matched_records": [
+            {
+                "observed_variant": "rs12913832",
+                "variant": "HERC2/OCA2 enhancer rs12913832",
+                "interpretation_scope": "Regulatory pigmentation marker",
+                "clinical_significance": "Research marker for iris pigmentation biology.",
+                "functional_effects": ["OCA2 enhancer activity"],
+                "associated_conditions": ["iris pigmentation"],
+                "relevant_probe_ids": ["cg00000001"],
+            }
+        ],
     }
     methylation_insights = {
         "whitelist_mean_beta": 0.71,
@@ -421,6 +432,15 @@ def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) ->
                 "ref": "A",
                 "alt": "G",
                 "qual": 88.0,
+                "filter_pass": True,
+            },
+            {
+                "chrom": "15",
+                "id": "rs1129038",
+                "pos": 28356859,
+                "ref": "C",
+                "alt": "T",
+                "qual": 74.0,
                 "filter_pass": True,
             }
         ]
@@ -438,6 +458,25 @@ def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) ->
             }
         ]
     )
+    expanded_variants = pd.concat(
+        [
+            first_variants,
+            pd.DataFrame(
+                [
+                    {
+                        "chrom": "15",
+                        "id": "rs777",
+                        "pos": 28360000,
+                        "ref": "T",
+                        "alt": "C",
+                        "qual": 82.5,
+                        "filter_pass": True,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
 
     added = update_general_analysis_database(
         gene_name="HERC2",
@@ -448,7 +487,7 @@ def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) ->
     )
     skipped = update_general_analysis_database(
         gene_name="herc2",
-        variants=second_variants,
+        variants=first_variants,
         variant_interpretations=variant_interpretations,
         methylation_insights=methylation_insights,
         database_path=database_path,
@@ -458,17 +497,41 @@ def test_general_analysis_database_adds_once_and_overwrites_by_gene(tmp_path) ->
     assert added["action"] == "added"
     assert skipped["action"] == "skipped_existing"
     assert database.columns.tolist() == GENERAL_ANALYSIS_DATABASE_COLUMNS
-    assert len(database) == 1
+    assert len(database) == 2
     assert database.loc[0, "gene"] == "HERC2"
+    assert database.loc[0, "variant key"] == "chr15:28365618:A>G"
     assert database.loc[0, "observed gene variant"] == "rs12913832"
     assert database.loc[0, "gene variant label"] == "rs12913832"
     assert database.loc[0, "change"] == "A -> G"
+    assert database.loc[0, "chromosome"] == "chr15"
+    assert database.loc[0, "position"] == 28365618
+    assert database.loc[0, "variant location"] == "chr15:28,365,618"
     assert database.loc[0, "gene location"] == "chr15:28,356,186-28,567,325"
     assert database.loc[0, "source"] == "VCF"
     assert database.loc[0, "(VCF) quality (qual)"] == 88.0
+    assert database.loc[0, "matched curated marker"] == "HERC2/OCA2 enhancer rs12913832"
+    assert database.loc[0, "variant interpretation scope"] == "Regulatory pigmentation marker"
+    assert database.loc[0, "curated biological significance"] == "Research marker for iris pigmentation biology."
+    assert database.loc[0, "functional effects"] == "OCA2 enhancer activity"
+    assert database.loc[0, "associated conditions"] == "iris pigmentation"
+    assert database.loc[0, "methylation-linked probes"] == "cg00000001"
     assert database.loc[0, "mean beta whitelist"] == 0.71
     assert database.loc[0, "mean beta related to gene"] == 0.62
     assert database.loc[0, "mean beta on found probes in the area (numerical rows)"] == 0.53
+    assert database.loc[1, "variant key"] == "chr15:28356859:C>T"
+
+    appended = update_general_analysis_database(
+        gene_name="HERC2",
+        variants=expanded_variants,
+        variant_interpretations=variant_interpretations,
+        methylation_insights=methylation_insights,
+        database_path=database_path,
+    )
+
+    database = pd.read_csv(database_path)
+    assert appended["action"] == "added"
+    assert len(database) == 3
+    assert database.loc[2, "variant key"] == "chr15:28360000:T>C"
 
     overwritten = update_general_analysis_database(
         gene_name="HERC2",

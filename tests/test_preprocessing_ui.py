@@ -39,11 +39,21 @@ def test_preprocessing_template_preserves_clicked_submit_button() -> None:
     assert 'data-tab-target="central_database"' in template_text
     assert "Central Analysis Database" in template_text
     assert "central-database-table" in template_text
+    assert "One row per observed variant" in template_text
+    assert "curated biological context" in template_text
+    assert 'data-analysis-shell' in template_text
+    assert 'class="analysis-shell is-form-collapsed"' in template_text
+    assert 'id="analysis-form"' in template_text
+    assert 'form="analysis-form"' in template_text
+    assert 'data-analysis-form-toggle' in template_text
+    assert "Change variables" in template_text
+    assert "function setAnalysisFormCollapsed(collapsed)" in template_text
+    assert 'if (name === "analysis")' in template_text
     assert "Variant Prediction" in template_text
     assert "Methylation Prediction" in template_text
     assert "matched case{{ \"\" if result.predictive_theses.matched_case_count == 1 else \"s\" }}" in template_text
     assert 'name="overwrite_general_database"' in template_text
-    assert "Overwrite entry in general database" in template_text
+    assert "Overwrite gene variant rows in general database" in template_text
     assert "results/general_gene_analysis_database.csv" in template_text
     assert "{{ result.general_database_status }}" in template_text
     assert '<details class="predictive-card">' in template_text
@@ -198,7 +208,7 @@ def test_history_tab_lists_saved_reports_and_serves_artifacts(monkeypatch, tmp_p
 
 
 def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: Path) -> None:
-    """The Central Database tab should render the one-row-per-gene CSV."""
+    """The Central Database tab should render the one-row-per-observed-variant CSV."""
     results_dir = tmp_path / "results"
     results_dir.mkdir()
     database_path = results_dir / "general_gene_analysis_database.csv"
@@ -206,12 +216,44 @@ def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: P
         [
             {
                 "gene": "HERC2",
+                "variant key": "chr15:28365618:A>G",
                 "observed gene variant": "rs12913832",
                 "gene variant label": "rs12913832",
                 "change": "A -> G",
+                "chromosome": "chr15",
+                "position": 28365618,
+                "variant location": "chr15:28,365,618",
                 "gene location": "chr15:28,356,186-28,567,325",
                 "source": "VCF",
                 "(VCF) quality (qual)": 88.0,
+                "matched curated marker": "HERC2/OCA2 enhancer rs12913832",
+                "variant interpretation scope": "Regulatory pigmentation marker",
+                "curated biological significance": "Research marker for iris pigmentation biology.",
+                "functional effects": "OCA2 enhancer activity",
+                "associated conditions": "iris pigmentation",
+                "methylation-linked probes": "cg00000001",
+                "mean beta whitelist": 0.71,
+                "mean beta related to gene": 0.62,
+                "mean beta on found probes in the area (numerical rows)": 0.53,
+            },
+            {
+                "gene": "HERC2",
+                "variant key": "chr15:28356859:C>T",
+                "observed gene variant": "rs1129038",
+                "gene variant label": "rs1129038",
+                "change": "C -> T",
+                "chromosome": "chr15",
+                "position": 28356859,
+                "variant location": "chr15:28,356,859",
+                "gene location": "chr15:28,356,186-28,567,325",
+                "source": "VCF",
+                "(VCF) quality (qual)": 74.0,
+                "matched curated marker": "",
+                "variant interpretation scope": "Unclassified observed variant",
+                "curated biological significance": "No curated local HERC2 significance is bundled for this observed variant.",
+                "functional effects": "",
+                "associated conditions": "",
+                "methylation-linked probes": "",
                 "mean beta whitelist": 0.71,
                 "mean beta related to gene": 0.62,
                 "mean beta on found probes in the area (numerical rows)": 0.53,
@@ -234,6 +276,10 @@ def test_central_database_tab_displays_general_database(monkeypatch, tmp_path: P
     assert "Central Analysis Database" in page
     assert "HERC2" in page
     assert "rs12913832" in page
+    assert "rs1129038" in page
+    assert "variant key" in page
+    assert "curated biological significance" in page
+    assert "OCA2 enhancer activity" in page
     assert "(VCF) quality (qual)" in page
     assert "/results/general_gene_analysis_database.csv" in page
     assert "No reports yet" in page

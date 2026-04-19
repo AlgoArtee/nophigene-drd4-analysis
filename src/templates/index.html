@@ -557,6 +557,9 @@
       gap: 18px;
       min-height: calc(100vh - 168px);
     }
+    .analysis-shell.is-form-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+    }
     .analysis-panel-inner {
       display: flex;
       flex-direction: column;
@@ -567,12 +570,26 @@
       border: 1px solid var(--line);
       overflow: hidden;
     }
+    .analysis-input-panel,
+    .analysis-results-panel {
+      min-width: 0;
+    }
+    .analysis-shell.is-form-collapsed .analysis-input-panel {
+      display: none;
+    }
     .panel-head {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 16px;
       margin-bottom: 16px;
+    }
+    .panel-head-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
     }
     .panel-head p {
       margin: 6px 0 0;
@@ -587,6 +604,18 @@
       color: var(--accent);
       font-weight: 700;
       white-space: nowrap;
+    }
+    .analysis-form-toggle-button {
+      appearance: none;
+      border: 1px solid rgba(161, 20, 61, 0.14);
+      cursor: pointer;
+      padding: 11px 14px;
+      border-radius: 999px;
+      background: rgba(161, 20, 61, 0.07);
+      color: var(--accent-3);
+      font: inherit;
+      font-weight: 800;
+      box-shadow: none;
     }
     .scroll-region {
       min-height: 0;
@@ -1585,7 +1614,7 @@
       z-index: 1;
     }
     .central-database-table {
-      min-width: 1500px;
+      min-width: 2400px;
       table-layout: auto;
     }
     .central-database-table th,
@@ -2053,10 +2082,10 @@
       </section>
 
       <section class="frame tab-panel database-panel{% if initial_tab == 'central_database' %} is-active{% endif %}" data-tab-panel="central_database"{% if initial_tab != 'central_database' %} hidden{% endif %} style="display:{% if initial_tab == 'central_database' %}block{% else %}none{% endif %};">
-        <span class="overview-badge">One row per analyzed gene</span>
+        <span class="overview-badge">One row per observed variant</span>
         <h2 class="architecture-title">Central Analysis Database</h2>
         <p class="overview-copy">
-          This table reads <code>{{ general_database.path }}</code> directly from the generated results folder. Each row is an analyzed gene, with the observed variant, VCF source quality, genomic location, and methylation beta summaries captured after a run.
+          This table reads <code>{{ general_database.path }}</code> directly from the generated results folder. Each row is one observed variant within an analyzed gene, with locus, allele change, VCF source quality, curated biological context, and methylation beta summaries captured after a run.
         </p>
 
         <div class="metrics database-actions">
@@ -2110,7 +2139,7 @@
         <article class="overview-card database-actions">
           <h3>No central database rows yet</h3>
           <p>
-            Run an analysis to create <code>{{ general_database.path }}</code>. The app will add one row for the analyzed gene unless that gene already exists; use the Run Analysis overwrite checkbox to replace an existing gene row.
+            Run an analysis to create <code>{{ general_database.path }}</code>. The app will add one row per observed variant; use the Run Analysis overwrite checkbox to replace the current rows for that gene.
           </p>
           {% if analysis_unlocked %}
           <div class="overview-actions">
@@ -2377,18 +2406,26 @@
 
       {% if analysis_unlocked %}
       <section class="frame tab-panel analysis-panel{% if initial_tab == 'analysis' %} is-active{% endif %}" data-tab-panel="analysis"{% if initial_tab != 'analysis' %} hidden{% endif %} style="display:{% if initial_tab == 'analysis' %}block{% else %}none{% endif %};">
-        <div class="analysis-shell">
-          <section class="analysis-panel-inner">
+        <div class="analysis-shell is-form-collapsed" data-analysis-shell data-form-collapsed="true">
+          <section class="analysis-panel-inner analysis-input-panel" id="analysis-input-panel" aria-hidden="true">
             <div class="panel-head">
               <div>
                 <h2>Run Analysis</h2>
-                <p>Enter or confirm the biological inputs on the left. The preprocessing tab has already prepared the gene interval and manifest subset, so the result viewer can stay focused on the actual run.</p>
+                <p>Use this panel only when you need to change the variables for the next run. Otherwise, keep it folded and run with the prepared defaults from the Result Viewer.</p>
               </div>
-              <span class="panel-chip">Workspace width tuned for active review</span>
+              <button
+                type="button"
+                class="analysis-form-toggle-button"
+                data-analysis-form-toggle
+                data-expand-label="Change variables"
+                data-collapse-label="Hide variables"
+                aria-controls="analysis-input-panel"
+                aria-expanded="false"
+              >Hide variables</button>
             </div>
 
             <div class="scroll-region">
-              <form method="post" data-analysis-form>
+              <form id="analysis-form" method="post" data-analysis-form>
                 <input type="hidden" name="workflow" value="analysis">
                 <div class="field-grid">
                   <article class="field-card">
@@ -2480,12 +2517,12 @@
                         value="1"
                         {% if form.overwrite_general_database %}checked{% endif %}
                       >
-                      <span>Overwrite entry in general database</span>
+                      <span>Overwrite gene variant rows in general database</span>
                     </label>
                     <p class="hint">
-                      The central database stores one row per analyzed gene in
-                      <code>results/general_gene_analysis_database.csv</code>. Leave this unchecked to keep an existing
-                      row for the gene; check it to replace that row after this run completes.
+                      The central database stores one row per observed variant in
+                      <code>results/general_gene_analysis_database.csv</code>. Leave this unchecked to keep existing
+                      variant rows for the gene; check it to replace that gene's rows after this run completes.
                     </p>
                   </article>
                 </div>
@@ -2505,13 +2542,25 @@
             </div>
           </section>
 
-          <section class="analysis-panel-inner">
+          <section class="analysis-panel-inner analysis-results-panel">
             <div class="panel-head">
               <div>
                 <h2>Result Viewer</h2>
-                <p>Summary metrics stay visible at the top, while the table previews switch in place below so you can inspect the outputs without pushing the form off-screen.</p>
+                <p>Summary metrics and table previews stay in focus. Run with the current prepared inputs, or unfold the variable panel only when you need to change them.</p>
               </div>
-              <span class="panel-chip">Preview-first analysis review</span>
+              <div class="panel-head-actions">
+                <button type="submit" form="analysis-form" class="run-button" formnovalidate>Run {{ preprocess_state.gene_name }} analysis</button>
+                <button
+                  type="button"
+                  class="analysis-form-toggle-button"
+                  data-analysis-form-toggle
+                  data-expand-label="Change variables"
+                  data-collapse-label="Hide variables"
+                  aria-controls="analysis-input-panel"
+                  aria-expanded="false"
+                >Change variables</button>
+                <span class="panel-chip">Preview-first analysis review</span>
+              </div>
             </div>
 
             <div class="results-stack">
@@ -2538,6 +2587,24 @@
                     </div>
                   </div>
                 </section>
+
+                {% if error %}
+                <div class="error loading-hideable">
+                  <strong>Run failed:</strong>
+                  <div>{{ error }}</div>
+                  <div class="analysis-actions">
+                    <button
+                      type="button"
+                      class="analysis-form-toggle-button"
+                      data-analysis-form-toggle
+                      data-expand-label="Change variables"
+                      data-collapse-label="Hide variables"
+                      aria-controls="analysis-input-panel"
+                      aria-expanded="false"
+                    >Change variables</button>
+                  </div>
+                </div>
+                {% endif %}
 
                 {% if result %}
                 <div class="metrics loading-hideable">
@@ -3480,6 +3547,9 @@
       const detailPanels = Array.from(document.querySelectorAll("[data-detail-panel]"));
       const preprocessForm = document.querySelector("[data-preprocess-form]");
       const analysisForm = document.querySelector("[data-analysis-form]");
+      const analysisShell = document.querySelector("[data-analysis-shell]");
+      const analysisInputPanel = document.getElementById("analysis-input-panel");
+      const analysisFormToggleButtons = Array.from(document.querySelectorAll("[data-analysis-form-toggle]"));
       const proteinForm = document.querySelector("[data-protein-search-form]");
       const proteinQueryInput = document.querySelector("[data-protein-query]");
       const proteinReviewedOnlyInput = document.querySelector("[data-protein-reviewed-only]");
@@ -3922,6 +3992,23 @@
         }
       }
 
+      function setAnalysisFormCollapsed(collapsed) {
+        if (!analysisShell) {
+          return;
+        }
+        analysisShell.classList.toggle("is-form-collapsed", collapsed);
+        analysisShell.dataset.formCollapsed = collapsed ? "true" : "false";
+        if (analysisInputPanel) {
+          analysisInputPanel.setAttribute("aria-hidden", collapsed ? "true" : "false");
+        }
+        analysisFormToggleButtons.forEach((button) => {
+          const expandLabel = button.dataset.expandLabel || "Change variables";
+          const collapseLabel = button.dataset.collapseLabel || "Hide variables";
+          button.textContent = collapsed ? expandLabel : collapseLabel;
+          button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        });
+      }
+
       function activateTab(name) {
         tabButtons.forEach((button) => {
           const isActive = button.dataset.tabTarget === name;
@@ -3937,6 +4024,9 @@
         });
         if (name === "proteins") {
           ensureProteinCatalogLoaded();
+        }
+        if (name === "analysis") {
+          setAnalysisFormCollapsed(true);
         }
       }
 
@@ -4031,6 +4121,13 @@
 
       document.querySelectorAll("[data-go-tab]").forEach((button) => {
         button.addEventListener("click", () => activateTab(button.dataset.goTab));
+      });
+
+      analysisFormToggleButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const currentlyCollapsed = !analysisShell || analysisShell.dataset.formCollapsed !== "false";
+          setAnalysisFormCollapsed(!currentlyCollapsed);
+        });
       });
 
       subtabButtons.forEach((button) => {
