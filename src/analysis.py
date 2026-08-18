@@ -41,6 +41,7 @@ try:
     )
     from .variant_knowledge.merger import load_dynamic_knowledge_base, merge_dynamic_knowledge_base
     from .interpretation import build_interpretation_payload, normalize_interpretation_mode
+    from .workbench.reporting import build_canonical_report, render_evidence_first_html
 except ImportError:
     from helper_functions.filter_manifest_region import (
         filter_probes_by_region,
@@ -51,6 +52,7 @@ except ImportError:
     )
     from variant_knowledge.merger import load_dynamic_knowledge_base, merge_dynamic_knowledge_base
     from interpretation import build_interpretation_payload, normalize_interpretation_mode
+    from workbench.reporting import build_canonical_report, render_evidence_first_html
 
 DEFAULT_REGION = "11:636269-640706"
 DEFAULT_REPORT_NAME = "drd4_report.html"
@@ -79,7 +81,6 @@ GENE_DATA_BUNDLE_PATH = GENE_DATA_DIR / "gene_data_bundle.zip"
 GENE_DATA_INDEX_PATH = GENE_DATA_DIR / "gene_data_index.json"
 INTERPRETATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_interpretation_db.json"
 POPULATION_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_population_db.json"
-SYNTHESIS_DB_PATH = Path(__file__).resolve().parent / "gene_data" / "drd4_synthesis.json"
 GENERAL_ANALYSIS_DATABASE_PATH = PROJECT_ROOT / "results" / "general_gene_analysis_database.csv"
 GENERAL_ANALYSIS_DATABASE_COLUMNS = [
     "gene",
@@ -425,10 +426,6 @@ class AnalysisResult:
     population_database : dict[str, Any]
         Parsed local population database used to add location-based frequency
         context for common DRD4 variants.
-    predictive_theses : dict[str, Any]
-        Gene-level predictive synthesis payload assembled from the local
-        synthesis database plus the current sample's variant and methylation
-        results.
     general_database_path : Path
         Path to the central variant-level analysis database.
     general_database_status : str
@@ -456,7 +453,6 @@ class AnalysisResult:
     knowledge_base: dict[str, Any]
     population_insights: dict[str, Any]
     population_database: dict[str, Any]
-    predictive_theses: dict[str, Any]
     general_database_path: Path
     general_database_status: str
     dynamic_knowledge_base_path: Path | None
@@ -479,7 +475,6 @@ class PreparedAnalysisResult:
     knowledge_base: dict[str, Any]
     population_insights: dict[str, Any]
     population_database: dict[str, Any]
-    predictive_theses: dict[str, Any]
     general_database_path: Path
     general_database_status: str
     dynamic_knowledge_base_path: Path | None
@@ -637,15 +632,6 @@ def load_population_database(database_path: str | Path = POPULATION_DB_PATH) -> 
     )
 
 
-def load_synthesis_database(database_path: str | Path = SYNTHESIS_DB_PATH) -> dict[str, Any]:
-    """Load the curated local predictive synthesis database."""
-    return _load_json_database(
-        database_path,
-        missing_label="Synthesis database not found",
-        invalid_label="Synthesis database is not valid JSON",
-    )
-
-
 def load_gene_interpretation_database(gene_name: str) -> dict[str, Any] | None:
     """Load a bundled gene-specific interpretation database when one exists."""
     for database_path in _candidate_gene_database_paths(gene_name, "interpretation_db.json"):
@@ -667,18 +653,6 @@ def load_gene_population_database(gene_name: str) -> dict[str, Any] | None:
             or _bulk_gene_data_has_member(database_path.name)
         ):
             return load_population_database(database_path)
-    return None
-
-
-def load_gene_synthesis_database(gene_name: str) -> dict[str, Any] | None:
-    """Load a bundled gene-specific predictive synthesis database when one exists."""
-    for database_path in _candidate_gene_database_paths(gene_name, "synthesis.json"):
-        if (
-            database_path.exists()
-            or _gene_data_bundle_has_member(database_path.name)
-            or _bulk_gene_data_has_member(database_path.name)
-        ):
-            return load_synthesis_database(database_path)
     return None
 
 
@@ -3632,796 +3606,6 @@ def build_empty_population_insights(*, gene_name: str) -> dict[str, Any]:
     }
 
 
-def _categorize_predictive_beta_band(mean_beta: float | None) -> str:
-    """Collapse UI methylation bands into the three predictive case buckets."""
-    descriptive_band = _categorize_beta(mean_beta)
-    if descriptive_band == "unavailable":
-        return "unavailable"
-    if descriptive_band == "low":
-        return "low"
-    if descriptive_band == "high":
-        return "high"
-    return "medium"
-
-
-def _format_predictive_beta_display(mean_beta: float | None) -> str:
-    """Render predictive beta values consistently for the UI."""
-    rounded = _round_beta(mean_beta)
-    return str(rounded) if rounded is not None else "Unavailable"
-
-
-def _summarize_predictive_observed_variants(
-    variant_interpretations: dict[str, Any],
-) -> list[str]:
-    """Return deduplicated human-readable labels for the current sample's observed variants."""
-    observed_items: list[str] = []
-    for item in variant_interpretations.get("sample_highlights", {}).get("highlight_items", []):
-        title = str(item.get("title", "")).strip()
-        observed_variant = str(item.get("observed_variant", "")).strip()
-        change = str(item.get("change", "")).strip()
-        genotype = str(item.get("genotype", "")).strip()
-        has_change = bool(change and change.casefold() != "unavailable")
-        genotype_suffix = f" GT={genotype}" if genotype and genotype.casefold() != "unavailable" else ""
-        if title and has_change:
-            observed_items.append(f"{title} {change}{genotype_suffix}")
-        elif title and observed_variant and observed_variant != title:
-            observed_items.append(f"{title} ({observed_variant}){genotype_suffix}")
-        elif title:
-            observed_items.append(f"{title}{genotype_suffix}")
-        elif observed_variant:
-            observed_items.append(f"{observed_variant}{genotype_suffix}")
-    return _dedupe_text_items(observed_items)
-
-
-def _build_synthesis_variant_prediction_rule_lookup(
-    synthesis_database: dict[str, Any],
-) -> dict[str, dict[str, Any]]:
-    """Index concrete variant prediction rules by the labels seen in analysis output."""
-    rule_lookup: dict[str, dict[str, Any]] = {}
-    for rule in synthesis_database.get("variant_prediction_rules", []):
-        lookup_candidates = [
-            rule.get("variant"),
-            rule.get("display_name"),
-            rule.get("common_name"),
-            *rule.get("lookup_keys", []),
-        ]
-        for candidate in lookup_candidates:
-            candidate_text = str(candidate or "").strip()
-            if not candidate_text:
-                continue
-            rule_lookup[_normalize_lookup_key(candidate_text)] = rule
-    return rule_lookup
-
-
-def _find_synthesis_variant_prediction_rule(
-    record: dict[str, Any],
-    rule_lookup: dict[str, dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Return the concrete prediction rule for a matched variant record when available."""
-    lookup_candidates = [
-        record.get("variant"),
-        record.get("variant_label"),
-        record.get("observed_variant"),
-    ]
-    for candidate in lookup_candidates:
-        candidate_text = str(candidate or "").strip()
-        if not candidate_text:
-            continue
-        matched_rule = rule_lookup.get(_normalize_lookup_key(candidate_text))
-        if matched_rule is not None:
-            return matched_rule
-    return None
-
-
-def _format_predictive_observed_signal(record: dict[str, Any]) -> str:
-    """Render observed variant, site definition, and decoded sample genotype."""
-    observed_signal = str(record.get("observed_variant", record.get("variant", ""))).strip()
-    change = str(record.get("change", "")).strip()
-    genotype = str(record.get("genotype", "")).strip()
-    zygosity = str(record.get("zygosity", "")).strip()
-    genotype_text = ""
-    if genotype and genotype.casefold() != "unavailable":
-        genotype_text = f"GT {record.get('gt_raw', './.')} = {genotype}"
-        if zygosity:
-            genotype_text = f"{genotype_text} ({zygosity})"
-    if change and change.casefold() != "unavailable" and change not in observed_signal:
-        observed_signal = f"{observed_signal} ({change})" if observed_signal else change
-    if genotype_text:
-        return f"{observed_signal}; {genotype_text}" if observed_signal else genotype_text
-    return observed_signal
-
-
-def _record_has_non_reference_genotype(record: dict[str, Any]) -> bool:
-    """Return whether a matched record has GT-confirmed non-reference dosage."""
-    zygosity = str(record.get("zygosity", "")).strip()
-    if zygosity in {"heterozygous", "homozygous_alternate", "compound_heterozygous", "hemizygous_alternate"}:
-        return True
-    return _genotype_has_alt_dosage(record)
-
-
-def _record_genotype_is_missing(record: dict[str, Any]) -> bool:
-    """Return whether the record lacks a usable sample genotype."""
-    return str(record.get("zygosity", "")).strip() in {"", "missing"}
-
-
-def _format_prediction_confidence(score: Any) -> str:
-    """Map numeric call confidence to a short display bucket."""
-    parsed = _safe_float(score)
-    if parsed is None:
-        return "unknown"
-    if parsed >= 0.80:
-        return "high"
-    if parsed >= 0.55:
-        return "moderate"
-    if parsed >= 0.30:
-        return "low"
-    return "very low"
-
-
-def _format_genotype_prediction_context(record: dict[str, Any]) -> str:
-    """Explain how genotype decoding constrains interpretation."""
-    genotype = str(record.get("genotype", "Unavailable")).strip() or "Unavailable"
-    gt_raw = str(record.get("gt_raw", "./.")).strip() or "./."
-    zygosity = str(record.get("zygosity", "missing")).strip() or "missing"
-    dosage = record.get("allele_dosage")
-    if not dosage:
-        dosage = _format_allele_dosage(record.get("allele_dosage_per_alt", {}))
-    return f"GT {gt_raw} decodes as {genotype} ({zygosity}); ALT dosage is {dosage}."
-
-
-def _prediction_row_from_record(
-    *,
-    record: dict[str, Any],
-    selected_prediction: dict[str, str],
-) -> dict[str, Any]:
-    """Build a genotype-aware predictive-thesis table row."""
-    confidence_score = record.get("confidence_score", 0)
-    qc_flags = record.get("qc_flags", [])
-    qc_note = "; ".join(str(flag) for flag in qc_flags) if qc_flags else "No major genotype-call QC flags"
-    return {
-        "observed_signal": _format_predictive_observed_signal(record),
-        "genotype": str(record.get("genotype", "Unavailable")),
-        "zygosity": str(record.get("zygosity", "missing")),
-        "allele_dosage": record.get("allele_dosage") or _format_allele_dosage(record.get("allele_dosage_per_alt", {})),
-        "confidence": _format_prediction_confidence(confidence_score),
-        "confidence_score": confidence_score,
-        "qc_flags": qc_flags,
-        "source": selected_prediction["source"],
-        "prediction": selected_prediction["prediction"],
-        "research_focus": selected_prediction["research_focus"],
-        "confidence_explanation": (
-            f"{_format_genotype_prediction_context(record)} "
-            f"Call confidence is {_format_prediction_confidence(confidence_score)} "
-            f"({confidence_score}); {qc_note}. "
-            f"{record.get('confidence_explanation', '')}"
-        ).strip(),
-    }
-
-
-def _render_sample_change_template(
-    template: str,
-    *,
-    record: dict[str, Any],
-    concrete_rule: dict[str, Any],
-) -> str:
-    """Fill a controlled sample-change template from the synthesis database."""
-    replacements = {
-        "{change}": str(record.get("change", "Unavailable")).strip() or "Unavailable",
-        "{variant}": str(record.get("variant", concrete_rule.get("variant", ""))).strip(),
-        "{display_name}": str(concrete_rule.get("display_name", record.get("variant", ""))).strip(),
-        "{observed_variant}": str(record.get("observed_variant", "")).strip(),
-        "{alt_allele}": _extract_alt_allele_from_change(record.get("change")),
-        "{gt_raw}": str(record.get("gt_raw", "./.")).strip() or "./.",
-        "{genotype}": str(record.get("genotype", "Unavailable")).strip() or "Unavailable",
-        "{zygosity}": str(record.get("zygosity", "missing")).strip() or "missing",
-        "{allele_dosage}": str(
-            record.get("allele_dosage")
-            or _format_allele_dosage(record.get("allele_dosage_per_alt", {}))
-        ),
-    }
-    rendered = str(template or "")
-    for placeholder, value in replacements.items():
-        rendered = rendered.replace(placeholder, value)
-    return rendered.strip()
-
-
-def _select_synthesis_prediction_for_record(
-    record: dict[str, Any],
-    concrete_rule: dict[str, Any] | None,
-) -> dict[str, str]:
-    """Choose the most sample-specific prediction text for one matched variant."""
-    genotype_context = _format_genotype_prediction_context(record)
-    if _record_genotype_is_missing(record):
-        genotype_note = (
-            f"{genotype_context} Because GT is missing, this row is treated as a site-level marker match only; "
-            "phenotype inference is not upgraded from REF/ALT alone."
-        )
-        if concrete_rule is None:
-            prediction = str(record.get("clinical_interpretation", "")).strip()
-        else:
-            prediction = str(concrete_rule.get("prediction", "")).strip()
-        return {
-            "prediction": f"{genotype_note} {prediction}".strip(),
-            "research_focus": (
-                "Genotype unavailable; use as directional locus context only, not an individual genotype call."
-            ),
-            "source": "GT-missing site-level thesis",
-        }
-
-    if not _record_has_non_reference_genotype(record):
-        return {
-            "prediction": (
-                f"{genotype_context} This sample is homozygous reference at the site, so the ALT-defined "
-                "variant effect is not applied as a carried alternate-allele phenotype signal."
-            ),
-            "research_focus": "Reference-genotype context; no alternate-allele dosage for this marker.",
-            "source": "Reference genotype thesis",
-        }
-
-    if concrete_rule is None:
-        return {
-            "prediction": (
-                f"{genotype_context} "
-                f"{str(record.get('clinical_interpretation', '')).strip()}"
-            ).strip(),
-            "research_focus": "; ".join(
-                _dedupe_text_items(record.get("associated_conditions", []))[:3]
-            ),
-            "source": str(record.get("interpretation_scope", "Curated marker")).strip(),
-        }
-
-    change = str(record.get("change", "")).strip()
-    normalized_change = _normalize_allele_change(change)
-    observed_alt_allele = _extract_alt_allele_from_change(change)
-
-    for allele_rule in concrete_rule.get("allele_change_rules", []):
-        rule_change = _normalize_allele_change(allele_rule.get("change"))
-        rule_alt_allele = str(allele_rule.get("alt_allele", "")).strip().upper()
-        change_matches = bool(rule_change and normalized_change and rule_change == normalized_change)
-        alt_dosage = int(record.get("allele_dosage_per_alt", {}).get(rule_alt_allele, 0) or 0)
-        alt_matches = bool(
-            rule_alt_allele
-            and observed_alt_allele
-            and rule_alt_allele == observed_alt_allele
-            and alt_dosage > 0
-        )
-        if not change_matches and not alt_matches:
-            continue
-
-        prediction = str(allele_rule.get("prediction", "")).strip()
-        if not prediction:
-            prediction = str(concrete_rule.get("prediction", "")).strip()
-        prediction = f"{genotype_context} {prediction}".strip()
-        research_focus = str(allele_rule.get("basis", "")).strip()
-        if not research_focus:
-            research_focus = str(concrete_rule.get("basis", "")).strip()
-        return {
-            "prediction": prediction,
-            "research_focus": research_focus,
-            "source": "GT-confirmed allele-dosage thesis",
-        }
-
-    prediction = str(concrete_rule.get("prediction", "")).strip()
-    research_focus = str(concrete_rule.get("basis", "")).strip()
-    sample_change_template = str(concrete_rule.get("sample_change_template", "")).strip()
-    if change and change.casefold() != "unavailable" and sample_change_template:
-        change_anchor = _render_sample_change_template(
-            sample_change_template,
-            record=record,
-            concrete_rule=concrete_rule,
-        )
-        if change_anchor and prediction:
-            prediction = f"{genotype_context} {change_anchor} {prediction}"
-        elif change_anchor:
-            prediction = f"{genotype_context} {change_anchor}"
-        return {
-            "prediction": prediction,
-            "research_focus": research_focus,
-            "source": "Sample change-anchored thesis",
-        }
-
-    return {
-        "prediction": f"{genotype_context} {prediction}".strip(),
-        "research_focus": research_focus,
-        "source": "Concrete variant thesis",
-    }
-
-
-def _record_matches_marker(record: dict[str, Any], marker: str) -> bool:
-    """Return whether a predictive record refers to a marker label."""
-    normalized_marker = _normalize_lookup_key(marker)
-    candidates = [
-        record.get("variant"),
-        record.get("variant_label"),
-        record.get("observed_variant"),
-        record.get("rsid"),
-    ]
-    return any(normalized_marker in _normalize_lookup_key(str(candidate or "")) for candidate in candidates)
-
-
-def _allele_count_in_genotype(record: dict[str, Any], allele: str) -> int:
-    """Count a concrete nucleotide allele in the decoded sample genotype."""
-    target = allele.strip().upper()
-    return sum(1 for item in record.get("genotype_alleles", []) if str(item).strip().upper() == target)
-
-
-def _build_generic_phenotype_prediction(
-    *,
-    gene_name: str,
-    genotype_positive_records: list[dict[str, Any]],
-    genotype_uncertain_records: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Return a conservative gene-level phenotype payload for non-specialized genes."""
-    qc_warnings = _dedupe_text_items(
-        [
-            str(flag)
-            for record in genotype_positive_records + genotype_uncertain_records
-            for flag in record.get("qc_flags", [])
-        ]
-    )
-    if genotype_positive_records:
-        scores = [
-            float(record.get("confidence_score", 0) or 0)
-            for record in genotype_positive_records
-        ]
-        confidence_score = min(scores) if scores else 0.0
-        prediction = (
-            f"{gene_name} genotype evidence is compatible with a directional gene-level research signal, "
-            "not a deterministic phenotype call."
-        )
-        evidence = (
-            f"{len(genotype_positive_records)} curated marker(s) have GT-confirmed non-reference dosage. "
-            "Variant effects should be interpreted by genotype dosage and call QC."
-        )
-    elif genotype_uncertain_records:
-        confidence_score = 0.2
-        prediction = (
-            f"{gene_name} site-level marker evidence was seen, but GT is missing or unusable; "
-            "no individual genotype-based phenotype should be inferred."
-        )
-        evidence = (
-            f"{len(genotype_uncertain_records)} marker(s) matched the local database without usable sample GT."
-        )
-    else:
-        confidence_score = 0.0
-        prediction = f"No GT-confirmed {gene_name} phenotype signal was available from the current marker set."
-        evidence = "No curated marker had non-reference sample genotype dosage."
-
-    return {
-        "phenotype_prediction": prediction,
-        "confidence": _format_prediction_confidence(confidence_score),
-        "confidence_score": round(confidence_score, 3),
-        "evidence_summary": evidence,
-        "uncertainty_summary": (
-            "Most traits are polygenic and context dependent; this app reports directional compatibility from the "
-            "available marker subset rather than biological certainty."
-        ),
-        "conflicting_evidence": [],
-        "qc_warnings": qc_warnings,
-    }
-
-
-def _build_herc2_eye_color_prediction(matched_records: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build a conservative HERC2/OCA2 eye-colour prediction from GT dosage."""
-    marker_records = {
-        marker: next((record for record in matched_records if _record_matches_marker(record, marker)), None)
-        for marker in ("rs12913832", "rs1129038", "rs7170852")
-    }
-    major = marker_records["rs12913832"]
-    secondary_records = [record for marker, record in marker_records.items() if marker != "rs12913832" and record]
-    qc_warnings = _dedupe_text_items(
-        [
-            str(flag)
-            for record in marker_records.values()
-            if record
-            for flag in record.get("qc_flags", [])
-        ]
-    )
-
-    if major is None:
-        return {
-            "phenotype_prediction": (
-                "HERC2/OCA2 eye-colour inference is incomplete because rs12913832, the strongest marker in this "
-                "small panel, was not available as a decoded sample genotype."
-            ),
-            "confidence": "low",
-            "confidence_score": 0.25,
-            "evidence_summary": "Secondary markers alone are not enough for a clear eye-colour call.",
-            "uncertainty_summary": (
-                "Eye colour is polygenic; this app uses only a small HERC2/OCA2 subset and cannot exclude brown, hazel, "
-                "green, or blue outcomes without broader genotype context."
-            ),
-            "conflicting_evidence": [],
-            "qc_warnings": qc_warnings,
-        }
-
-    rs129_g = _allele_count_in_genotype(major, "G")
-    rs129_a = _allele_count_in_genotype(major, "A")
-    rs112_t = _allele_count_in_genotype(marker_records["rs1129038"], "T") if marker_records["rs1129038"] else 0
-    rs112_c = _allele_count_in_genotype(marker_records["rs1129038"], "C") if marker_records["rs1129038"] else 0
-    rs717_a = _allele_count_in_genotype(marker_records["rs7170852"], "A") if marker_records["rs7170852"] else 0
-    rs717_t = _allele_count_in_genotype(marker_records["rs7170852"], "T") if marker_records["rs7170852"] else 0
-
-    light_score = (rs129_g * 2.0) + (rs112_t * 0.6) + (rs717_a * 0.4)
-    darker_score = (rs129_a * 1.5) + (rs112_c * 0.25) + (rs717_t * 0.2)
-    strongest_is_heterozygous = major.get("zygosity") == "heterozygous"
-    confidence_score = 0.35
-    confidence_score += 0.20 if secondary_records else 0.0
-    confidence_score += 0.15 if not strongest_is_heterozygous else 0.0
-    confidence_score = min(confidence_score, float(major.get("confidence_score", 0) or 0))
-    if strongest_is_heterozygous:
-        confidence_score = min(confidence_score, 0.62)
-    if len(secondary_records) < 2:
-        confidence_score = min(confidence_score, 0.58)
-
-    conflicting_evidence: list[str] = []
-    if rs129_g and rs129_a:
-        conflicting_evidence.append(
-            "rs12913832 is heterozygous, so both lighter-eye-associated G and darker-eye-compatible A are present."
-        )
-    if light_score > 0 and darker_score > 0:
-        conflicting_evidence.append(
-            "The small panel contains both lighter-leaning and darker-compatible allele evidence."
-        )
-
-    if rs129_g == 2 and light_score > darker_score:
-        phenotype = (
-            "Blue or lighter-eye-compatible signal is present, but the result remains probabilistic rather than deterministic."
-        )
-        uncertainty = (
-            "rs12913832 G/G is a strong HERC2/OCA2 contributor, yet eye colour remains polygenic and ancestry-dependent."
-        )
-    elif rs129_g == 1:
-        phenotype = (
-            "Lighter/intermediate-eye signal is present, but the strongest major marker is heterozygous rather than "
-            "homozygous alternate; brown or hazel remains plausible."
-        )
-        uncertainty = (
-            "Intermediate or hazel outcomes should carry only moderate confidence from this small SNP subset. "
-            "The available markers are compatible with lighter pigmentation directionally, not a deterministic blue-eye call."
-        )
-    elif rs129_g == 0 and rs129_a >= 1:
-        phenotype = (
-            "Brown or darker-eye-compatible signal is stronger at rs12913832, while secondary markers may still leave "
-            "room for intermediate pigmentation depending on the broader polygenic background."
-        )
-        uncertainty = (
-            "Absence of the rs12913832 G signal in this panel does not fully determine eye colour; additional OCA2/HERC2 "
-            "and genome-wide pigmentation markers can modify the visible result."
-        )
-    else:
-        phenotype = (
-            "Eye-colour prediction is directionally inconclusive because rs12913832 genotype dosage could not be mapped cleanly."
-        )
-        uncertainty = (
-            "The marker is present, but the decoded genotype does not match the expected A/G representation."
-        )
-        confidence_score = min(confidence_score, 0.25)
-
-    evidence_parts = [
-        f"rs12913832 decoded as {major.get('genotype')} ({major.get('zygosity')}).",
-        f"Lighter-score components: rs12913832 G dosage {rs129_g}, rs1129038 T dosage {rs112_t}, rs7170852 A dosage {rs717_a}.",
-        f"Darker-compatible components: rs12913832 A dosage {rs129_a}, rs1129038 C dosage {rs112_c}, rs7170852 T dosage {rs717_t}.",
-    ]
-
-    return {
-        "phenotype_prediction": phenotype,
-        "confidence": _format_prediction_confidence(confidence_score),
-        "confidence_score": round(confidence_score, 3),
-        "evidence_summary": " ".join(evidence_parts),
-        "uncertainty_summary": uncertainty,
-        "conflicting_evidence": conflicting_evidence,
-        "qc_warnings": qc_warnings,
-    }
-
-
-def _build_phenotype_prediction(
-    *,
-    gene_name: str,
-    matched_records: list[dict[str, Any]],
-    genotype_positive_records: list[dict[str, Any]],
-    genotype_uncertain_records: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Build phenotype-level output with explicit uncertainty."""
-    if gene_name.upper() == "HERC2":
-        return _build_herc2_eye_color_prediction(matched_records)
-    return _build_generic_phenotype_prediction(
-        gene_name=gene_name,
-        genotype_positive_records=genotype_positive_records,
-        genotype_uncertain_records=genotype_uncertain_records,
-    )
-
-
-def build_predictive_theses(
-    *,
-    variant_interpretations: dict[str, Any],
-    methylation_insights: dict[str, Any],
-    knowledge_base: dict[str, Any] | None = None,
-    synthesis_database: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build the predictive-thesis payload shown after a completed analysis run."""
-    knowledge_base = knowledge_base or {}
-    synthesis_database = synthesis_database or {}
-    gene_context = knowledge_base.get("gene_context", {})
-    gene_name = str(
-        synthesis_database.get("gene_name")
-        or variant_interpretations.get("gene_name")
-        or methylation_insights.get("gene_name")
-        or gene_context.get("gene_name")
-        or DEFAULT_GENE_NAME
-    ).strip() or DEFAULT_GENE_NAME
-
-    case_catalog = [
-        case
-        for case in synthesis_database.get("cases", [])
-        if str(case.get("case_id", "")).strip()
-    ]
-    case_lookup = {
-        str(case["case_id"]).strip(): case
-        for case in case_catalog
-    }
-    variant_prediction_rule_lookup = _build_synthesis_variant_prediction_rule_lookup(
-        synthesis_database
-    )
-
-    matched_records = variant_interpretations.get("matched_records", [])
-    genotype_positive_records = [
-        record for record in matched_records if _record_has_non_reference_genotype(record)
-    ]
-    genotype_uncertain_records = [
-        record for record in matched_records if _record_genotype_is_missing(record)
-    ]
-    highlight_items = variant_interpretations.get("sample_highlights", {}).get("highlight_items", [])
-    observed_variant_labels = _summarize_predictive_observed_variants(variant_interpretations)
-    variant_found = bool(genotype_positive_records)
-    phenotype_prediction = _build_phenotype_prediction(
-        gene_name=gene_name,
-        matched_records=matched_records,
-        genotype_positive_records=genotype_positive_records,
-        genotype_uncertain_records=genotype_uncertain_records,
-    )
-
-    variant_case = case_lookup.get("gene_variant_found")
-    variant_summary = (
-        str(variant_case.get("prediction", "")).strip()
-        if variant_found and variant_case is not None
-        else ""
-    )
-    if not variant_summary and variant_found:
-        variant_summary = (
-            f"GT-confirmed non-reference {gene_name} variation is present in this sample, so the gene-level predictive thesis "
-            "should be read as locus-specific research context rather than as a stand-alone diagnosis."
-        )
-    if not variant_found and genotype_uncertain_records:
-        variant_summary = (
-            f"{gene_name} marker rows matched the local database, but sample GT was missing or unusable. "
-            "The app therefore reports site-level context and does not infer an individual genotype from REF/ALT alone."
-        )
-    if not variant_found:
-        variant_summary = (
-            variant_summary
-            or (
-                f"No GT-confirmed non-reference promoter or gene-body {gene_name} genotype was visible in the current preview, so the "
-                "variant-gated predictive thesis cases did not match this sample."
-            )
-        )
-    if observed_variant_labels:
-        variant_summary = (
-            f"{variant_summary} Observed sample signal: {', '.join(observed_variant_labels[:4])}."
-        ).strip()
-
-    variant_prediction_rows: list[dict[str, str]] = []
-    if variant_found and variant_case is not None:
-        variant_prediction_rows.append(
-            {
-                "observed_signal": (
-                    ", ".join(observed_variant_labels[:3])
-                    if observed_variant_labels
-                    else f"{gene_name} interval non-reference genotype observed"
-                ),
-                "genotype": "Multiple",
-                "zygosity": "See marker rows",
-                "allele_dosage": "See marker rows",
-                "confidence": phenotype_prediction.get("confidence", "unknown"),
-                "confidence_score": phenotype_prediction.get("confidence_score", 0),
-                "qc_flags": phenotype_prediction.get("qc_warnings", []),
-                "source": "Gene-level thesis",
-                "prediction": str(variant_case.get("prediction", "")).strip(),
-                "research_focus": "; ".join(
-                    _dedupe_text_items(variant_case.get("research_focus", []))[:3]
-                ),
-                "confidence_explanation": phenotype_prediction.get("uncertainty_summary", ""),
-            }
-        )
-
-    for record in matched_records:
-        concrete_rule = _find_synthesis_variant_prediction_rule(
-            record,
-            variant_prediction_rule_lookup,
-        )
-        selected_prediction = _select_synthesis_prediction_for_record(record, concrete_rule)
-
-        variant_prediction_rows.append(
-            _prediction_row_from_record(
-                record=record,
-                selected_prediction=selected_prediction,
-            )
-        )
-
-    if not matched_records:
-        for item in highlight_items:
-            variant_prediction_rows.append(
-                {
-                    "observed_signal": str(item.get("title", item.get("observed_variant", ""))).strip(),
-                    "genotype": str(item.get("genotype", "Unavailable")).strip(),
-                    "zygosity": str(item.get("zygosity", "missing")).strip(),
-                    "allele_dosage": str(item.get("allele_dosage", "Unavailable")).strip(),
-                    "confidence": _format_prediction_confidence(item.get("confidence_score", 0)),
-                    "confidence_score": item.get("confidence_score", 0),
-                    "qc_flags": item.get("qc_flags", []),
-                    "source": str(item.get("category", "Interval variant")).strip(),
-                    "prediction": str(item.get("description", "")).strip(),
-                    "research_focus": "; ".join(
-                        _dedupe_text_items(item.get("conditions", []))[:3]
-                    ),
-                    "confidence_explanation": str(item.get("confidence_explanation", "")).strip(),
-                }
-            )
-
-    methylation_source_rows = [
-        {
-            "metric_key": "whitelist",
-            "label": str(methylation_insights.get("whitelist_mean_beta_label", "Whitelist mean beta")).strip(),
-            "mean_beta": methylation_insights.get("whitelist_mean_beta"),
-            "probe_count": int(methylation_insights.get("whitelist_mean_beta_probe_count", 0) or 0),
-        },
-        {
-            "metric_key": "gene_name_related",
-            "label": str(
-                methylation_insights.get("gene_name_mean_beta_label", f"{gene_name}-named row mean beta")
-            ).strip(),
-            "mean_beta": methylation_insights.get("gene_name_mean_beta"),
-            "probe_count": int(methylation_insights.get("gene_name_mean_beta_probe_count", 0) or 0),
-        },
-        {
-            "metric_key": "all_numeric",
-            "label": str(
-                methylation_insights.get("all_numeric_mean_beta_label", "All numeric-row mean beta")
-            ).strip(),
-            "mean_beta": methylation_insights.get("all_numeric_mean_beta"),
-            "probe_count": int(methylation_insights.get("all_numeric_mean_beta_probe_count", 0) or 0),
-        },
-    ]
-
-    methylation_prediction_rows: list[dict[str, Any]] = []
-    matched_cases: list[dict[str, str]] = []
-
-    if variant_found and variant_case is not None:
-        matched_cases.append(
-            {
-                "case_label": str(variant_case.get("label", "Gene variant found")).strip(),
-                "trigger": "Observed promoter or gene-body variant",
-                "source": "Variant-only synthesis",
-                "mean_beta_display": "n/a",
-                "band": "n/a",
-                "prediction": str(variant_case.get("prediction", "")).strip(),
-                "research_focus": "; ".join(
-                    _dedupe_text_items(variant_case.get("research_focus", []))[:3]
-                ),
-            }
-        )
-
-    for source_row in methylation_source_rows:
-        mean_beta = source_row["mean_beta"]
-        band = _categorize_predictive_beta_band(mean_beta)
-        case_id = (
-            f"gene_variant_found__{source_row['metric_key']}__{band}"
-            if band != "unavailable"
-            else ""
-        )
-        case = case_lookup.get(case_id) if case_id else None
-        matched = variant_found and case is not None
-
-        if mean_beta is None:
-            prediction = f"No numeric beta value was available for {source_row['label'].lower()}."
-        elif not variant_found:
-            prediction = (
-                f"{source_row['label']} was computed, but the predictive thesis matrix only matches after "
-                f"a GT-confirmed non-reference {gene_name} genotype is observed."
-            )
-        elif case is not None:
-            prediction = str(case.get("prediction", "")).strip()
-        else:
-            prediction = (
-                f"No bundled predictive thesis case is available for {source_row['label']} with a {band} methylation band."
-            )
-
-        research_focus_items = (
-            _dedupe_text_items(case.get("research_focus", []))[:3]
-            if case is not None
-            else []
-        )
-
-        methylation_prediction_rows.append(
-            {
-                "metric_key": source_row["metric_key"],
-                "metric_label": source_row["label"],
-                "mean_beta": _round_beta(mean_beta),
-                "mean_beta_display": _format_predictive_beta_display(mean_beta),
-                "probe_count": source_row["probe_count"],
-                "band": band,
-                "band_display": band.title() if band != "unavailable" else "Unavailable",
-                "prediction": prediction,
-                "matched": matched,
-                "matched_case_label": str(case.get("label", "")).strip() if case is not None else "",
-                "research_focus": "; ".join(research_focus_items),
-            }
-        )
-
-        if matched and case is not None:
-            matched_cases.append(
-                {
-                    "case_label": str(case.get("label", "")).strip(),
-                    "trigger": f"Variant found + {source_row['label']}",
-                    "source": source_row["label"],
-                    "mean_beta_display": _format_predictive_beta_display(mean_beta),
-                    "band": band.title(),
-                    "prediction": str(case.get("prediction", "")).strip(),
-                    "research_focus": "; ".join(research_focus_items),
-                }
-            )
-
-    if matched_cases:
-        summary = (
-            f"{gene_name} matched {len(matched_cases)} predictive thesis case(s) in this run: "
-            f"the base variant case plus {max(len(matched_cases) - 1, 0)} methylation-linked case(s)."
-        )
-    elif variant_found:
-        summary = (
-            f"GT-confirmed {gene_name} non-reference variation was observed, but none of the bundled predictive thesis cases could be matched "
-            "to the available methylation values."
-        )
-    else:
-        summary = (
-            f"No predictive thesis case matched because the current {gene_name} run did not surface a GT-confirmed promoter or gene-body non-reference genotype."
-        )
-
-    return {
-        "gene_name": gene_name,
-        "database_name": synthesis_database.get(
-            "database_name",
-            f"No curated {gene_name} predictive synthesis database loaded",
-        ),
-        "database_version": synthesis_database.get("version", "generic"),
-        "matching_rule": synthesis_database.get(
-            "matching_rule",
-            "Cases match only when a gene variant is present, plus the requested methylation source resolves to a low, medium, or high beta band.",
-        ),
-        "disclaimer": synthesis_database.get(
-            "disclaimer",
-            "Predictive theses in this app are literature-guided research summaries, not diagnostic claims.",
-        ),
-        "seeded_markers": synthesis_database.get("seeded_markers", []),
-        "concrete_variant_prediction": synthesis_database.get("concrete_variant_prediction", ""),
-        "variant_found": variant_found,
-        "variant_found_label": "Yes" if variant_found else "No",
-        "variant_summary": variant_summary,
-        "phenotype_prediction": phenotype_prediction,
-        "phenotype_prediction_text": phenotype_prediction.get("phenotype_prediction", ""),
-        "phenotype_confidence": phenotype_prediction.get("confidence", "unknown"),
-        "phenotype_evidence_summary": phenotype_prediction.get("evidence_summary", ""),
-        "phenotype_uncertainty_summary": phenotype_prediction.get("uncertainty_summary", ""),
-        "phenotype_conflicting_evidence": phenotype_prediction.get("conflicting_evidence", []),
-        "phenotype_qc_warnings": phenotype_prediction.get("qc_warnings", []),
-        "variant_prediction_rows": variant_prediction_rows,
-        "methylation_prediction_rows": methylation_prediction_rows,
-        "matched_cases": matched_cases,
-        "matched_case_count": len(matched_cases),
-        "case_catalog_size": len(case_catalog),
-        "summary": summary,
-    }
-
-
 def _join_unique_database_values(values: list[Any]) -> str:
     """Join compact central-database values while preserving order."""
     cleaned_values: list[str] = []
@@ -5797,126 +4981,6 @@ def _render_methylation_interpretation_report(methylation_insights: dict[str, An
     )
 
 
-def _render_predictive_theses_report(predictive_theses: dict[str, Any]) -> str:
-    """Render the predictive-thesis panels in the exported HTML report."""
-    if not predictive_theses:
-        return ""
-
-    nested_sections: list[str] = []
-    phenotype_prediction = predictive_theses.get("phenotype_prediction")
-    if isinstance(phenotype_prediction, dict) and phenotype_prediction:
-        nested_sections.append(
-            _render_section_table(
-                _report_df_from_rows(
-                    [phenotype_prediction],
-                    [
-                        ("phenotype_prediction", "Phenotype prediction"),
-                        ("confidence", "Confidence"),
-                        ("confidence_score", "Confidence score"),
-                        ("evidence_summary", "Evidence summary"),
-                        ("uncertainty_summary", "Uncertainty summary"),
-                        ("conflicting_evidence", "Conflicting evidence"),
-                        ("qc_warnings", "QC warnings"),
-                    ],
-                ),
-                "Phenotype-Level Prediction",
-                rows=None,
-            )
-        )
-
-    variant_prediction_rows = predictive_theses.get("variant_prediction_rows", [])
-    if variant_prediction_rows:
-        nested_sections.append(
-            _render_section_table(
-                _report_df_from_rows(
-                    variant_prediction_rows,
-                    [
-                        ("observed_signal", "Observed signal"),
-                        ("genotype", "Decoded genotype"),
-                        ("zygosity", "Zygosity"),
-                        ("allele_dosage", "ALT dosage"),
-                        ("confidence", "Confidence"),
-                        ("source", "Source"),
-                        ("prediction", "Prediction"),
-                        ("research_focus", "Research focus"),
-                        ("confidence_explanation", "Confidence explanation"),
-                    ],
-                ),
-                "Variant Prediction",
-                rows=None,
-            )
-        )
-
-    methylation_prediction_rows = predictive_theses.get("methylation_prediction_rows", [])
-    if methylation_prediction_rows:
-        nested_sections.append(
-            _render_section_table(
-                _report_df_from_rows(
-                    methylation_prediction_rows,
-                    [
-                        ("metric_label", "Metric"),
-                        ("mean_beta_display", "Mean beta"),
-                        ("probe_count", "Numeric values"),
-                        ("band_display", "Band"),
-                        ("matched_case_label", "Matched case"),
-                        ("prediction", "Prediction"),
-                        ("research_focus", "Research focus"),
-                    ],
-                ),
-                "Methylation Prediction",
-                rows=None,
-            )
-        )
-
-    matched_cases = predictive_theses.get("matched_cases", [])
-    if matched_cases:
-        nested_sections.append(
-            _render_section_table(
-                _report_df_from_rows(
-                    matched_cases,
-                    [
-                        ("case_label", "Case"),
-                        ("trigger", "Trigger"),
-                        ("source", "Source"),
-                        ("mean_beta_display", "Observed value"),
-                        ("band", "Band"),
-                        ("prediction", "Prediction"),
-                        ("research_focus", "Research focus"),
-                    ],
-                ),
-                "Synthesis",
-                rows=None,
-            )
-        )
-
-    seeded_markers = predictive_theses.get("seeded_markers", [])
-    if seeded_markers:
-        nested_sections.append(
-            _render_section_table(
-                _report_df_from_rows(
-                    [{"marker": marker} for marker in seeded_markers],
-                    [("marker", "Seeded marker")],
-                ),
-                "Seeded Predictive Markers",
-                rows=None,
-            )
-        )
-
-    return _render_report_paragraphs(
-        "Predictive Theses",
-        [
-            predictive_theses.get("summary", ""),
-            predictive_theses.get("variant_summary", ""),
-            predictive_theses.get("phenotype_prediction_text", ""),
-            predictive_theses.get("phenotype_evidence_summary", ""),
-            predictive_theses.get("phenotype_uncertainty_summary", ""),
-            predictive_theses.get("matching_rule", ""),
-            predictive_theses.get("disclaimer", ""),
-        ],
-        extra_markup="".join(nested_sections),
-    )
-
-
 def _dynamic_payload_for_report(dynamic_knowledge_base_path: str | Path | None) -> dict[str, Any]:
     """Load workflow metadata from the dynamic KB artifact when available."""
     if not dynamic_knowledge_base_path:
@@ -6191,7 +5255,6 @@ def generate_report(
     variant_interpretations: dict[str, Any] | None = None,
     methylation_insights: dict[str, Any] | None = None,
     population_insights: dict[str, Any] | None = None,
-    predictive_theses: dict[str, Any] | None = None,
     analysis_scope: str = DEFAULT_ANALYSIS_SCOPE,
     dynamic_knowledge_base_status: str = "",
     dynamic_knowledge_base_path: str | Path | None = None,
@@ -6218,8 +5281,6 @@ def generate_report(
         Gene name displayed in the report heading and summary copy.
     methylation_output_path : Path | None, optional
         Path to the exported methylation CSV, shown in the report when provided.
-    predictive_theses : dict[str, Any] | None, optional
-        Predictive thesis payload rendered into the report when available.
 
     Returns
     -------
@@ -6254,338 +5315,49 @@ def generate_report(
         else {}
     )
 
-    popstats_section = ""
-    if isinstance(popstats, pd.DataFrame):
-        popstats_section = _render_section_table(popstats, "Population Statistics Preview")
-    elif popstats is not None:
-        payload = html.escape(json.dumps(popstats, indent=2))
-        popstats_section = f"<section><h2>Population Statistics Preview</h2><pre>{payload}</pre></section>"
-
-    if suffix == ".html":
-        methylation_path_markup = ""
-        if methylation_output_path is not None:
-            methylation_path_markup = (
-                "<p><strong>Methylation CSV:</strong> "
-                f"{html.escape(str(methylation_output_path))}</p>"
-            )
-        dynamic_kb_markup = ""
-        if dynamic_knowledge_base_status or dynamic_knowledge_base_path:
-            dynamic_kb_markup = (
-                "<p><strong>Dynamic knowledge base:</strong> "
-                f"{html.escape(dynamic_knowledge_base_status or 'Available')}"
-                + (
-                    f" ({html.escape(str(dynamic_knowledge_base_path))})"
-                    if dynamic_knowledge_base_path
-                    else ""
-                )
-                + "</p>"
-            )
-
-        variant_interpretation_section = _render_variant_interpretation_report(
-            variant_interpretations or {},
-            population_insights or {},
+    # Schema 3 is the only active renderer.
+    if suffix in {".html", ".json", ".csv"}:
+        canonical = build_canonical_report(
+            {
+                "gene": gene_name,
+                "genome_build": (
+                    (interpretation or {}).get("interpretation_context", {}).get("genome_build", "")
+                ),
+                "region": region,
+                "analysis_scope": normalized_analysis_scope,
+                "analysis_scope_label": analysis_scope_label,
+                "variants": prepared_variants,
+                "methylation": methylation,
+                "population_statistics": popstats,
+                "variant_interpretations": variant_interpretations or {},
+                "methylation_insights": methylation_insights or {},
+                "population_insights": population_insights or {},
+                "interpretation": interpretation or {},
+                "dynamic_knowledge_base": {
+                    **dynamic_payload,
+                    "status": dynamic_knowledge_base_status,
+                    "path": str(dynamic_knowledge_base_path) if dynamic_knowledge_base_path else "",
+                },
+            }
         )
-        methylation_interpretation_section = _render_methylation_interpretation_report(
-            methylation_insights or {},
-        )
-        evidence_calibrated_section = _render_evidence_calibrated_report(interpretation or {})
-        predictive_theses_section = (
-            ""
-            if interpretation
-            else _render_predictive_theses_report(predictive_theses or {})
-        )
-
-        report_html = f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{html.escape(gene_name)} {html.escape(analysis_scope_label)} Analysis Report</title>
-  <style>
-    :root {{
-      --bg: #f6efe3;
-      --panel: rgba(255, 252, 245, 0.92);
-      --ink: #1f2a2e;
-      --muted: #51666a;
-      --accent: #0f766e;
-      --accent-2: #c26a3d;
-      --line: rgba(31, 42, 46, 0.14);
-      --shadow: 0 24px 70px rgba(31, 42, 46, 0.12);
-    }}
-    * {{ box-sizing: border-box; }}
-    body {{
-      margin: 0;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(194, 106, 61, 0.20), transparent 30rem),
-        radial-gradient(circle at top right, rgba(15, 118, 110, 0.20), transparent 28rem),
-        linear-gradient(180deg, #fbf6ee 0%, var(--bg) 100%);
-    }}
-    main {{
-      width: min(98vw, 1800px);
-      max-width: none;
-      margin: 0 auto;
-      padding: 38px 12px 64px;
-    }}
-    .hero {{
-      padding: 28px 30px;
-      border-radius: 28px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(14px);
-    }}
-    .hero h1 {{
-      margin: 0 0 12px;
-      font-size: clamp(2rem, 5vw, 3.6rem);
-      line-height: 1;
-      letter-spacing: -0.04em;
-    }}
-    .hero p {{
-      margin: 8px 0;
-      color: var(--muted);
-      max-width: 78rem;
-      overflow-wrap: anywhere;
-    }}
-    .metrics {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 14px;
-      margin-top: 24px;
-    }}
-    .metric {{
-      padding: 18px 20px;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid var(--line);
-    }}
-    .metric span {{
-      display: block;
-      color: var(--muted);
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }}
-    .metric strong {{
-      display: block;
-      margin-top: 8px;
-      font-size: 1.8rem;
-    }}
-    .workflow-summary-grid {{
-      display: grid;
-      gap: 14px;
-    }}
-    .workflow-card {{
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.62);
-    }}
-    .workflow-card summary {{
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      cursor: pointer;
-    }}
-    .workflow-card summary span {{
-      color: var(--accent);
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 0.78rem;
-      letter-spacing: 0.08em;
-    }}
-    .workflow-counts {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 12px 0;
-    }}
-    .workflow-counts span {{
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(15, 118, 110, 0.10);
-      color: var(--ink);
-      font-size: 0.88rem;
-    }}
-    section {{
-      margin-top: 24px;
-      padding: 24px;
-      border-radius: 24px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      width: 100%;
-      min-width: 0;
-      overflow: hidden;
-    }}
-    h2 {{
-      margin-top: 0;
-      font-size: 1.3rem;
-      letter-spacing: -0.02em;
-    }}
-    p, li, td, th, strong {{
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }}
-    .report-table-shell {{
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.54);
-    }}
-    .data-table {{
-      width: 100%;
-      min-width: 760px;
-      border-collapse: collapse;
-      font-size: 0.92rem;
-      table-layout: fixed;
-    }}
-    .data-table th,
-    .data-table td {{
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      white-space: normal;
-    }}
-    .data-table th {{
-      background: rgba(15, 118, 110, 0.08);
-    }}
-    pre {{
-      padding: 16px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      border-radius: 16px;
-      background: #172023;
-      color: #f4f0e8;
-    }}
-    @media (max-width: 760px) {{
-      main {{
-        width: min(100vw, 100%);
-        padding: 18px 8px 42px;
-      }}
-      .hero,
-      section {{
-        padding: 18px;
-      }}
-      .data-table {{
-        min-width: 680px;
-      }}
-    }}
-  </style>
-</head>
-<body>
-  <main>
-    <section class="hero">
-      <h1>{html.escape(gene_name)} Analysis Report</h1>
-      <p>This report summarizes the current {html.escape(gene_name)} variant and methylation analysis run.</p>
-      <p><strong>Report focus:</strong> {html.escape(analysis_scope_label)}</p>
-      <p><strong>Region:</strong> {html.escape(region)}</p>
-      <p><strong>Report path:</strong> {html.escape(str(report_path))}</p>
-      {methylation_path_markup}
-      {dynamic_kb_markup}
-      <div class="metrics">
-        <article class="metric">
-          <span>VCF calls</span>
-          <strong>{len(variants)}</strong>
-        </article>
-        <article class="metric">
-          <span>Methylation probes</span>
-          <strong>{len(methylation)}</strong>
-        </article>
-        <article class="metric">
-          <span>Population stats</span>
-          <strong>{"Yes" if popstats is not None else "No"}</strong>
-        </article>
-      </div>
-    </section>
-    {_render_section_table(prepared_variants, "Genetic Variant Results", rows=None)}
-    {_render_dynamic_workflow_report(dynamic_workflow_runs, artifact_path=dynamic_knowledge_base_path)}
-    {_render_local_article_evidence_report(dynamic_local_article_evidence)}
-    {evidence_calibrated_section}
-    {variant_interpretation_section}
-    {predictive_theses_section}
-    {methylation_interpretation_section}
-    {_render_section_table(_prepare_methylation_table_for_output(methylation), "Methylation Raw Results", rows=None)}
-    {popstats_section}
-  </main>
-</body>
-</html>
-"""
-        report_path.write_text(report_html, encoding="utf-8")
-        return report_path
-
-    if suffix == ".json":
-        payload = {
-            "schema_version": "2.0" if interpretation else "1.0",
-            "region": region,
-            "analysis_scope": normalized_analysis_scope,
-            "analysis_scope_label": analysis_scope_label,
-            "variants": prepared_variants.to_dict(orient="records"),
-            "variant_interpretations": variant_interpretations or {},
-            "methylation": methylation.to_dict(orient="records"),
-            "population_statistics": _serialize_popstats(popstats),
-            "methylation_output_path": str(methylation_output_path) if methylation_output_path else None,
-            "predictive_theses": predictive_theses or {},
-            "interpretation": interpretation or {},
-            "dynamic_knowledge_base": {
-                "status": dynamic_knowledge_base_status,
-                "path": str(dynamic_knowledge_base_path) if dynamic_knowledge_base_path else "",
-                "workflow_runs": dynamic_workflow_runs,
-                "workflow_source_matrix": dynamic_workflow_source_matrix,
-                "local_article_evidence": dynamic_local_article_evidence,
-            },
-        }
-        report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        return report_path
-
-    if suffix == ".csv":
-        summary = pd.DataFrame(
-            [
-                {"metric": "region", "value": region},
-                {"metric": "analysis_scope", "value": normalized_analysis_scope},
-                {"metric": "analysis_scope_label", "value": analysis_scope_label},
-                {"metric": "variant_count", "value": len(variants)},
-                {"metric": "methylation_probe_count", "value": len(methylation)},
-                {"metric": "has_population_stats", "value": popstats is not None},
-                {
-                    "metric": "methylation_output_path",
-                    "value": str(methylation_output_path) if methylation_output_path else "",
-                },
-                {
-                    "metric": "predictive_thesis_matched_cases",
-                    "value": (predictive_theses or {}).get("matched_case_count", 0),
-                },
-                {
-                    "metric": "interpretation_schema_version",
-                    "value": (interpretation or {}).get("schema_version", "1.0"),
-                },
-                {
-                    "metric": "interpretation_mode",
-                    "value": (interpretation or {}).get("interpretation_context", {}).get("mode", "legacy"),
-                },
-                {
-                    "metric": "dynamic_knowledge_base_status",
-                    "value": dynamic_knowledge_base_status,
-                },
-                {
-                    "metric": "dynamic_workflow_count",
-                    "value": len(dynamic_workflow_runs),
-                },
-                {
-                    "metric": "local_article_evidence_record_count",
-                    "value": len(dynamic_local_article_evidence.get("records", [])),
-                },
-            ]
-        )
-        summary.to_csv(report_path, index=False)
+        if suffix == ".html":
+            report_path.write_text(render_evidence_first_html(canonical), encoding="utf-8")
+        elif suffix == ".json":
+            report_path.write_text(json.dumps(canonical, indent=2, ensure_ascii=False), encoding="utf-8")
+        else:
+            summary = canonical["summary"]
+            pd.DataFrame(
+                [
+                    {"metric": "schema_version", "value": canonical["schema_version"]},
+                    {"metric": "gene", "value": canonical["run"]["gene"]},
+                    {"metric": "genome_build", "value": canonical["run"]["genome_build"]},
+                    {"metric": "region", "value": canonical["run"]["region"]},
+                    {"metric": "qc_variant_count", "value": summary["qc"]["variant_pass_count"]},
+                    {"metric": "qc_methylation_count", "value": summary["qc"]["methylation_pass_count"]},
+                    {"metric": "assessed_source_count", "value": summary["evidence_coverage"]["assessed_source_count"]},
+                    {"metric": "failed_source_count", "value": summary["evidence_coverage"]["failed_source_count"]},
+                ]
+            ).to_csv(report_path, index=False)
         return report_path
 
     raise AnalysisError(
@@ -6695,7 +5467,6 @@ def run_analysis(
         variant_interpretations=prepared.variant_interpretations,
         methylation_insights=prepared.methylation_insights,
         population_insights=prepared.population_insights,
-        predictive_theses=prepared.predictive_theses,
         analysis_scope=normalized_analysis_scope,
         dynamic_knowledge_base_status=prepared.dynamic_knowledge_base_status,
         dynamic_knowledge_base_path=prepared.dynamic_knowledge_base_path,
@@ -6718,7 +5489,6 @@ def run_analysis(
         knowledge_base=prepared.knowledge_base,
         population_insights=prepared.population_insights,
         population_database=prepared.population_database,
-        predictive_theses=prepared.predictive_theses,
         general_database_path=prepared.general_database_path,
         general_database_status=prepared.general_database_status,
         dynamic_knowledge_base_path=prepared.dynamic_knowledge_base_path,
@@ -6810,19 +5580,6 @@ def analyze_prepared_data(
             gene_name=normalized_gene_name,
         )
 
-    synthesis_database = load_gene_synthesis_database(normalized_gene_name)
-    predictive_theses = build_predictive_theses(
-        variant_interpretations=variant_interpretations,
-        methylation_insights=methylation_insights,
-        knowledge_base=knowledge_base,
-        synthesis_database=synthesis_database,
-    )
-    predictive_theses["deprecated_by_schema_v2"] = True
-    predictive_theses["deprecation_reason"] = (
-        "Schema-v2 reports use evidence-calibrated findings and registered-model eligibility; "
-        "legacy variant-plus-mean-beta theses are retained only for backward-compatible data consumers."
-    )
-
     population_database = load_gene_population_database(normalized_gene_name)
     if population_database is not None and knowledge_base.get("version") != "generic":
         population_insights = build_population_insights(variants, knowledge_base, population_database)
@@ -6845,28 +5602,12 @@ def analyze_prepared_data(
         requested_models=requested_models,
     )
 
-    if update_general_database_enabled and normalized_analysis_scope == DEFAULT_ANALYSIS_SCOPE:
-        general_database_result = update_general_analysis_database(
-            gene_name=normalized_gene_name,
-            variants=variants,
-            variant_interpretations=variant_interpretations,
-            methylation_insights=methylation_insights,
-            overwrite=overwrite_general_database,
-            database_path=general_database_path,
-        )
-    elif not update_general_database_enabled:
-        general_database_result = {
-            "path": Path(general_database_path),
-            "message": "Central database update was not requested for this analysis.",
-        }
-    else:
-        general_database_result = {
-            "path": Path(general_database_path),
-            "message": (
-                f"Central database was not updated for the {analysis_scope_label} focused report; "
-                "the general database remains tied to the standard Promoter + gene run."
-            ),
-        }
+    # The denormalized CSV is a legacy migration input only. New observations
+    # are persisted through the schema-v3 relational store.
+    general_database_result = {
+        "path": Path(general_database_path),
+        "message": "Legacy central CSV retired; schema-v3 persistence is the active store.",
+    }
 
     return PreparedAnalysisResult(
         variants=variants,
@@ -6880,7 +5621,6 @@ def analyze_prepared_data(
         knowledge_base=knowledge_base,
         population_insights=population_insights,
         population_database=population_database,
-        predictive_theses=predictive_theses,
         general_database_path=Path(general_database_result["path"]),
         general_database_status=str(general_database_result["message"]),
         dynamic_knowledge_base_path=resolved_dynamic_knowledge_base_path if dynamic_payload else None,

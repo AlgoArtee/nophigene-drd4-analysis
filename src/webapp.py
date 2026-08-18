@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -16,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from flask import Flask, jsonify, render_template, request, send_from_directory, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.utils import secure_filename
 
 try:
@@ -72,6 +74,8 @@ try:
         genome_build_from_knowledge_base,
         knowledge_base_matches_build,
     )
+    from .workbench.reporting import build_canonical_report
+    from .workbench.evidence import CORE_SOURCE_KEYS, list_core_source_metadata
 except ImportError:
     from analysis import (
         ANALYSIS_SCOPE_OPTIONS,
@@ -122,6 +126,8 @@ except ImportError:
         genome_build_from_knowledge_base,
         knowledge_base_matches_build,
     )
+    from workbench.reporting import build_canonical_report
+    from workbench.evidence import CORE_SOURCE_KEYS, list_core_source_metadata
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -387,13 +393,59 @@ FUNCTIONAL_FAMILY_DEFINITIONS = [
 ]
 
 app = Flask(__name__, template_folder=str(Path(__file__).resolve().parent / "templates"))
-app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY", "nophigene-local-dev")
+
+
+def _read_runtime_secret(env_name: str) -> str:
+    path_text = os.environ.get(env_name, "").strip()
+    if not path_text:
+        return ""
+    path = Path(path_text)
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise RuntimeError(f"Configured runtime secret could not be read: {env_name}") from exc
+
+
+RUNTIME_SESSION_TOKEN = _read_runtime_secret("NOPHIGENE_SESSION_TOKEN_FILE")
+app.secret_key = os.environ.get("NOPHIGENE_SECRET_KEY") or (
+    hashlib.sha256(RUNTIME_SESSION_TOKEN.encode("utf-8")).hexdigest()
+    if RUNTIME_SESSION_TOKEN
+    else "nophigene-local-dev"
+)
 try:
     from .api import register_api
 except ImportError:
     from api import register_api
 
 register_api(app)
+app.config.setdefault("NOPHIGENE_BROWSER_TOKEN_USED", False)
+
+
+@app.before_request
+def require_local_authenticated_session():
+    """Exchange the launcher token for a session or accept it as an API bearer token."""
+    if not RUNTIME_SESSION_TOKEN:
+        return None
+    if request.path == "/api/v2/health":
+        return None
+    supplied = str(request.args.get("access_token") or "")
+    authorization = str(request.headers.get("Authorization") or "")
+    bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    if (
+        supplied
+        and not app.config["NOPHIGENE_BROWSER_TOKEN_USED"]
+        and hmac.compare_digest(supplied, RUNTIME_SESSION_TOKEN)
+    ):
+        app.config["NOPHIGENE_BROWSER_TOKEN_USED"] = True
+        session["nophigene_authenticated"] = True
+        clean_args = request.args.to_dict(flat=False)
+        clean_args.pop("access_token", None)
+        return redirect(request.path, code=303)
+    if bearer and hmac.compare_digest(bearer, RUNTIME_SESSION_TOKEN):
+        return None
+    if session.get("nophigene_authenticated"):
+        return None
+    return jsonify({"error": {"code": "authentication_required", "message": "Open NophiGene through the authenticated launcher."}}), 401
 
 
 def _build_app_structure_qa_items() -> list[dict[str, object]]:
@@ -2083,11 +2135,10 @@ def _session_knowledge_credentials() -> dict[str, str]:
 
 
 def _empty_knowledge_sources_state() -> dict[str, Any]:
-    workflow_keys = default_workflow_keys()
-    source_keys = default_workflow_source_keys()
     return {
-        "selected_workflows": workflow_keys,
-        "selected_sources": source_keys,
+        "selected_workflows": [],
+        "selected_sources": [],
+        "external_consents": [],
         "source_imports": {},
         "notice": "",
     }
@@ -2106,7 +2157,10 @@ def _load_knowledge_sources_state() -> dict[str, Any]:
     state["selected_workflows"] = selected_workflows
     workflow_source_keys = source_keys_for_workflows(select_workflow_specs(selected_workflows))
     selected = [key for key in state.get("selected_sources", []) if key in known_keys]
-    state["selected_sources"] = selected or workflow_source_keys or default_workflow_source_keys()
+    state["selected_sources"] = selected or workflow_source_keys
+    state["external_consents"] = [
+        key for key in state.get("external_consents", []) if key in known_keys
+    ]
     imports = state.get("source_imports") if isinstance(state.get("source_imports"), dict) else {}
     state["source_imports"] = {
         str(key): str(path)
@@ -2120,6 +2174,7 @@ def _store_knowledge_sources_state(state: dict[str, Any]) -> None:
     session[SESSION_KNOWLEDGE_SOURCES_KEY] = {
         "selected_workflows": list(state.get("selected_workflows", [])),
         "selected_sources": list(state.get("selected_sources", [])),
+        "external_consents": list(state.get("external_consents", [])),
         "source_imports": dict(state.get("source_imports") or {}),
         "notice": str(state.get("notice", "")),
     }
@@ -2138,15 +2193,41 @@ def _knowledge_source_import_statuses(source_imports: dict[str, str]) -> dict[st
 
 
 def _build_knowledge_source_cards(state: dict[str, Any]) -> list[dict[str, Any]]:
-    specs = list_source_specs()
+    specs = [spec for spec in list_source_specs() if spec.key in CORE_SOURCE_KEYS]
     statuses = credential_status_for_specs(specs, _session_knowledge_credentials())
     source_imports = dict(state.get("source_imports") or {})
-    return list_source_cards(
+    cards = [
+        card for card in list_source_cards(
         selected_keys=list(state.get("selected_sources", [])),
         credential_statuses=statuses,
         import_statuses=_knowledge_source_import_statuses(source_imports),
         import_paths=source_imports,
-    )
+        ) if card.get("key") in CORE_SOURCE_KEYS
+    ]
+    selected = set(state.get("selected_sources", []))
+    approved = set(state.get("external_consents", []))
+    for card in cards:
+        card["external_consent"] = card["key"] in approved
+        card["selected"] = card["key"] in selected
+        card["counts_as_assessed"] = card.get("connector_kind") not in {
+            "metadata", "auth_metadata", "licensed_metadata"
+        }
+        card["available"] = card["counts_as_assessed"] or "user_export" in card.get("ingestion_modes", [])
+    present = {card["key"] for card in cards}
+    for metadata in list_core_source_metadata():
+        if metadata["key"] in present:
+            continue
+        cards.append(
+            {
+                **metadata,
+                "connector_kind": "not_installed",
+                "selected": False,
+                "external_consent": False,
+                "counts_as_assessed": False,
+                "available": False,
+            }
+        )
+    return cards
 
 
 def _build_knowledge_workflow_cards(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2722,9 +2803,12 @@ def index() -> str:
                 key for key in request.form.getlist("knowledge_source") if key in known_keys
             ]
             if not selected_sources:
-                selected_sources = workflow_source_keys or default_workflow_source_keys()
+                selected_sources = workflow_source_keys
             knowledge_sources_state["selected_workflows"] = selected_workflows
             knowledge_sources_state["selected_sources"] = selected_sources
+            knowledge_sources_state["external_consents"] = [
+                key for key in request.form.getlist("external_consent") if key in selected_sources
+            ]
             credential_store = _session_knowledge_credentials()
             for spec in list_source_specs():
                 field_name = f"credential_{spec.key}"
@@ -3101,7 +3185,17 @@ def index() -> str:
                     )
                     selected_sources = list(knowledge_sources_state.get("selected_sources", []))
                     if not selected_sources:
-                        selected_sources = default_workflow_source_keys()
+                        raise AnalysisError("Select at least one vetted evidence source before refreshing evidence.")
+                    imported_sources = set((knowledge_sources_state.get("source_imports") or {}).keys())
+                    approved_sources = set(knowledge_sources_state.get("external_consents", []))
+                    unapproved_sources = [
+                        key for key in selected_sources if key not in approved_sources and key not in imported_sources
+                    ]
+                    if unapproved_sources:
+                        raise AnalysisError(
+                            "Explicit per-source transfer consent is required for: "
+                            + ", ".join(sorted(unapproved_sources))
+                        )
                     selected_workflows = list(knowledge_sources_state.get("selected_workflows", []))
                     if not selected_workflows:
                         selected_workflows = default_workflow_keys()
@@ -3553,78 +3647,36 @@ def index() -> str:
                         dynamic_payload=dynamic_payload,
                         selected_source_keys=list(knowledge_sources_state.get("selected_sources", [])),
                     )
-                    result = {
-                        "report_path": _as_relative_display(analysis_result.report_path),
-                        "methylation_output_path": _as_relative_display(analysis_result.methylation_output_path),
-                        "variant_count": len(analysis_result.variants),
-                        "methylation_count": len(analysis_result.methylation),
-                        "analysis_scope": getattr(analysis_result, "analysis_scope", form["analysis_scope"]),
-                        "analysis_scope_label": getattr(
-                            analysis_result,
-                            "analysis_scope_label",
-                            get_analysis_scope_label(form["analysis_scope"]),
-                        ),
-                        "variant_preview": _render_table(variant_preview, rows=VARIANT_RAW_PAGE_SIZE),
-                        "variant_rows": variant_rows,
-                        "variant_raw_page_size": VARIANT_RAW_PAGE_SIZE,
-                        "methylation_preview": _render_table(methylation_preview),
-                        "popstats_present": analysis_result.popstats is not None,
-                        "population_context_status": _build_population_context_status(
-                            popstats=analysis_result.popstats,
-                            population_database=analysis_result.population_database,
-                            population_insights=analysis_result.population_insights,
-                        ),
-                        "variant_interpretations": analysis_result.variant_interpretations,
-                        "population_insights": analysis_result.population_insights,
-                        "data_sources": data_sources,
-                        "methylation_insights": {
-                            **analysis_result.methylation_insights,
-                            "probe_preview": (
-                                _render_table(
-                                    _prepare_methylation_preview_table(methylation_probe_preview),
-                                    rows=max(len(methylation_probe_preview), 12),
-                                )
-                                if isinstance(methylation_probe_preview, pd.DataFrame)
-                                and not methylation_probe_preview.empty
-                                else None
-                            ),
-                        },
-                        "knowledge_base_name": analysis_result.knowledge_base.get(
-                            "database_name", "Local interpretation database"
-                        ),
-                        "knowledge_base_version": analysis_result.knowledge_base.get("version", "curated"),
-                        "population_database_name": analysis_result.population_database.get(
-                            "database_name", "Local population database"
-                        ),
-                        "population_database_version": analysis_result.population_database.get(
-                            "version", "curated"
-                        ),
-                        "predictive_theses": getattr(analysis_result, "predictive_theses", {}),
-                        "interpretation": getattr(analysis_result, "interpretation", {}),
-                        "general_database_path": (
-                            _as_relative_display(getattr(analysis_result, "general_database_path"))
-                            if getattr(analysis_result, "general_database_path", None)
-                            else ""
-                        ),
-                        "general_database_status": getattr(analysis_result, "general_database_status", ""),
-                        "dynamic_knowledge_base_path": (
-                            _as_relative_display(dynamic_knowledge_base_path)
-                            if dynamic_knowledge_base_path
-                            else ""
-                        ),
-                        "dynamic_knowledge_base_status": getattr(
-                            analysis_result,
-                            "dynamic_knowledge_base_status",
-                            "",
-                        ),
-                    }
+                    result = build_canonical_report(
+                        {
+                            "gene": str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
+                            "genome_build": str(preprocess_state.get("build", "")),
+                            "region": form["region"],
+                            "analysis_scope": form["analysis_scope"],
+                            "variants": analysis_result.variants,
+                            "methylation": analysis_result.methylation,
+                            "population_statistics": analysis_result.popstats,
+                            "knowledge_base": analysis_result.knowledge_base,
+                            "dynamic_knowledge_base": dynamic_payload or {},
+                            "interpretation": getattr(analysis_result, "interpretation", {}),
+                            "source_provenance": {
+                                "vcf": form["vcf"],
+                                "idat": form["idat"],
+                                "manifest": form["manifest_file"],
+                            },
+                            "artifacts": {
+                                "report": _as_relative_display(analysis_result.report_path),
+                                "methylation": _as_relative_display(analysis_result.methylation_output_path),
+                            },
+                        }
+                    )
                 except AnalysisError as exc:
                     analysis_error = str(exc)
 
     preprocess_result = _build_preprocess_result(preprocess_state)
     report_history = discover_report_history()
-    general_database = load_general_analysis_database()
-    processed_gene_symbols = discover_processed_gene_symbols(report_history, general_database)
+    general_database = {"exists": False, "rows": [], "columns": [], "row_count": 0, "path": "retired"}
+    processed_gene_symbols = discover_processed_gene_symbols(report_history, None)
     analysis_scope_options = _build_analysis_scope_options(preprocess_state)
     extraction_scope_options = _build_extraction_scope_options(extraction_state)
     if not preprocess_state.get("knowledge_vcf_source"):
@@ -3636,25 +3688,19 @@ def index() -> str:
     knowledge_source_cards = _build_knowledge_source_cards(knowledge_sources_state)
     knowledge_source_groups = _group_knowledge_source_cards(knowledge_source_cards)
     knowledge_workflow_cards = _build_knowledge_workflow_cards(knowledge_sources_state)
-    available_tabs = [
-        "overview",
-        "preprocessing",
-        "extraction",
-        "knowledge_sources",
-        "central_database",
-        "history",
-        "proteins",
-        "structure",
-    ]
-    if analysis_unlocked:
-        available_tabs.insert(3, "analysis")
-    if result and not result.get("interpretation") and result.get("predictive_theses"):
-        available_tabs.insert(4, "predictive_theses")
-    if initial_tab not in available_tabs:
-        initial_tab = "preprocessing" if "preprocessing" in available_tabs else "overview"
+    task_initial = {
+        "analysis": "results" if result else "run",
+        "history": "history",
+        "knowledge_sources": "settings",
+        "proteins": "data_explorer",
+        "structure": "data_explorer",
+        "overview": "run",
+        "preprocessing": "run",
+        "extraction": "run",
+    }.get(initial_tab, "results" if result else "run")
 
     return render_template(
-        "index.html",
+        "v2/index.html",
         form=form,
         error=analysis_error,
         preprocess_error=preprocess_error,
@@ -3676,7 +3722,7 @@ def index() -> str:
         extraction_reference_status=extraction_reference_status,
         analysis_unlocked=analysis_unlocked,
         result=result,
-        initial_tab=initial_tab,
+        initial_tab=task_initial,
         field_info=_build_field_info(
             form,
             preprocess_state=preprocess_state,
@@ -3700,11 +3746,10 @@ def index() -> str:
         processed_gene_symbols=processed_gene_symbols,
         analysis_scope_options=analysis_scope_options,
         featured_protein_queries=FEATURED_HUMAN_PROTEIN_QUERIES,
-        app_structure_qa_items=_build_app_structure_qa_items(),
     )
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8766, debug: bool = False) -> None:
+def run_server(host: str = "127.0.0.1", port: int = 8766, debug: bool = False) -> None:
     """Start the web server."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)

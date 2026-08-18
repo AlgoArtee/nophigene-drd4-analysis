@@ -14,7 +14,6 @@ BUNDLE_PATH = GENE_DATA_DIR / "gene_data_bundle.zip"
 GENERATED_GENE_DATA_SUFFIXES = (
     "_interpretation_db.json",
     "_population_db.json",
-    "_synthesis.json",
     "_epigenetics_hg19.csv",
 )
 ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)

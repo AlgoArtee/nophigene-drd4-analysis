@@ -1,0 +1,9 @@
+<section class="task-panel{% if initial_tab == 'data_explorer' %} active{% endif %}" data-task-panel="data_explorer"{% if initial_tab != 'data_explorer' %} hidden{% endif %}>
+  <div class="section-heading"><div><span class="eyebrow">Curated reference views</span><h2>Data Explorer</h2></div></div>
+  <div class="run-grid">
+    <article class="card"><h3>Functional-family map</h3><p>The existing keyword-based family view is retained as a discovery tool. It is not an interaction network.</p><a class="button-link" href="{{ url_for('functional_map_page') }}">Open functional map</a></article>
+    <article class="card"><h3>Interaction graph</h3><p>Typed, source-backed gene-to-gene interactions are available inside Results and through <code>/api/v2/runs/&lt;id&gt;/interactions</code>.</p></article>
+    <article class="card"><h3>Human protein catalog</h3><p>Protein, domain, experimental structure, and AlphaFold context remain evidence layers rather than pathogenicity claims.</p><p>{{ featured_protein_queries | length }} featured queries configured.</p></article>
+    <article class="card"><h3>DANDELION dataset catalog</h3><p>Immutable cohort manifests with provenance, context compatibility, file checksums, and storage mode.</p><div data-dandelion-datasets><p class="empty">Loading registered datasets…</p></div></article>
+  </div>
+</section>

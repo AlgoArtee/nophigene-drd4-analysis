@@ -1,0 +1,6 @@
+<section class="task-panel{% if initial_tab == 'history' %} active{% endif %}" data-task-panel="history"{% if initial_tab != 'history' %} hidden{% endif %}>
+  <div class="section-heading"><div><span class="eyebrow">Immutable artifacts</span><h2>History</h2></div><span class="status-pill">{{ report_history | length }} records</span></div>
+  {% if report_history %}<div class="history-list">{% for report in report_history %}<article class="card"><h3>{{ report.name or report.filename or 'Report' }}</h3><p>{{ report.modified_display or '' }}</p>{% if report.url %}<a href="{{ report.url }}" target="_blank" rel="noreferrer">Open artifact</a>{% endif %}</article>{% endfor %}</div>{% else %}<p class="empty">No previous report artifacts were found.</p>{% endif %}
+  <h3>Cohort statistical analyses</h3>
+  <div class="history-list" data-dandelion-history><p class="empty">Loading cohort analyses…</p></div>
+</section>

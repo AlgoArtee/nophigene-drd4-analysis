@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nophigene/app:2.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NOPHIGENE_PORT:-8766}:8766"
+    environment:
+      NOPHIGENE_REQUIRE_ENCRYPTION: "1"
+      NOPHIGENE_DATABASE_PATH: /home/appuser/app/results/v2/nophigene-v2.db
+      NOPHIGENE_DATABASE_KEY_FILE: /run/secrets/nophigene_db_key
+      NOPHIGENE_SESSION_TOKEN_FILE: /run/secrets/nophigene_session_token
+      NOPHIGENE_DANDELION_IMPORT_ROOT: /home/appuser/app/data/dandelion
+      NOPHIGENE_DANDELION_WORK_ROOT: /home/appuser/app/results/dandelion
+      NOPHIGENE_DANDELION_RUNNER_KEY_FILE: /run/secrets/dandelion_runner_key
+      NOPHIGENE_DANDELION_ARTIFACT_KEY_FILE: /run/secrets/dandelion_artifact_key
+    secrets:
+      - nophigene_db_key
+      - nophigene_session_token
+      - dandelion_runner_key
+      - dandelion_artifact_key
+    volumes:
+      - ./data:/home/appuser/app/data:ro
+      - ./results:/home/appuser/app/results
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8766/api/v2/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Deliberately no Docker socket mount. Model execution is isolated from
+    # the browser-facing process and uses allowlisted runner manifests.
+
+  dandelion-worker:
+    build:
+      context: ./docker/dandelion
+      dockerfile: Dockerfile
+    image: nophigene/dandelion-runner:0.1.0
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    environment:
+      NOPHIGENE_DANDELION_IMPORT_ROOT: /imports
+      NOPHIGENE_DANDELION_WORK_ROOT: /work
+      NOPHIGENE_DANDELION_RUNNER_KEY_FILE: /run/secrets/dandelion_runner_key
+      NOPHIGENE_DANDELION_ARTIFACT_KEY_FILE: /run/secrets/dandelion_artifact_key
+      NOPHIGENE_DANDELION_TIMEOUT_SECONDS: "86400"
+    secrets:
+      - dandelion_runner_key
+      - dandelion_artifact_key
+    volumes:
+      - ./data/dandelion:/imports:ro
+      - ./results/dandelion:/work
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The worker has no Docker socket and no network. It accepts only HMAC-
+    # authenticated job manifests and revalidates every registered file hash.
+
+  methylation-worker:
+    profiles: ["methylation"]
+    build:
+      context: ./docker/methylation
+      dockerfile: Dockerfile
+    image: nophigene/methylation-preprocessing:2.0
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+secrets:
+  nophigene_db_key:
+    file: ./.runtime-secrets/database-key
+  nophigene_session_token:
+    file: ./.runtime-secrets/session-token
+  dandelion_runner_key:
+    file: ./.runtime-secrets/dandelion-runner-key
+  dandelion_artifact_key:
+    file: ./.runtime-secrets/dandelion-artifact-key

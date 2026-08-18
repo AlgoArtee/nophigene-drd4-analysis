@@ -1,482 +1,164 @@
-# nophigene
+# NophiGene Version 2
 
-Local-first Gene analysis workbench with an optional Docker path.
+NophiGene is a local, single-user, evidence-first bioinformatics workbench. It keeps measured observations, exploratory statistics, scientific literature, established medical evidence, interaction networks, and computational predictions in separate data types and result sections.
 
-The project now has two supported run modes:
+It is research-use-only and does not provide diagnoses or treatment recommendations.
 
-- local mode: the default and recommended workflow, launched from the repaired `.venv`
-- Docker mode: a slimmer secondary option for reproducible container runs
+## What changed in Version 2
 
-## Why the workflow changed
+- Canonical report schema `3.0` with Summary plus Objective Data, Statistics, Scientific Literature, Medical Information, Interactions, and Predictions.
+- Normalized SQLAlchemy 2 persistence backed by Community SQLCipher in the supported Linux container.
+- Versioned Alembic migrations, encrypted pre-migration backups, seven-daily/four-weekly rotation, and a hash-chained audit log.
+- `/api/v2` for new runs; `/api/v1` remains read-only for legacy jobs and artifacts.
+- Explicit external-provider consent with an exact payload preview and hash confirmation.
+- Typed, progressively expandable one-to-three-hop interaction graphs capped at 150 genes.
+- Independent model manifests and input gates for AlphaGenome, AlphaMissense, EVE/popEVE, AlphaFold DB, Borzoi, Enformer, Sei, DeepSEA, ESM, MethylBERT, Methyl-GP, MethylProphet, Melody, and disease-specific adapters.
+- SeSAMe is the default single-sample EPIC preprocessing contract; minfi/noob remains available for compatible cohort workflows.
+- DANDELION 0.1.0 cohort analysis with immutable dataset manifests, both gene→gene and SNP→gene exposure modes, per-exposure BH-FDR, signed offline R jobs, cancellation, and source-backed statistical interaction hypotheses.
 
-This app is currently a single-process Python web app plus a CLI pipeline:
+The unsupported Predictive Theses system, hard-coded HERC2 eye-colour rules, synthetic cases, active central CSV store, and monolithic legacy result template have been removed. Historical files can be inventoried, imported without synthetic fields, and placed in an encrypted read-only archive.
 
-- [src/webapp.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/webapp.py:1) provides the Flask UI
-- [src/analysis.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/analysis.py:1) contains the reusable analysis workflow
-- [src/app.py](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/src/app.py:1) dispatches to either web or CLI mode
+## Supported runtime
 
-Because the current app does not need multiple services, a database, or orchestration, Docker was adding more local overhead than value. The biggest pain points were:
+The supported production-like runtime is Windows 11 with WSL2 and Docker Desktop. Flask and SQLCipher run in the pinned Linux container and bind only to `127.0.0.1`.
 
-- large build context
-- long image build times
-- heavy scientific dependencies getting pulled into every app build
-- Docker Desktop startup latency for simple local runs
+The Windows launcher retrieves or creates the database key in Windows Credential Manager, creates access-restricted Compose secret files for the container lifetime, generates a one-time browser-session token, and opens the local UI. Secrets are not passed in command-line arguments or environment variables and are removed by the stop launcher.
 
-The repo is now structured so:
-
-- local launch is the default
-- Docker is still available, but slimmer
-- app runtime dependencies are separated from optional research extras
-
-## Dependency layout
-
-The dependency files are now split by purpose:
-
-- [requirements-app.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-app.txt:1)
-  - minimal runtime set for the UI, CLI, and tests
-- [requirements-research.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-research.txt:1)
-  - optional heavier packages for exploratory or future workflows
-- [requirements.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements.txt:1)
-  - convenience alias to the app requirements
-
-At the moment, the app runtime uses:
-
-- `Flask`
-- `pandas`
-- `numpy`
-- `scikit-allel`
-- `methylprep`
-- `requests`
-
-Moved out of the default app runtime:
-
-- `deepchem`
-- `biomart`
-- `matplotlib`
-- `pysam`
-
-Important note:
-
-- `pysam` remains listed as an optional research dependency, but it still does not install cleanly on this Windows setup
-
-## Launchers
-
-### Default local launchers
-
-These are the main “starter icon” files for day-to-day use on Windows:
-
-- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
-- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
-
-They call:
-
-- [scripts/start_nophigene_ui_local.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/start_nophigene_ui_local.ps1:1)
-- [scripts/stop_nophigene_ui_local.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/stop_nophigene_ui_local.ps1:1)
-
-What the local start launcher does:
-
-- checks that `.venv\Scripts\python.exe` exists
-- checks that key app dependencies can be imported
-- creates `data/`, `data/reference/hg38/`, `data/extracted/`, and `results/` if needed
-- starts the UI from the local environment
-- selects an available local port starting at `8766`
-- waits for the server health check to respond on the selected port
-- opens the browser automatically
-- tracks the running process in a local PID file
-- keeps BAM extraction disabled unless you explicitly start the PowerShell launcher with `-EnableLocalExtraction` and local `samtools`/`bcftools` are on PATH
-- supports the Extraction tab's native **Browse BAM File** picker when running locally
-
-What the local stop launcher does:
-
-- stops the tracked local UI process
-- removes the PID file
-- leaves reference files and extracted VCFs in `data/`
-- exits cleanly if nothing is running
-
-### Secondary Docker launchers
-
-These are still available if you want a containerized run:
-
-- [Start NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI%20%28Docker%29.cmd)
-- [Stop NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI%20%28Docker%29.cmd)
-
-They call:
-
-- [scripts/start_nophigene_ui.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/start_nophigene_ui.ps1:1)
-- [scripts/stop_nophigene_ui.ps1](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/scripts/stop_nophigene_ui.ps1:1)
-
-## Local setup
-
-### Recommended Python version
-
-Use Python `3.10`.
-
-The current project `.venv` has already been repaired to point to Python `3.10.11`.
-
-### Install app dependencies
-
-If you need to recreate the local environment from scratch:
+Start:
 
 ```powershell
-py -3.10 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements-app.txt
+.\scripts\start-v2.ps1
 ```
 
-### Install optional research extras
-
-Only do this if you need the non-runtime stack:
+Stop and remove runtime secret files:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-research.txt
+.\scripts\stop-v2.ps1
 ```
 
-## Local-first usage
+The UI is served at [http://127.0.0.1:8766](http://127.0.0.1:8766). The launcher can accept `-Port` and `-NoBrowser`.
 
-### Fastest path
+The start and stop launchers print numbered stages, resolved paths, Compose state, health information, elapsed time, and failure diagnostics without printing secret values. Useful options include `-SkipBuild`, `-StartupTimeoutSeconds`, `-ShutdownTimeoutSeconds`, and `-DryRun`. `Start NophiGene UI.cmd` and `Stop NophiGene UI.cmd` are the only root CMD launchers; retired launcher variants are preserved under `version1/launchers` and are unsupported.
 
-Double-click:
+## Development setup
 
-- [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd)
+Python 3.12 is used by the app image and supported local test environment. Plain SQLite is allowed only for explicit development/tests; the container sets `NOPHIGENE_REQUIRE_ENCRYPTION=1` and fails closed without SQLCipher.
 
-Then open:
-
-- [http://127.0.0.1:8766](http://127.0.0.1:8766)
-
-`8766` is the preferred port. If it is occupied, the launcher selects the next bindable port and prints the actual URL. An explicitly requested port, such as `-Port 9000`, fails immediately when unavailable instead of waiting for the startup timeout. The selected local port is recorded in `.nophigene-ui.port`.
-
-When finished, double-click:
-
-- [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd)
-
-### Manual local launch
-
-You can also run the UI directly:
+Only `.venv-v2` is used. The broken Python 3.10 Version 1 environment was removed; its interpreter metadata and recreation notes are archived under `version1/environment`.
 
 ```powershell
-.\.venv\Scripts\python.exe src\app.py web --host 127.0.0.1 --port 8766
+py -3.12 -m venv .venv-v2
+.\.venv-v2\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-v2\Scripts\python.exe -m pip install -r requirements-app.txt
+.\.venv-v2\Scripts\python.exe -m pytest -q tests\test_workbench_v2.py
 ```
 
-Or run the CLI path:
+Run a plaintext local development server only when working with non-sensitive fixtures:
 
 ```powershell
-.\.venv\Scripts\python.exe src\app.py cli --vcf data/drd4.vcf.gz --idat data/202277800037_R01C01 --out results/drd4_report.html
+.\.venv-v2\Scripts\python.exe src\app.py web --host 127.0.0.1 --port 8766
 ```
 
-## Expected input layout
+## API
 
-The UI and CLI both assume a local project structure like this:
+- API index: [http://127.0.0.1:8766/api/v2](http://127.0.0.1:8766/api/v2)
+- OpenAPI: [http://127.0.0.1:8766/api/v2/openapi.json](http://127.0.0.1:8766/api/v2/openapi.json)
+- Health: [http://127.0.0.1:8766/api/v2/health](http://127.0.0.1:8766/api/v2/health)
 
-```text
-data/
-  drd4.vcf.gz
-  202277800037_R01C01_Grn.idat
-  202277800037_R01C01_Red.idat
-results/
-```
+`POST /api/v2/runs` accepts one gene in the UI and at most 100 unique genes through the API. A reusable sample profile is required for processing operations.
 
-Important:
-
-- the IDAT argument or form field uses the shared prefix only
-- example: `data/202277800037_R01C01`
-
-## GRCh38 BAM extraction
-
-The UI includes an **Extraction** tab for BAM-to-VCF prep before running analysis. This path is Docker-only by default because it requires command-line genomics tools:
-
-- `samtools`
-- `bcftools`
-
-The Extraction tab can:
-
-- prepare the UCSC hg38 analysis-set reference under `data/reference/hg38/`
-- download `hg38.analysisSet.fa.gz`
-- verify it against UCSC `md5sum.txt`
-- decompress it to `hg38.analysisSet.fa`
-- create `hg38.analysisSet.fa.fai`
-- search a selected folder tree for `.bam` files and add matching paths to the BAM picker
-- open a native **Browse BAM File** picker in local mode; Docker mode cannot open host file windows from inside the container
-- call a regional VCF from a GRCh38/hg38 BAM into `data/extracted/`
-- populate the Run Analysis VCF field with the extracted file
-
-Inputs expected for extraction:
-
-- a coordinate-sorted BAM under `data/`
-- a BAM index, or permission for the app to create one with `samtools index`
-- a BAM aligned to GRCh38/hg38, not hg19
-
-The extractor resolves contig naming automatically for common aliases such as `15` versus `chr15`, and `MT` versus `chrM`.
-
-When preprocessing resolves a gene whose bundled knowledge base is hg38-only, the UI shows a GRCh38 extraction suggestion and pre-fills the Extraction tab for that gene.
-
-For BAM extraction, prefer the Docker launcher so the required tools are present:
-
-```powershell
-.\Start NophiGene UI (Docker).cmd
-```
-
-You can also start the same Docker/samtools/bcftools runtime through the local starter by passing `-UseDocker`:
-
-```powershell
-.\Start NophiGene UI.cmd -UseDocker
-```
-
-If you have `samtools` and `bcftools` installed locally and want to opt into local extraction explicitly:
-
-```powershell
-.\Start NophiGene UI.cmd -EnableLocalExtraction
-```
-
-## What the UI writes
-
-Each run creates:
-
-- a report file at the path you choose
-- a companion methylation CSV beside the report
-
-Example:
-
-- requested report: `results/drd4_report.html`
-- generated methylation file: `results/drd4_report_methylation.csv`
-
-## Local REST API
-
-The Flask process also serves a versioned local API:
-
-- [http://127.0.0.1:8766/api/v1](http://127.0.0.1:8766/api/v1)
-- OpenAPI: [http://127.0.0.1:8766/api/v1/openapi.json](http://127.0.0.1:8766/api/v1/openapi.json)
-- Health: [http://127.0.0.1:8766/api/v1/health](http://127.0.0.1:8766/api/v1/health)
-
-Version 1 is intended for trusted local use. It references local filesystem paths and does not provide authentication or uploads.
-
-### Create a sample profile
-
-Profiles persist under `data/api/sample_profiles.json`. They describe one reusable IDAT pair, one full methylation manifest, and assembly-labelled VCF or BAM sources.
-
-```powershell
-curl.exe -X POST http://127.0.0.1:8766/api/v1/profiles `
-  -H "Content-Type: application/json" `
-  --data-binary '@profile.json'
-```
-
-Example `profile.json`:
+Example request:
 
 ```json
 {
-  "id": "sample-202277800037",
-  "display_name": "Sample 202277800037",
-  "default_genome_build": "hg19",
-  "idat_prefix": "data/202277800037_R01C01",
-  "manifest_path": "data/infinium-methylationepic-v-1-0-b5-manifest-file.csv",
-  "population_statistics_path": "",
-  "vcf_sources": [
-    {
-      "path": "data/GFXC926398.filtered.snp.vcf.gz",
-      "genome_build": "hg19"
-    }
-  ],
-  "bam_sources": [
-    {
-      "path": "data/sample_hg38.bam",
-      "genome_build": "hg38"
-    }
-  ],
+  "genes": ["DRD4"],
+  "profile_id": "sample-profile-id",
+  "genome_build": "hg38",
   "sample_context": {
-    "tissue": "whole blood",
-    "ancestry": "European",
-    "batch_id": "EPIC-run-2026-07",
-    "cell_composition_method": "reference-based",
-    "methylation_reference_cohort_id": "blood-reference-v1",
-    "phenotype_terms": ["HP:0000001"]
-  }
+    "tissue": "blood",
+    "platform": "Illumina EPIC",
+    "normalization": "SeSAMe",
+    "ancestry": "not declared",
+    "phenotype_terms": []
+  },
+  "source_set": [],
+  "models": []
 }
 ```
 
-`sample_context` is optional, but clinical-support eligibility uses it to show
-which prerequisites are missing. It never converts a missing field into a
-negative result.
+External evidence refresh is a two-step operation:
 
-For a non-hg38 BAM source, include a matching `reference_fasta` in that source object. The built-in hg38 extraction path uses `data/reference/hg38/hg38.analysisSet.fa`.
+1. Read `/api/v2/runs/{id}/evidence/payload-preview?sources=pubmed,clinvar`.
+2. Submit the returned `payload_sha256`, selected sources, and per-source consent to `/api/v2/runs/{id}/evidence/refresh`.
 
-### Submit a full workflow
+Imported licensed evidence does not require external-transfer consent. A linkout or unavailable adapter never counts as an assessed source.
 
-Jobs accept one gene or up to 100 unique genes. Symbols are normalized to uppercase and duplicate names are removed.
+## Scientific safeguards
 
-```powershell
-curl.exe -X POST http://127.0.0.1:8766/api/v1/jobs `
-  -H "Content-Type: application/json" `
-  -d '{
-    "operation": "full_workflow",
-    "profile_id": "sample-202277800037",
-    "genes": ["DRD4", "HERC2", "POTEB3"],
-    "analysis_scope": "promoter_plus_gene",
-    "genome_build": "auto",
-    "options": {
-      "update_general_database": false,
-      "overwrite_general_database": false,
-      "interpretation_mode": "dual",
-      "use_dynamic_knowledge_base": true
-    }
-  }'
-```
+- Primary variant rows require PASS plus GQ ≥20 and DP ≥10 when those fields exist. Missing QC values are retained and reported rather than invented.
+- Multi-allelic alleles must be split and normalized; native GRCh37 and GRCh38 identities remain distinct.
+- Ambiguous liftover, invalid REF mapping, or incomplete chain/tool provenance blocks the affected adapter.
+- Methylation beta values are displayed for interpretation. Compatible tests can use M-values.
+- Single-sample comparisons require at least 30 raw values from an exactly compatible tissue/platform/normalization/build reference cohort.
+- Public and user cohorts are never silently pooled. Raw p-values, effects, uncertainty, and within-family BH q-values remain separate.
+- Medical records require an authoritative clinical source and release/effective date. GWAS, trials, preprints, case reports, and adverse-event signals stay in Literature.
+- PGx diplotypes resolve only when every defining locus is QC-covered and exactly one solution remains; otherwise phenotype is not assessed.
+- Model outputs remain independent. No NophiGene consensus score is calculated.
 
-The response is `202 Accepted` with a job ID. Poll it and fetch the final result:
+## Models and workers
 
-```powershell
-curl.exe http://127.0.0.1:8766/api/v1/jobs/JOB_ID
-curl.exe http://127.0.0.1:8766/api/v1/jobs/JOB_ID/result
-curl.exe -o artifacts.zip http://127.0.0.1:8766/api/v1/jobs/JOB_ID/artifacts/artifacts.zip
-```
+Model manifests are allowlisted and checksummed. A definition implements the `inspect_inputs`, `estimate_resources`, `prepare`, `execute`, `normalize`, and `validate` contract. The browser-facing container cannot install or launch model containers.
 
-Each successful gene in a full workflow produces:
+Installation confirmation returns a signed-runner requirement; a privilege-separated runner must validate assets, licenses, hashes, disk, VRAM, and container digests. Local model containers must run without network access after asset installation. GPU models remain unavailable until WSL2/NVIDIA preflight succeeds.
 
-```text
-results/api/jobs/JOB_ID/genes/GENE/
-  report.html
-  report.json
-  report_summary.csv
-  variants.csv
-  methylation.csv
-  analysis.json
-  manifest.csv
-  region.json
-```
+Wave status:
 
-`report.json` is the canonical machine-readable report. It includes its schema version, region and source provenance, interpreted variants, methylation insights, population context, predictive theses, warnings, and artifact links.
+- Wave 1: API/precomputed/structure manifests and normalized job/result contracts.
+- Wave 2: offline GPU-container contracts for regulatory and ESM models; assets and adapters must be installed explicitly.
+- Wave 3: input-gated experimental methylation adapters. MethylBERT requires Bismark BAM/SAM with XM tags; MethylProphet requires matched expression; Methyl-GP is blocked for ordinary human EPIC 5mC; Melody is blocked pending a verified official release.
 
-Schema-v2 reports add an evidence-calibrated interpretation payload with one
-record per observed ALT allele, independent call-QC/evidence/applicability
-assessments, an immutable evidence snapshot, and clinical-support downgrade
-blockers. The `build_knowledge_bases` operation is the explicit evidence
-refresh path; pass its `evidence_snapshot_id` with a compatible `source_job_id`
-to reuse that exact snapshot. Raw methylation means and DRD4 candidate-gene
-markers are never used as individual phenotype forecasts. A DRD4 VNTR or
-promoter duplication is reported as `not_assessed` unless a dedicated repeat/SV
-assay is supplied.
+The R methylation worker is under `docker/methylation`. It has no network at execution time and writes `measurements.csv` plus `qc.json`; failed and flagged probes remain available outside primary results.
 
-### Independent operations
+### DANDELION cohort statistics
 
-The supported `operation` values are:
+DANDELION is integrated as a statistical method, not as an AI model. Put cohort files below `data/dandelion`, register a JSON manifest in Run, and then queue an offline analysis. Registration validates CSV/TSV headers (RDS is validated by the worker), records structured phenotype/build/namespace/context, and hashes every input without copying it. The optional “managed copy” action creates a separate immutable dataset backed by AES-256 encrypted archives using a key distinct from the SQLCipher and runner-signing keys.
 
-- `resolve_regions`
-- `prepare_manifests`
-- `extract_variants`
-- `analyze`
-- `render_reports`
-- `full_workflow`
+The `dandelion-worker` uses pinned R 4.6.1 and DANDELION 0.1.0. It has no network, no Docker socket, no elevated capabilities, and accepts only HMAC-signed manifests. It executes one CPU job at a time, streams delimited exposure columns in configurable chunks, validates p-values, preserves raw RDS results, and checks that package significance calls equal Benjamini–Hochberg q-values for the same exposure family. See [docs/DANDELION.md](docs/DANDELION.md) for the file contract and API examples.
 
-`analyze` may reuse regions and extracted VCFs from a completed `source_job_id`. `render_reports` requires a completed analysis source job. A batch continues when one gene fails and finishes with `partial` status when it contains both successes and failures.
+DANDELION results populate Statistics and typed directed Interactions. Objective Data is not applicable for this cohort workflow; Literature and Medical remain not assessed; Predictions remains not requested. No result is presented as causal or medically established.
 
-Only queued jobs can be cancelled:
+## Database and migrations
+
+Initialize a development database:
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:8766/api/v1/jobs/JOB_ID/cancel
+.\.venv-v2\Scripts\python.exe src\app.py db init
 ```
 
-Queued jobs and completed results survive app restarts. A job interrupted while running is marked failed with the `interrupted` error code.
+The container entrypoint creates an encrypted backup before `alembic upgrade head`. It creates daily backups and a weekly backup on Sundays, then rotates to seven daily and four weekly archives.
 
-## Genotype-aware variant interpretation
-
-The variant layer decodes sample-level VCF `GT` before making any phenotype-oriented statement. `REF` and `ALT` are kept as the site definition, while the sample genotype is reported separately as decoded alleles, zygosity, ALT dosage, call-quality flags, and confidence.
-
-See [docs/genotype-aware-variant-analysis.md](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/docs/genotype-aware-variant-analysis.md:1) for the design note explaining why `GT` is authoritative, why `INFO/AF`, `INFO/AC`, and `INFO/AN` are not substitutes for sample genotype, and why phenotype predictions use dosage plus QC uncertainty.
-
-## Docker is now secondary
-
-Docker still works, but it is no longer the recommended local default.
-
-### What changed to make Docker lighter
-
-- the image now installs from [requirements-app.txt](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/requirements-app.txt:1) instead of the full research stack
-- the runtime image installs `samtools` and `bcftools` for the Docker-only Extraction tab
-- [Dockerfile](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Dockerfile:1) now copies only `src/` and the app requirements into the image
-- [.dockerignore](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.dockerignore:1) now excludes:
-  - `data/`
-  - `results/`
-  - `.venv/`
-  - `.docker-local/`
-  - `.pytest_cache/`
-  - notebooks, tests, and launcher scripts
-
-That should materially reduce Docker build context size and image churn.
-
-### Build the Docker image manually
-
-```bash
-docker build -t nophigene:latest .
-```
-
-### Run Docker manually
-
-```bash
-docker run --rm -it \
-  -p 8766:8766 \
-  -e NOPHIGENE_IN_DOCKER=1 \
-  -v "${PWD}/data":/home/appuser/app/data \
-  -v "${PWD}/results":/home/appuser/app/results \
-  nophigene:latest
-```
-
-Then open:
-
-- [http://127.0.0.1:8766](http://127.0.0.1:8766)
-
-### Use the Docker launcher
-
-If you still want the automated Docker flow, double-click:
-
-- [Start NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI%20%28Docker%29.cmd)
-
-When done, use:
-
-- [Stop NophiGene UI (Docker).cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI%20%28Docker%29.cmd)
-
-## VS Code
-
-VS Code is now aligned with the local-first setup:
-
-- [settings.json](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.vscode/settings.json:1) points to `.venv\Scripts\python.exe`
-- [launch.json](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/.vscode/launch.json:1) includes:
-  - a local UI launch config
-  - a CLI launch config
-
-## Troubleshooting
-
-### Double-clicking the local launcher says dependencies are missing
-
-Reinstall the app runtime:
+Useful database commands:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-app.txt
+.\.venv-v2\Scripts\python.exe src\app.py db inventory
+.\.venv-v2\Scripts\python.exe src\app.py db migrate-legacy
+.\.venv-v2\Scripts\python.exe src\app.py db migrate-legacy --apply
+.\.venv-v2\Scripts\python.exe src\app.py db verify-migration
+.\.venv-v2\Scripts\python.exe src\app.py db verify-audit
+.\.venv-v2\Scripts\python.exe src\app.py db archive-legacy --apply --password-file .\path\to\password.txt
 ```
 
-### The browser does not open automatically
+Legacy import is dry-run-first. Synthetic synthesis fields are excluded. The encrypted archive contains a manifest and originals; the originals are not deleted automatically.
 
-Open:
+## Repository layout
 
-- [http://127.0.0.1:8766](http://127.0.0.1:8766)
+- `src/workbench/`: normalized schema, persistence, reports, statistics, evidence gates, graphs, models, PGx, audit, backups, exports, and migration.
+- `src/api/v2_routes.py`: Version 2 API and data-disclosure gates.
+- `src/templates/v2/` and `src/static/`: task-based UI and vendored runtime assets.
+- `migrations/`: Alembic environment and schema revision.
+- `docker/methylation/`: offline SeSAMe/minfi preprocessing worker.
+- `docker/dandelion/`: offline signed DANDELION R worker and JSON contract.
+- `tests/test_workbench_v2.py`: Version 2 scientific/security acceptance tests.
+- `version1/`: retired Version 1 launchers, template, predictive generator, notes, exploratory material, environment metadata, and local loose-store archive.
 
-### The local server failed to start
-
-Check the local launcher logs in the repo root:
-
-- `.nophigene-ui.log`
-- `.nophigene-ui.err.log`
-
-### Docker is still slow
-
-That is now expected to be less severe than before, but local `.venv` launch is still the recommended path for iterative work.
-
-### `pysam` still fails on Windows
-
-That package remains optional and is not required for the current UI or CLI path.
-
-## Recommended workflow now
-
-For daily use:
-
-1. Put your input files in `data/`.
-2. Double-click [Start NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Start%20NophiGene%20UI.cmd).
-3. Run the analysis from the browser.
-4. Open outputs from `results/`.
-5. Double-click [Stop NophiGene UI.cmd](/C:/Users/Mewxy/Desktop/YouTopy/NophiGene/nophigene-drd4-analysis/Stop%20NophiGene%20UI.cmd) when finished.
+Large inputs are never silently copied. Input paths and checksums are stored; managed encrypted copies are always an explicit user action.

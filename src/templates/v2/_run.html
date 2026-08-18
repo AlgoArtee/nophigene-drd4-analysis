@@ -1,0 +1,91 @@
+<section class="task-panel{% if initial_tab == 'run' %} active{% endif %}" data-task-panel="run"{% if initial_tab != 'run' %} hidden{% endif %}>
+  <div class="section-heading">
+    <div><span class="eyebrow">Input and preprocessing</span><h2>Run an analysis</h2></div>
+    <span class="status-pill {{ 'ready' if analysis_unlocked else '' }}">{{ 'Ready' if analysis_unlocked else 'Preparation required' }}</span>
+  </div>
+  {% if preprocess_error %}<div class="message error">{{ preprocess_error }}</div>{% endif %}
+  {% if preprocess_notice %}<div class="message success">{{ preprocess_notice }}</div>{% endif %}
+  {% if extraction_error %}<div class="message error">{{ extraction_error }}</div>{% endif %}
+
+  <div class="run-grid">
+    <article class="card">
+      <span class="step">1</span><h3>Resolve the gene and EPIC probes</h3>
+      <form method="post">
+        <input type="hidden" name="workflow" value="preprocess">
+        <label>Gene symbol<input name="gene_name" value="{{ preprocess_state.gene_name or 'DRD4' }}" required></label>
+        <label>Resolved region<input name="preprocess_region" value="{{ preprocess_state.region }}" placeholder="chromosome:start-end"></label>
+        <label>Manifest
+          <select name="manifest_source">
+            <option value="">Select a manifest</option>
+            {% for path in manifest_files %}<option value="{{ path }}"{% if path == preprocess_state.manifest_source %} selected{% endif %}>{{ path }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Variant source for optional evidence refresh
+          <select name="knowledge_vcf_source">
+            <option value="">Select a VCF</option>
+            {% for path in vcf_files %}<option value="{{ path }}"{% if path == preprocess_state.knowledge_vcf_source %} selected{% endif %}>{{ path }}</option>{% endfor %}
+          </select>
+        </label>
+        <div class="actions">
+          <button name="preprocess_action" value="find_region">Resolve coordinates</button>
+          <button name="preprocess_action" value="select_methylation" class="secondary">Prepare probes</button>
+          <button name="preprocess_action" value="reset_preprocessing" class="quiet">Reset</button>
+        </div>
+      </form>
+      <dl class="compact-list"><div><dt>Build</dt><dd>{{ preprocess_state.build or 'not resolved' }}</dd></div><div><dt>Probe count</dt><dd>{{ preprocess_state.probe_count or 0 }}</dd></div></dl>
+    </article>
+
+    <article class="card">
+      <span class="step">2</span><h3>Process the sample</h3>
+      <form method="post">
+        <input type="hidden" name="workflow" value="analysis">
+        <label>VCF
+          <select name="vcf" required><option value="">Select a VCF</option>{% for path in vcf_files %}<option value="{{ path }}"{% if path == form.vcf %} selected{% endif %}>{{ path }}</option>{% endfor %}</select>
+        </label>
+        <label>IDAT prefix
+          <select name="idat" required><option value="">Select an IDAT pair</option>{% for path in idat_prefixes %}<option value="{{ path }}"{% if path == form.idat %} selected{% endif %}>{{ path }}</option>{% endfor %}</select>
+        </label>
+        <label>Prepared manifest<input name="manifest_file" value="{{ form.manifest_file }}" required></label>
+        <label>Region<input name="region" value="{{ form.region }}" required></label>
+        <label>Analysis focus
+          <select name="analysis_scope">{% for item in analysis_scope_options %}<option value="{{ item.key }}"{% if item.selected == 'true' %} selected{% endif %}>{{ item.label }}</option>{% endfor %}</select>
+        </label>
+        <label>Optional matched population/reference file<input name="popstats" value="{{ form.popstats }}"></label>
+        <label>Output report<input name="out" value="{{ form.out }}" required></label>
+        <button type="submit"{% if not analysis_unlocked %} disabled{% endif %}>Run evidence-first analysis</button>
+      </form>
+      <p class="help">Primary variant QC uses PASS and GQ≥20/DP≥10 when those fields are present. Flagged probes are retained but excluded from primary results.</p>
+    </article>
+  </div>
+  <div class="section-heading cohort-heading">
+    <div><span class="eyebrow">Cohort statistics</span><h2>DANDELION disease-gene prioritisation</h2><p>Run gene→gene or SNP→gene trans-regulatory analyses in the offline R worker.</p></div>
+    <span class="status-pill" data-dandelion-status>Checking worker…</span>
+  </div>
+  <div class="message warning">DANDELION output is hypothesis-generating cohort evidence. It is shown under Statistics and Interactions, never Medical or Predictions.</div>
+  <div class="run-grid" data-dandelion-workflow>
+    <article class="card">
+      <span class="step">1</span><h3>Register an immutable dataset</h3>
+      <form data-dandelion-dataset-form>
+        <label>Dataset manifest JSON
+          <textarea name="manifest" rows="14" spellcheck="false" placeholder='{"name":"Cohort","phenotype":"EFO:...","exposure_type":"Gene","assembly":"GRCh38","gene_namespace":"HGNC symbol","context":{"tissue":"blood","ancestry":"..."},"files":{"trans_matrix":{"path":"cohort/trans.tsv","mapping":{"row_id":"gene"}},"gene_association":{"path":"cohort/burden.tsv"},"gene_annotation":{"path":"cohort/genes.tsv"}}}' required></textarea>
+        </label>
+        <button type="submit">Validate and register dataset</button>
+      </form>
+      <p class="help">Paths are relative to <code>data/dandelion</code>. Registration stores paths, sizes, mappings, and SHA-256 hashes; it does not copy source files.</p>
+      <p class="message" data-dandelion-dataset-message hidden aria-live="polite"></p>
+    </article>
+    <article class="card">
+      <span class="step">2</span><h3>Queue the statistical analysis</h3>
+      <form data-dandelion-analysis-form>
+        <label>Registered dataset<select name="dataset_id" data-dandelion-dataset-select required><option value="">No dataset registered</option></select></label>
+        <label>Target FDR<input name="target_fdr" type="number" min="0.001" max="1" step="0.001" value="0.1" required></label>
+        <label>Cis exclusion window (bp)<input name="cis_window_bp" type="number" min="0" max="100000000" step="1000" value="5000000" required></label>
+        <label>Gene-association display threshold<input name="gene_association_threshold" type="number" min="0.000000001" max="1" step="0.000001" value="0.00001" required></label>
+        <label>Exposure chunk size<input name="chunk_size" type="number" min="10" max="10000" value="250" required></label>
+        <button type="submit">Queue offline DANDELION analysis</button>
+      </form>
+      <div data-dandelion-analysis-message class="message" hidden aria-live="polite"></div>
+    </article>
+  </div>
+  {% if analysis_error %}<div class="message error">{{ analysis_error }}</div>{% endif %}
+</section>

@@ -10,13 +10,11 @@ from src.analysis import (
     GENERAL_ANALYSIS_DATABASE_COLUMNS,
     build_methylation_insights,
     build_population_insights,
-    build_predictive_theses,
     build_variant_interpretations,
     generate_report,
     load_gene_interpretation_database,
     load_interpretation_database,
     load_population_database,
-    load_synthesis_database,
     update_general_analysis_database,
 )
 
@@ -334,89 +332,6 @@ def test_population_insights_flag_observed_curated_variant() -> None:
     assert insights["location_groups"]
 
 
-def test_generate_report_includes_variant_and_methylation_interpretation_sections(tmp_path) -> None:
-    """HTML reports should include the richer interpretation/data sections now shown in the UI."""
-    knowledge_base = load_interpretation_database()
-    population_database = load_population_database()
-
-    variants = pd.DataFrame(
-        [
-            {
-                "chrom": "11",
-                "id": None,
-                "pos": 636784,
-                "ref": "C",
-                "alt": "T",
-                "gt_raw": "0/1",
-                "ad": [9, 8],
-                "dp": 17,
-                "gq": 44,
-                "qual": 51.2,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            }
-        ]
-    )
-    methylation = pd.DataFrame(
-        [
-            {
-                "probe_id": "cg11335335",
-                "beta": 0.72,
-                "chrom": "11",
-                "pos": 637050,
-                "GencodeBasicV12_NAME": "DRD4",
-                "UCSC_RefGene_Group": "Body",
-                "Relation_to_UCSC_CpG_Island": "Island",
-                "UCSC_CpG_Islands_Name": "DRD4_CGI",
-            }
-        ]
-    )
-
-    variant_interpretations = build_variant_interpretations(
-        variants,
-        knowledge_base,
-        region="11:636269-640706",
-    )
-    methylation_insights = build_methylation_insights(methylation, knowledge_base)
-    population_insights = build_population_insights(variants, knowledge_base, population_database)
-    predictive_theses = build_predictive_theses(
-        variant_interpretations=variant_interpretations,
-        methylation_insights=methylation_insights,
-        knowledge_base=knowledge_base,
-        synthesis_database=load_synthesis_database(),
-    )
-
-    report_path = generate_report(
-        variants,
-        methylation,
-        None,
-        str(tmp_path / "report.html"),
-        gene_name="DRD4",
-        region="11:636269-640706",
-        methylation_output_path=tmp_path / "report_methylation.csv",
-        variant_interpretations=variant_interpretations,
-        methylation_insights=methylation_insights,
-        population_insights=population_insights,
-        predictive_theses=predictive_theses,
-    )
-
-    report_html = report_path.read_text(encoding="utf-8")
-    assert "Genetic Variant Results" in report_html
-    assert "Sample Results" in report_html
-    assert "Matched Variant Interpretations" in report_html
-    assert "Predictive Theses" in report_html
-    assert "Report focus:</strong> Promoter + gene" in report_html
-    assert "Variant Prediction" in report_html
-    assert "Methylation Prediction" in report_html
-    assert "Synthesis" in report_html
-    assert "GT-confirmed allele-dosage thesis" in report_html
-    assert "report-table-shell" in report_html
-    assert "table-layout: fixed" in report_html
-    assert "width: min(98vw, 1800px)" in report_html
-    assert "Methylation Summary Metrics" in report_html
-    assert "Methylation Raw Results" in report_html
-
-
 def test_generate_report_includes_dynamic_workflow_summaries(tmp_path) -> None:
     dynamic_kb_path = tmp_path / "variant_kb.json"
     dynamic_kb_path.write_text(
@@ -491,16 +406,17 @@ def test_generate_report_includes_dynamic_workflow_summaries(tmp_path) -> None:
     )
 
     html_text = html_report.read_text(encoding="utf-8")
-    assert "Dynamic Workflow Summary" in html_text
+    assert "Scientific Literature" in html_text
     assert "Clinical Variant Triage" in html_text
     assert "needs_export" in html_text
-    assert "Local Article Evidence" in html_text
     assert "GENE1 local article" in html_text
     assert "GENE1 knockdown changed pathway activity" in html_text
     json_payload = json.loads(json_report.read_text(encoding="utf-8"))
-    assert json_payload["dynamic_knowledge_base"]["workflow_runs"][0]["workflow_key"] == "clinical_variant_triage"
-    assert json_payload["dynamic_knowledge_base"]["workflow_source_matrix"]["hgmd"] == ["clinical_variant_triage"]
-    assert json_payload["dynamic_knowledge_base"]["local_article_evidence"]["records"][0]["source_key"] == "local_pdf_articles"
+    dynamic_details = json_payload["run_details"]["dynamic_knowledge_base"]
+    assert dynamic_details["workflow_runs"][0]["workflow_key"] == "clinical_variant_triage"
+    assert dynamic_details["workflow_source_matrix"]["hgmd"] == ["clinical_variant_triage"]
+    assert dynamic_details["local_article_evidence"]["records"][0]["source_key"] == "local_pdf_articles"
+    assert json_payload["sections"]["literature"]["candidate_index"][0]["title"] == "GENE1 local article"
 
 
 def test_general_analysis_database_adds_once_and_overwrites_variant_rows(tmp_path) -> None:

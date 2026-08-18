@@ -9,12 +9,16 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 from flask import Flask
+from sqlalchemy.orm import Session
 
 from src.api.jobs import JobManager
 from src.api.profiles import ProfileStore
 from src.api.routes import api_v1
+from src.api.v2_routes import api_v2
 from src.api.serialization import write_json_atomic
 from src.api.workflow_runner import WorkflowRunner, normalize_job_request
+from src.workbench.database import create_database_engine, ensure_schema
+from src.workbench.models import Run
 from src.workflow import select_profile_variant_source
 
 
@@ -66,143 +70,67 @@ def _test_app(profile_store: ProfileStore, manager: JobManager) -> Flask:
     return app
 
 
-def test_knowledge_source_endpoints_support_single_and_batch_tests(tmp_path: Path) -> None:
+def test_v1_keeps_read_endpoints_and_freezes_mutations(tmp_path: Path) -> None:
     store = ProfileStore(tmp_path / "profiles.json")
     manager = JobManager(jobs_root=tmp_path / "jobs", profile_store=store)
     client = _test_app(store, manager).test_client()
 
     listing = client.get("/api/v1/knowledge-sources")
     assert listing.status_code == 200
-    listing_payload = listing.get_json()
-    assert listing_payload["count"] >= 1
-    assert any(card["selected"] for card in listing_payload["sources"])
-    assert not all(card["selected"] for card in listing_payload["sources"])
-    assert next(card for card in listing_payload["sources"] if card["key"] == "clinvar")["selected"] is True
-    medgen_card = next(card for card in listing_payload["sources"] if card["key"] == "medgen")
-    assert medgen_card["selected"] is True
-    assert medgen_card["access_type"] == "open_api"
-    assert medgen_card["ingestion_modes"] == ["official_api", "linkout_only"]
-    assert next(card for card in listing_payload["sources"] if card["key"] == "foodb")["selected"] is False
-    hgmd_card = next(card for card in listing_payload["sources"] if card["key"] == "hgmd")
-    assert hgmd_card["ingestion_modes"] == ["user_export", "linkout_only"]
-    assert hgmd_card["requires_export"] is True
-    assert "variant" in hgmd_card["import_schema"]
+    assert listing.get_json()["count"] >= 1
+    assert client.get("/api/v1/knowledge-workflows").status_code == 200
 
-    single = client.post("/api/v1/knowledge-sources/test", json={"source_key": "clinvar"})
-    assert single.status_code == 200
-    single_payload = single.get_json()
-    assert single_payload["key"] == "clinvar"
-    assert single_payload["status"] == "queryable"
-
-    batch = client.post(
-        "/api/v1/knowledge-sources/test",
-        json={"sources": ["clinvar", "omim", "hgmd"]},
-    )
-    assert batch.status_code == 200
-    statuses = {item["key"]: item["status"] for item in batch.get_json()["results"]}
-    assert statuses == {
-        "clinvar": "queryable",
-        "omim": "needs_credentials",
-        "hgmd": "needs_export",
-    }
-
-    hgmd_export = tmp_path / "hgmd.csv"
-    hgmd_export.write_text("gene,rsid,classification\nGENE1,rs1,Pathogenic\n", encoding="utf-8")
-    import_ready = client.post(
-        "/api/v1/knowledge-sources/test",
-        json={"sources": ["hgmd"], "source_imports": {"hgmd": str(hgmd_export)}},
-    )
-    assert import_ready.status_code == 200
-    import_payload = import_ready.get_json()["results"][0]
-    assert import_payload["status"] == "import_ready"
-    assert import_payload["readiness"]["user_export"] == "ready"
-
-    workflows = client.get("/api/v1/knowledge-workflows")
-    assert workflows.status_code == 200
-    workflow_payload = workflows.get_json()
-    assert workflow_payload["count"] >= 7
-    workflow_cards = {card["key"]: card for card in workflow_payload["workflows"]}
-    assert workflow_cards["clinical_variant_triage"]["selected"] is True
-    assert workflow_cards["licensed_aggregator_review"]["selected"] is False
-    assert "clinvar" in workflow_cards["clinical_variant_triage"]["ordered_source_keys"]
-    assert "medgen" in workflow_cards["clinical_variant_triage"]["ordered_source_keys"]
+    for endpoint, payload in (
+        ("/api/v1/knowledge-sources/test", {"source_key": "clinvar"}),
+        ("/api/v1/profiles", {"id": "sample-one"}),
+        ("/api/v1/jobs", {"operation": "resolve_regions", "genes": ["DRD4"]}),
+    ):
+        response = client.post(endpoint, json=payload)
+        assert response.status_code == 410
+        body = response.get_json()
+        assert body["error"]["code"] == "api_v1_read_only"
+        assert body["error"]["details"]["replacement"] == "/api/v2"
 
 
-def test_profile_crud_validates_files_and_keeps_id_immutable(tmp_path: Path) -> None:
-    files = _profile_files(tmp_path)
+def test_v2_exposes_schema_three_and_enforces_batch_limit(tmp_path: Path) -> None:
     store = ProfileStore(tmp_path / "profiles.json")
     manager = JobManager(jobs_root=tmp_path / "jobs", profile_store=store)
-    client = _test_app(store, manager).test_client()
-
-    payload = _profile_payload(files)
-    payload["sample_context"] = {
-        "tissue": "whole blood",
-        "ancestry": "European",
-        "phenotype_terms": ["HP:0000001"],
-    }
-    create = client.post("/api/v1/profiles", json=payload)
-    assert create.status_code == 201
-    profile = create.get_json()
-    assert profile["id"] == "sample-one"
-    assert Path(profile["idat_prefix"]).is_absolute()
-    assert profile["sample_context"]["tissue"] == "whole blood"
-    assert profile["sample_context"]["phenotype_terms"] == ["HP:0000001"]
-
-    listing = client.get("/api/v1/profiles").get_json()
-    assert listing["count"] == 1
-
-    changed = _profile_payload(files)
-    changed["id"] = "different"
-    immutable = client.put("/api/v1/profiles/sample-one", json=changed)
-    assert immutable.status_code == 409
-    assert immutable.get_json()["error"]["code"] == "immutable_profile_id"
-
-    missing = _profile_payload(files, profile_id="missing-file")
-    missing["manifest_path"] = str(tmp_path / "absent.csv")
-    invalid = client.post("/api/v1/profiles", json=missing)
-    assert invalid.status_code == 422
-    assert invalid.get_json()["error"]["code"] == "profile_file_not_found"
-
-    bad_build = _profile_payload(files, profile_id="bad-build")
-    bad_build["default_genome_build"] = "hg18"
-    invalid_build = client.post("/api/v1/profiles", json=bad_build)
-    assert invalid_build.status_code == 422
-    assert invalid_build.get_json()["error"]["code"] == "invalid_profile"
-
-    assert client.delete("/api/v1/profiles/sample-one").status_code == 204
-    assert client.get("/api/v1/profiles/sample-one").status_code == 404
-
-
-def test_resolve_regions_job_runs_asynchronously_and_serves_artifacts(tmp_path: Path) -> None:
-    store = ProfileStore(tmp_path / "profiles.json")
-    manager = JobManager(jobs_root=tmp_path / "jobs", profile_store=store)
-    client = _test_app(store, manager).test_client()
-
-    response = client.post(
-        "/api/v1/jobs",
-        json={
-            "operation": "resolve_regions",
-            "genes": ["drd4", "DRD4", "POTEB3"],
-        },
+    engine = create_database_engine(test_url="sqlite+pysqlite:///:memory:")
+    ensure_schema(engine)
+    app = Flask(__name__)
+    app.config.update(
+        TESTING=True,
+        NOPHIGENE_PROFILE_STORE=store,
+        NOPHIGENE_JOB_MANAGER=manager,
+        NOPHIGENE_DATABASE_ENGINE=engine,
     )
-    assert response.status_code == 202
-    job_id = response.get_json()["id"]
-    job = manager.wait_for_terminal(job_id)
-    assert job["status"] == "succeeded"
-    assert job["progress"]["percent"] == 100
+    app.register_blueprint(api_v2)
+    client = app.test_client()
 
-    result = client.get(f"/api/v1/jobs/{job_id}/result")
-    assert result.status_code == 200
-    payload = result.get_json()
-    assert payload["counts"] == {"requested": 2, "succeeded": 2, "failed": 0}
-    assert {item["gene"] for item in payload["genes"]} == {"DRD4", "POTEB3"}
-    assert (tmp_path / "jobs" / job_id / "artifacts.zip").is_file()
+    index = client.get("/api/v2/")
+    assert index.status_code == 200
+    assert index.get_json()["report_schema_version"] == "3.0"
+    assert client.get("/api/v2/evidence/sources").get_json()["count"] >= 20
+    assert client.get("/api/v2/models").get_json()["count"] >= 10
 
-    region_url = payload["genes"][0]["artifacts"]["region"]
-    assert client.get(region_url).status_code == 200
-    assert client.get(f"/api/v1/jobs/{job_id}/artifacts/not-there.txt").status_code == 404
-    traversal = client.get(f"/api/v1/jobs/{job_id}/artifacts/%2e%2e%2fjob.json")
-    assert traversal.status_code in {400, 404}
+    oversized = client.post(
+        "/api/v2/runs",
+        json={"operation": "resolve_regions", "genes": [f"GENE{i}" for i in range(101)]},
+    )
+    assert oversized.status_code == 422
+    assert oversized.get_json()["error"]["code"] == "too_many_genes"
+
+    submitted = client.post(
+        "/api/v2/runs",
+        json={"operation": "resolve_regions", "gene": "DRD4", "sample_context": {"tissue": "whole blood"}},
+    )
+    assert submitted.status_code == 202
+    run_id = submitted.get_json()["id"]
+    assert submitted.get_json()["schema_version"] == "3.0"
+    with Session(engine) as session:
+        persisted = session.get(Run, run_id)
+        assert persisted is not None
+        assert persisted.genes == ["DRD4"]
 
 
 def test_job_validation_rejects_empty_and_oversized_gene_lists() -> None:
@@ -431,7 +359,6 @@ def test_all_workflow_operations_and_multi_gene_methylprep_reuse(
             knowledge_base={"gene_context": {"gene_name": kwargs["gene_name"]}},
             population_insights={},
             population_database={},
-            predictive_theses={},
             general_database_path=tmp_path / "general.csv",
             general_database_status=(
                 "updated" if kwargs["update_general_database_enabled"] else "not requested"
@@ -483,7 +410,7 @@ def test_all_workflow_operations_and_multi_gene_methylprep_reuse(
         assert (gene_dir / "variants.csv").is_file()
         assert (gene_dir / "methylation.csv").is_file()
         report_payload = (gene_dir / "report.json").read_text(encoding="utf-8")
-        assert '"schema_version": "2.0"' in report_payload
+        assert '"schema_version": "3.0"' in report_payload
         assert '"source_provenance"' in report_payload
     assert (jobs_root / ("6" * 32) / "artifacts.zip").is_file()
 

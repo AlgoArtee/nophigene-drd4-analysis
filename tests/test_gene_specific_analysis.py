@@ -8,14 +8,12 @@ import pandas as pd
 
 from src.analysis import (
     annotate_known_variant_ids,
-    build_predictive_theses,
     build_population_insights,
     build_methylation_insights,
     build_variant_interpretations,
     list_available_gene_data_files,
     load_gene_interpretation_database,
     load_gene_population_database,
-    load_gene_synthesis_database,
     load_methylation,
     load_methylation_beta_values,
 )
@@ -51,11 +49,9 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     """HERC2 should load dedicated interpretation and population databases."""
     knowledge_base = load_gene_interpretation_database("HERC2")
     population_database = load_gene_population_database("herc2")
-    synthesis_database = load_gene_synthesis_database("HERC2")
 
     assert knowledge_base is not None
     assert population_database is not None
-    assert synthesis_database is not None
     assert knowledge_base["gene_context"]["gene_name"] == "HERC2"
     assert knowledge_base["gene_context"]["gene_region"]["start"] == 28356186
     assert len(knowledge_base["variant_records"]) >= 5
@@ -66,28 +62,6 @@ def test_herc2_gene_databases_load_from_gene_data() -> None:
     assert population_database["gene_population_patterns_intro"].startswith(
         "Broader population patterns curated from HERC2/OCA2"
     )
-    assert synthesis_database["database_name"].startswith("NophiGene HERC2 Predictive")
-    assert synthesis_database["case_count"] == 10
-    assert len(synthesis_database["cases"]) == 10
-    assert "darker-eye-compatible" in synthesis_database["concrete_variant_prediction"]
-    assert "blue-eye tendency" in synthesis_database["concrete_variant_prediction"]
-    rs12913832_rule = next(
-        rule
-        for rule in synthesis_database["variant_prediction_rules"]
-        if rule["variant"] == "rs12913832"
-    )
-    assert "OCA2-driven iris melanin" in rs12913832_rule["prediction"]
-    assert "{change}" in rs12913832_rule["sample_change_template"]
-    assert any(
-        rule.get("change") == "A -> G" and rule.get("alt_allele") == "G"
-        for rule in rs12913832_rule["allele_change_rules"]
-    )
-    assert any(
-        rule.get("change") == "G -> A" and rule.get("alt_allele") == "A"
-        for rule in rs12913832_rule["allele_change_rules"]
-    )
-
-
 def test_reverse_strand_scope_regions_use_valid_promoter_gene_union() -> None:
     """Reverse-strand promoter+gene regions should cover both body and upstream promoter."""
     scope_regions = _build_analysis_scope_regions("SIRT6", "19:4174106-4182560")
@@ -125,223 +99,6 @@ def test_all_local_interpretation_databases_have_valid_combined_regions() -> Non
         assert combined_end >= max(gene_region["start"], gene_region["end"])
         assert combined_start <= min(promoter_region["start"], promoter_region["end"])
         assert combined_end >= max(promoter_region["start"], promoter_region["end"])
-
-
-def test_herc2_predictive_theses_use_concrete_eye_colour_variant_rules() -> None:
-    """Matched HERC2 pigmentation markers should surface concrete eye-colour predictions."""
-    knowledge_base = load_gene_interpretation_database("HERC2")
-    synthesis_database = load_gene_synthesis_database("HERC2")
-
-    assert knowledge_base is not None
-    assert synthesis_database is not None
-
-    variants = pd.DataFrame(
-        [
-            {
-                "chrom": "15",
-                "id": "rs12913832",
-                "pos": 28365618,
-                "ref": "A",
-                "alt": "G",
-                "gt_raw": "0/1",
-                "ad": [13, 5],
-                "dp": 18,
-                "gq": 42,
-                "qual": 88.0,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            }
-        ]
-    )
-    methylation = pd.DataFrame(
-        [
-            {
-                "probe_id": "cg14091419",
-                "beta": 0.71,
-                "GencodeBasicV12_NAME": "HERC2",
-                "UCSC_RefGene_Group": "TSS1500",
-                "Relation_to_UCSC_CpG_Island": "Island",
-                "UCSC_CpG_Islands_Name": "HERC2_CGI",
-            }
-        ]
-    )
-
-    interpretation = build_variant_interpretations(
-        variants,
-        knowledge_base,
-        region="15:28356000-28567325",
-    )
-    methylation_insights = build_methylation_insights(
-        methylation,
-        knowledge_base,
-        matched_variant_ids={"rs12913832"},
-    )
-    predictive_theses = build_predictive_theses(
-        variant_interpretations=interpretation,
-        methylation_insights=methylation_insights,
-        knowledge_base=knowledge_base,
-        synthesis_database=synthesis_database,
-    )
-
-    assert predictive_theses["variant_found"] is True
-    assert "blue-eye tendency" in predictive_theses["variant_summary"]
-    concrete_rows = [
-        row
-        for row in predictive_theses["variant_prediction_rows"]
-        if row["source"] == "GT-confirmed allele-dosage thesis"
-    ]
-    assert concrete_rows
-    assert "A -> G" in concrete_rows[0]["observed_signal"]
-    assert "GT 0/1 decodes as A/G" in concrete_rows[0]["prediction"]
-    assert "G dosage is the light-eye-associated state" in concrete_rows[0]["prediction"]
-    assert "blue or lighter-eye tendency" in concrete_rows[0]["prediction"]
-    assert "reduced OCA2 expression" in concrete_rows[0]["research_focus"]
-
-
-def test_herc2_predictive_theses_use_actual_reverse_eye_colour_change() -> None:
-    """The reverse HERC2 REF -> ALT direction should produce the darker-eye thesis."""
-    knowledge_base = load_gene_interpretation_database("HERC2")
-    synthesis_database = load_gene_synthesis_database("HERC2")
-
-    assert knowledge_base is not None
-    assert synthesis_database is not None
-
-    variants = pd.DataFrame(
-        [
-            {
-                "chrom": "15",
-                "id": "rs12913832",
-                "pos": 28365618,
-                "ref": "G",
-                "alt": "A",
-                "gt_raw": "0/1",
-                "ad": [5, 10],
-                "dp": 15,
-                "gq": 47,
-                "qual": 88.0,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            }
-        ]
-    )
-    methylation = pd.DataFrame(
-        [
-            {
-                "probe_id": "cg14091419",
-                "beta": 0.42,
-                "GencodeBasicV12_NAME": "HERC2",
-                "UCSC_RefGene_Group": "TSS1500",
-                "Relation_to_UCSC_CpG_Island": "Island",
-                "UCSC_CpG_Islands_Name": "HERC2_CGI",
-            }
-        ]
-    )
-
-    interpretation = build_variant_interpretations(
-        variants,
-        knowledge_base,
-        region="15:28356000-28567325",
-    )
-    methylation_insights = build_methylation_insights(
-        methylation,
-        knowledge_base,
-        matched_variant_ids={"rs12913832"},
-    )
-    predictive_theses = build_predictive_theses(
-        variant_interpretations=interpretation,
-        methylation_insights=methylation_insights,
-        knowledge_base=knowledge_base,
-        synthesis_database=synthesis_database,
-    )
-
-    concrete_rows = [
-        row
-        for row in predictive_theses["variant_prediction_rows"]
-        if row["source"] == "GT-confirmed allele-dosage thesis"
-    ]
-    assert concrete_rows
-    assert "G -> A" in concrete_rows[0]["observed_signal"]
-    assert "GT 0/1 decodes as G/A" in concrete_rows[0]["prediction"]
-    assert "A dosage supports a brown or darker-eye tendency" in concrete_rows[0]["prediction"]
-    assert "brown or darker-eye tendency" in concrete_rows[0]["prediction"]
-
-
-def test_predictive_theses_match_variant_and_all_three_methylation_views() -> None:
-    """A curated variant plus three numeric methylation summaries should match four synthesis cases."""
-    knowledge_base = load_gene_interpretation_database("IGF1R")
-    synthesis_database = load_gene_synthesis_database("IGF1R")
-
-    assert knowledge_base is not None
-    assert synthesis_database is not None
-
-    variants = pd.DataFrame(
-        [
-            {
-                "chrom": "15",
-                "id": "rs2229765",
-                "pos": 99478225,
-                "ref": "G",
-                "alt": "A",
-                "gt_raw": "0/1",
-                "ad": [9, 8],
-                "dp": 17,
-                "gq": 44,
-                "qual": 61.2,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            }
-        ]
-    )
-    methylation = pd.DataFrame(
-        [
-            {
-                "probe_id": "cg19620752",
-                "beta": 0.82,
-                "GencodeBasicV12_NAME": "IGF1R",
-                "UCSC_RefGene_Group": "TSS1500",
-                "Relation_to_UCSC_CpG_Island": "Island",
-                "UCSC_CpG_Islands_Name": "chr15:99190446-99194559",
-            },
-            {
-                "probe_id": "cg07779120",
-                "beta": 0.84,
-                "GencodeBasicV12_NAME": "IGF1R",
-                "UCSC_RefGene_Group": "Body",
-                "Relation_to_UCSC_CpG_Island": "Island",
-                "UCSC_CpG_Islands_Name": "chr15:99190446-99194559",
-            },
-        ]
-    )
-
-    interpretation = build_variant_interpretations(
-        variants,
-        knowledge_base,
-        region="15:99191768-99507759",
-    )
-    matched_variant_ids = {
-        str(record.get("variant", "")).strip()
-        for record in interpretation.get("matched_records", [])
-        if str(record.get("variant", "")).strip()
-    }
-    methylation_insights = build_methylation_insights(
-        methylation,
-        knowledge_base,
-        matched_variant_ids=matched_variant_ids,
-    )
-    predictive_theses = build_predictive_theses(
-        variant_interpretations=interpretation,
-        methylation_insights=methylation_insights,
-        knowledge_base=knowledge_base,
-        synthesis_database=synthesis_database,
-    )
-
-    assert predictive_theses["variant_found"] is True
-    assert predictive_theses["matched_case_count"] == 4
-    assert predictive_theses["case_catalog_size"] == 10
-    assert predictive_theses["matched_cases"][0]["case_label"] == "Gene variant found"
-    assert all(row["band_display"] == "High" for row in predictive_theses["methylation_prediction_rows"])
-    assert all(row["matched"] is True for row in predictive_theses["methylation_prediction_rows"])
-    assert "rs2229765" in predictive_theses["variant_summary"]
 
 
 def test_igf1r_curated_copy_replaces_drd4_text() -> None:

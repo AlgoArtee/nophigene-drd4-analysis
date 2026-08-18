@@ -26,6 +26,18 @@ except ImportError:
 api_v1 = Blueprint("api_v1", __name__, url_prefix="/api/v1")
 
 
+@api_v1.before_request
+def freeze_legacy_mutations():
+    """Schema v1 is retained only for reading legacy profiles/jobs/artifacts."""
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        return APIError(
+            "api_v1_read_only",
+            "API v1 is frozen for legacy reads. Submit new work through /api/v2.",
+            410,
+            details={"replacement": "/api/v2"},
+        ).to_response()
+
+
 def _profiles():
     return current_app.config["NOPHIGENE_PROFILE_STORE"]
 

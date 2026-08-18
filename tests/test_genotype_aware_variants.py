@@ -7,10 +7,8 @@ import pandas as pd
 from src.analysis import (
     _load_raw_vcf_sample_fields,
     build_canonical_genotype,
-    build_predictive_theses,
     build_variant_interpretations,
     load_gene_interpretation_database,
-    load_gene_synthesis_database,
     load_variants,
 )
 
@@ -146,89 +144,3 @@ def test_qc_supports_homozygous_alt_and_penalizes_non_pass_filter() -> None:
     assert pass_call["confidence_score"] >= 0.7
     assert non_pass_call["confidence_score"] < pass_call["confidence_score"]
     assert "filter_non_pass" in non_pass_call["qc_flags"]
-
-
-def test_herc2_eye_colour_prediction_is_genotype_dosage_aware() -> None:
-    """The example marker set should remain probabilistic because rs12913832 is heterozygous."""
-    knowledge_base = load_gene_interpretation_database("HERC2")
-    synthesis_database = load_gene_synthesis_database("HERC2")
-
-    assert knowledge_base is not None
-    assert synthesis_database is not None
-
-    variants = pd.DataFrame(
-        [
-            {
-                "chrom": "15",
-                "id": "rs12913832",
-                "pos": 28365618,
-                "ref": "A",
-                "alt": "G",
-                "gt_raw": "0/1",
-                "ad": [13, 5],
-                "dp": 18,
-                "gq": 42,
-                "qual": 88,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            },
-            {
-                "chrom": "15",
-                "id": "rs1129038",
-                "pos": 28356859,
-                "ref": "C",
-                "alt": "T",
-                "gt_raw": "0/1",
-                "ad": [5, 10],
-                "dp": 15,
-                "gq": 47,
-                "qual": 74,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            },
-            {
-                "chrom": "15",
-                "id": "rs7170852",
-                "pos": 28427986,
-                "ref": "T",
-                "alt": "A",
-                "gt_raw": "1/1",
-                "ad": [0, 13],
-                "dp": 13,
-                "gq": 36,
-                "qual": 86,
-                "filter_status": "PASS",
-                "filter_pass": True,
-            },
-        ]
-    )
-
-    interpretation = build_variant_interpretations(
-        variants,
-        knowledge_base,
-        region="15:28356000-28567325",
-    )
-    genotypes = {record["variant_label"]: record["genotype"] for record in interpretation["matched_records"]}
-
-    predictive = build_predictive_theses(
-        variant_interpretations=interpretation,
-        methylation_insights={
-            "gene_name": "HERC2",
-            "whitelist_mean_beta": None,
-            "gene_name_mean_beta": None,
-            "all_numeric_mean_beta": None,
-        },
-        knowledge_base=knowledge_base,
-        synthesis_database=synthesis_database,
-    )
-
-    assert genotypes["rs12913832"] == "A/G"
-    assert genotypes["rs1129038"] == "C/T"
-    assert genotypes["rs7170852"] == "A/A"
-    phenotype = predictive["phenotype_prediction"]
-    assert "Lighter/intermediate-eye signal is present" in phenotype["phenotype_prediction"]
-    assert "strongest major marker is heterozygous" in phenotype["phenotype_prediction"]
-    assert "brown or hazel remains plausible" in phenotype["phenotype_prediction"]
-    assert phenotype["confidence"] == "moderate"
-    assert "not a deterministic blue-eye call" in phenotype["uncertainty_summary"]
-    assert predictive["variant_found"] is True

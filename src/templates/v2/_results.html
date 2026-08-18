@@ -1,0 +1,58 @@
+{% macro render_table(rows) -%}
+  {% if rows %}
+  {% set columns = rows[0].keys() | list %}
+  <div class="table-shell"><table><thead><tr>{% for column in columns[:10] %}<th scope="col">{{ column | replace('_',' ') | title }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in rows[:20] %}<tr>{% for column in columns[:10] %}<td>{% set value = row[column] %}{% if value is mapping or (value is sequence and value is not string) %}<code>{{ value | tojson }}</code>{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  {% else %}<p class="empty">No eligible records are available for this section.</p>{% endif %}
+{%- endmacro %}
+
+<section class="task-panel{% if initial_tab == 'results' %} active{% endif %}" data-task-panel="results"{% if initial_tab != 'results' %} hidden{% endif %}>
+  <div data-dandelion-result hidden>
+    <div class="section-heading"><div><span class="eyebrow">Schema 3.0 · cohort statistics</span><h2 data-dandelion-result-title>DANDELION result</h2><p data-dandelion-result-context></p></div><span class="research-badge">Hypothesis-generating</span></div>
+    <nav class="result-tabs" role="tablist" aria-label="DANDELION result sections">
+      {% for key, label in [('summary','Summary'),('objective_data','Objective Data'),('statistics','Statistics'),('literature','Scientific Literature'),('medical','Medical Information'),('interactions','Interactions'),('predictions','Predictions')] %}
+      <button type="button" role="tab" data-cohort-result-target="{{ key }}" aria-selected="{{ 'true' if key == 'summary' else 'false' }}">{{ label }}</button>
+      {% endfor %}
+    </nav>
+    <section class="result-panel active" data-cohort-result-panel="summary"><div class="metric-grid" data-dandelion-summary></div><p class="message warning">Association prioritisation does not establish causality, diagnosis, or treatment relevance.</p></section>
+    <section class="result-panel" data-cohort-result-panel="objective_data" hidden><h3>Objective Data</h3><p data-dandelion-objective></p></section>
+    <section class="result-panel" data-cohort-result-panel="statistics" hidden><h3>Statistics</h3><p data-dandelion-statistics-note></p><div class="table-shell"><table><thead><tr><th>Exposure</th><th>Candidate gene</th><th>Trans p</th><th>Gene-association p</th><th>DANDELION p</th><th>BH q</th><th>Significant</th></tr></thead><tbody data-dandelion-statistics-rows></tbody></table></div></section>
+    <section class="result-panel" data-cohort-result-panel="literature" hidden><h3>Scientific Literature</h3><p data-dandelion-literature></p></section>
+    <section class="result-panel" data-cohort-result-panel="medical" hidden><h3>Medical Information</h3><p data-dandelion-medical></p></section>
+    <section class="result-panel" data-cohort-result-panel="interactions" hidden><h3>Interactions</h3><p data-dandelion-interactions-note></p><div class="table-shell"><table><thead><tr><th>Source</th><th>Candidate gene</th><th>Type</th><th>BH q-value</th><th>Context</th></tr></thead><tbody data-dandelion-interaction-rows></tbody></table></div></section>
+    <section class="result-panel" data-cohort-result-panel="predictions" hidden><h3>Predictions</h3><p data-dandelion-predictions></p></section>
+    <details class="run-details"><summary>Run Details</summary><pre data-dandelion-run-details></pre></details>
+  </div>
+  <div data-standard-result>
+  {% if result %}
+  <div class="section-heading">
+    <div><span class="eyebrow">Schema {{ result.schema_version }}</span><h2>{{ result.run.gene }} results</h2><p>{{ result.run.genome_build or 'build not declared' }} · {{ result.run.region or 'region not declared' }}</p></div>
+    <span class="research-badge">Measured evidence first</span>
+  </div>
+  <nav class="result-tabs" role="tablist" aria-label="Result sections">
+    {% for key, label in [('summary','Summary'),('objective_data','Objective Data'),('statistics','Statistics'),('literature','Scientific Literature'),('medical','Medical Information'),('interactions','Interactions'),('predictions','Predictions')] %}
+    <button type="button" role="tab" id="result-tab-{{ key }}" aria-controls="result-panel-{{ key }}" data-result-target="{{ key }}" aria-selected="{{ 'true' if key == 'summary' else 'false' }}">{{ label }}</button>
+    {% endfor %}
+  </nav>
+  <section class="result-panel active" id="result-panel-summary" role="tabpanel" aria-labelledby="result-tab-summary" data-result-panel="summary">
+    <h3>Run validity and measured findings</h3>
+    <div class="metric-grid">
+      <article><span>QC variants</span><strong>{{ result.summary.qc.variant_pass_count }} / {{ result.summary.qc.variant_total_count }}</strong></article>
+      <article><span>QC methylation probes</span><strong>{{ result.summary.qc.methylation_pass_count }} / {{ result.summary.qc.methylation_total_count }}</strong></article>
+      <article><span>Assessed sources</span><strong>{{ result.summary.evidence_coverage.assessed_source_count }}</strong></article>
+      <article><span>Source failures</span><strong>{{ result.summary.evidence_coverage.failed_source_count }}</strong></article>
+    </div>
+    {% if result.summary.missing_context %}<div class="message warning">Statistics or medical applicability are gated because context is missing: {{ result.summary.missing_context | join(', ') }}.</div>{% endif %}
+  </section>
+  <section class="result-panel" id="result-panel-objective_data" role="tabpanel" aria-labelledby="result-tab-objective_data" data-result-panel="objective_data" hidden><h3>Objective Data</h3><p>QC-passing non-reference calls and measurements; complete rows remain in exports.</p><h4>Variants</h4>{{ render_table(result.sections.objective_data.variants) }}<h4>Methylation</h4>{{ render_table(result.sections.objective_data.methylation) }}</section>
+  <section class="result-panel" id="result-panel-statistics" role="tabpanel" aria-labelledby="result-tab-statistics" data-result-panel="statistics" hidden><h3>Statistics</h3><p>Status: <strong>{{ result.sections.statistics.status }}</strong>. Single-sample tests are hypothesis-generating, require ≥30 matched references, and use BH-FDR.</p>{{ render_table(result.sections.statistics.records) }}</section>
+  <section class="result-panel" id="result-panel-literature" role="tabpanel" aria-labelledby="result-tab-literature" data-result-panel="literature" hidden><h3>Scientific Literature</h3><p>{{ result.sections.literature.candidate_count }} deduplicated candidates; up to {{ result.sections.literature.detailed_review_limit }} receive detailed extraction.</p>{{ render_table(result.sections.literature.detailed_records) }}{% if result.sections.literature.preprints %}<h4>Preprints</h4><p>Preprints remain exploratory and cannot establish medical relevance alone.</p>{{ render_table(result.sections.literature.preprints) }}{% endif %}</section>
+  <section class="result-panel" id="result-panel-medical" role="tabpanel" aria-labelledby="result-tab-medical" data-result-panel="medical" hidden><h3>Medical Information</h3><div class="message warning">{{ result.sections.medical.disclaimer }}</div><p>Assessment state: <strong>{{ result.sections.medical.status | replace('_',' ') }}</strong>.</p>{{ render_table(result.sections.medical.records) }}<h4>Checked authoritative sources</h4>{{ render_table(result.sections.medical.checked_sources) }}{% if result.sections.medical.failed_sources %}<h4>Sources that could not be assessed</h4>{{ render_table(result.sections.medical.failed_sources) }}{% endif %}</section>
+  <section class="result-panel" id="result-panel-interactions" role="tabpanel" aria-labelledby="result-tab-interactions" data-result-panel="interactions" hidden><h3>Interactions</h3><p>Gene-to-gene hops; direct partners first, expansion to three levels, 150-node cap.</p><div class="metric-grid"><article><span>Nodes</span><strong>{{ result.sections.interactions.initial_graph.node_count }}</strong></article><article><span>Edges</span><strong>{{ result.sections.interactions.initial_graph.edge_count }}</strong></article></div><div class="interaction-controls" data-interaction-explorer data-run-id="{{ result.run.id }}"><span>Expand:</span>{% for hop in (1,2,3) %}<button type="button" data-interaction-hop="{{ hop }}"{% if not result.run.id %} disabled title="Expansion is available for saved API runs"{% endif %}>{{ hop }} hop{{ '' if hop == 1 else 's' }}</button>{% endfor %}<pre data-interaction-output hidden aria-live="polite"></pre></div>{{ render_table(result.sections.interactions.initial_graph.edges) }}</section>
+  <section class="result-panel" id="result-panel-predictions" role="tabpanel" aria-labelledby="result-tab-predictions" data-result-panel="predictions" hidden><h3>Predictions</h3><p>Models remain independent. Missing or invalid inputs produce blockers instead of scores.</p>{{ render_table(result.sections.predictions.assessments) }}</section>
+  <details class="run-details"><summary>Run Details</summary><p>Logs, source failures, URLs, checksums, and raw interpretation are intentionally outside the primary result.</p><pre>{{ result.run_details | tojson(indent=2) }}</pre></details>
+  {% else %}
+  <div class="empty-state"><h2>No result loaded</h2><p>Complete preprocessing and run a sample, or open an artifact from History.</p></div>
+  {% endif %}
+  </div>
+</section>

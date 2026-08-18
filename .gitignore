@@ -1,5 +1,6 @@
-# Python venv
-.venv/
+# Python virtual environments
+/.venv/
+/.venv-v2/
 
 # Local secrets and environment overrides
 .env
@@ -7,16 +8,17 @@
 !.env-example
 
 # Local Docker CLI config used by project launch scripts
-.docker-local/
+/.docker-local/
+/.runtime-secrets/
 
 # Local launcher state
-.nophigene-ui.pid
-.nophigene-ui.port
-.nophigene-ui.log
-.nophigene-ui.err.log
+/.nophigene-ui.pid
+/.nophigene-ui.port
+/.nophigene-ui.log
+/.nophigene-ui.err.log
 
 # VS Code settings
-.vscode/
+/.vscode/
 
 # Byte-compiled / cache
 __pycache__/
@@ -35,10 +37,14 @@ __pycache__/
 /tmp????????/
 
 # Data and results
-data/
-results/
-src/gene_data/
+/data/
+/results/
+/src/gene_data/
 
 # Docker dev files
-.devcontainer/
+/.devcontainer/
+
+# Local Version 1 generated/runtime archive material
+/version1/gene_data/loose/
+/version1/runtime-relics/
 

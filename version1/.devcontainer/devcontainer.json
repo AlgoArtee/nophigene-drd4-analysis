@@ -1,0 +1,34 @@
+{
+  "name": "nophigene-drd4-analysis DevContainer",                         // display name in VS Code
+  "build": {                                                              // how to build the image
+    "dockerfile": "Dockerfile.dev",
+    "context": ".."                                                       // repo root is build context
+  },
+  "workspaceFolder": "/home/vscode/app",                                  // where to open in the container
+
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/home/vscode/app,type=bind,consistency=cached"
+  ],
+
+  "forwardPorts": [8888],                                                 // dev-container ports
+  "remoteUser": "vscode",                                                 // run as non-root
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.pythonPath": "/usr/local/bin/python",
+        "python.linting.flake8Enabled": true,
+        "python.linting.enabled": true,
+        "editor.formatOnSave": true,
+        "python.formatting.provider": "black"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "GitHub.vscode-pull-request-github"
+      ]
+    }
+  }
+}

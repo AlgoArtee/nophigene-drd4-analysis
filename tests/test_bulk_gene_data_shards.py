@@ -48,14 +48,12 @@ def _install_bulk_test_data(monkeypatch, tmp_path: Path) -> None:
     with zipfile.ZipFile(analysis.GENE_DATA_BUNDLE_PATH, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         _write_zip_member(bundle, "curated1_interpretation_db.json", _minimal_interpretation("CURATED1", 11))
         _write_zip_member(bundle, "curated1_population_db.json", {"database_name": "curated population"})
-        _write_zip_member(bundle, "curated1_synthesis.json", {"database_name": "curated synthesis", "case_count": 10})
         _write_zip_member(bundle, "CURATED1_epigenetics_hg19.csv", "IlmnID,CHR,MAPINFO,UCSC_RefGene_Name\ncg1,1,11,CURATED1\n")
 
     shard_name = "gene_data_bulk_shard_00.zip"
     with zipfile.ZipFile(shard_dir / shard_name, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         _write_zip_member(bundle, "bulk1_interpretation_db.json", _minimal_interpretation("BULK1", 101))
         _write_zip_member(bundle, "bulk1_population_db.json", {"database_name": "bulk population", "gene_population_patterns": []})
-        _write_zip_member(bundle, "bulk1_synthesis.json", {"database_name": "bulk synthesis", "case_count": 10})
         _write_zip_member(bundle, "BULK1_epigenetics_hg19.csv", "IlmnID,CHR,MAPINFO,UCSC_RefGene_Name\n")
         _write_zip_member(bundle, "curated1_interpretation_db.json", _minimal_interpretation("CURATED1", 999))
 
@@ -67,7 +65,6 @@ def _install_bulk_test_data(monkeypatch, tmp_path: Path) -> None:
                 "files": {
                     "interpretation": "bulk1_interpretation_db.json",
                     "population": "bulk1_population_db.json",
-                    "synthesis": "bulk1_synthesis.json",
                     "epigenetics": "BULK1_epigenetics_hg19.csv",
                 },
             },
@@ -76,7 +73,6 @@ def _install_bulk_test_data(monkeypatch, tmp_path: Path) -> None:
         "files": {
             "bulk1_interpretation_db.json": shard_name,
             "bulk1_population_db.json": shard_name,
-            "bulk1_synthesis.json": shard_name,
             "BULK1_epigenetics_hg19.csv": shard_name,
             "curated1_interpretation_db.json": shard_name,
         },
@@ -93,17 +89,14 @@ def test_bulk_index_lookup_and_bulk_only_loaders(monkeypatch, tmp_path: Path) ->
 
     knowledge_base = analysis.load_gene_interpretation_database("BULK1")
     population = analysis.load_gene_population_database("BULK1")
-    synthesis = analysis.load_gene_synthesis_database("BULK1")
     manifest = analysis.load_gene_epigenetics_manifest("BULK1")
 
     assert knowledge_base is not None
     assert population is not None
-    assert synthesis is not None
     assert manifest is not None
     assert manifest.empty
     assert knowledge_base["gene_context"]["gene_region"]["start"] == 101
     assert population["database_name"] == "bulk population"
-    assert synthesis["database_name"] == "bulk synthesis"
 
 
 def test_curated_bundle_and_loose_files_override_bulk(monkeypatch, tmp_path: Path) -> None:
@@ -180,7 +173,7 @@ def test_actual_bulk_index_integrity_when_generated() -> None:
 
     for gene_name, entry in index["genes"].items():
         assert gene_name.upper() not in curated_genes
-        assert set(entry["files"]) == {"interpretation", "population", "synthesis", "epigenetics"}
+        assert set(entry["files"]) == {"interpretation", "population", "epigenetics"}
         for filename in entry["files"].values():
             assert index["files"][filename] == entry["shard"]
 

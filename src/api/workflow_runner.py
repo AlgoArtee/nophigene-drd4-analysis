@@ -31,6 +31,8 @@ try:
     )
     from ..bam_extraction import HG38_FASTA, extract_region_vcf
     from ..variant_knowledge.orchestrator import build_dynamic_knowledge_base
+    from ..workbench.evidence import CORE_SOURCE_KEYS
+    from ..workbench.reporting import build_canonical_report
     from ..workflow import (
         normalize_gene_symbol,
         normalize_genome_build,
@@ -54,6 +56,8 @@ except ImportError:
     )
     from bam_extraction import HG38_FASTA, extract_region_vcf
     from variant_knowledge.orchestrator import build_dynamic_knowledge_base
+    from workbench.evidence import CORE_SOURCE_KEYS
+    from workbench.reporting import build_canonical_report
     from workflow import (
         normalize_gene_symbol,
         normalize_genome_build,
@@ -71,8 +75,8 @@ JOB_OPERATIONS = {
     "full_workflow",
 }
 MAX_GENES_PER_JOB = 100
-RESULT_SCHEMA_VERSION = "1.0"
-REPORT_SCHEMA_VERSION = "2.0"
+RESULT_SCHEMA_VERSION = "2.0"
+REPORT_SCHEMA_VERSION = "3.0"
 
 
 def normalize_job_request(payload: Any) -> dict[str, Any]:
@@ -177,6 +181,18 @@ def normalize_job_request(payload: Any) -> dict[str, Any]:
     if not isinstance(requested_models, list) or not all(isinstance(model, dict) for model in requested_models):
         raise APIError("invalid_requested_models", "'options.requested_models' must be a list of model objects.", 422)
     normalized_options["requested_models"] = [dict(model) for model in requested_models]
+    sample_context = options.get("sample_context") or {}
+    if not isinstance(sample_context, dict):
+        raise APIError("invalid_sample_context", "'options.sample_context' must be an object.", 422)
+    normalized_options["sample_context"] = dict(sample_context)
+    external_consents = options.get("external_consents") or {}
+    if not isinstance(external_consents, dict):
+        raise APIError("invalid_external_consents", "'options.external_consents' must map source keys to booleans.", 422)
+    normalized_options["external_consents"] = {
+        str(source_key).strip(): bool(approved)
+        for source_key, approved in external_consents.items()
+        if str(source_key).strip()
+    }
     try:
         normalized_options["max_article_pdfs"] = min(
             1000,
@@ -195,6 +211,24 @@ def normalize_job_request(payload: Any) -> dict[str, Any]:
         normalized_options["knowledge_sources"] = [str(item).strip() for item in raw_sources if str(item).strip()]
     else:
         raise APIError("invalid_knowledge_sources", "'options.knowledge_sources' must be a list or comma-separated string.", 422)
+    unsupported_sources = sorted(set(normalized_options["knowledge_sources"]) - set(CORE_SOURCE_KEYS))
+    if unsupported_sources:
+        raise APIError(
+            "unsupported_knowledge_sources",
+            "Version 2 accepts only the vetted core source set: " + ", ".join(unsupported_sources),
+            422,
+        )
+    try:
+        normalized_options["external_timeout_seconds"] = min(
+            1200,
+            max(1, int(options.get("external_timeout_seconds", 1200))),
+        )
+    except (TypeError, ValueError) as exc:
+        raise APIError(
+            "invalid_external_timeout",
+            "'options.external_timeout_seconds' must be an integer between 1 and 1200.",
+            422,
+        ) from exc
     raw_workflows = options.get("knowledge_workflows")
     if raw_workflows in (None, "", []):
         normalized_options["knowledge_workflows"] = []
@@ -528,7 +562,10 @@ class WorkflowRunner:
             dynamic_knowledge_base_path=dynamic_knowledge_base_path,
             genome_build=resolved["genome_build"],
             interpretation_mode=request_payload["options"]["interpretation_mode"],
-            sample_context=profile.get("sample_context", {}),
+            sample_context={
+                **dict(profile.get("sample_context", {})),
+                **dict(request_payload["options"].get("sample_context", {})),
+            },
             requested_models=request_payload["options"].get("requested_models", []),
         )
         variants_path = gene_dir / "variants.csv"
@@ -582,13 +619,25 @@ class WorkflowRunner:
         request_payload: dict[str, Any],
     ) -> dict[str, Any]:
         output_dir = gene_dir / "dynamic_knowledge_base"
+        selected_sources = request_payload["options"].get("knowledge_sources") or []
+        consents = request_payload["options"].get("external_consents") or {}
+        imports = request_payload["options"].get("knowledge_source_imports") or {}
+        unapproved = [
+            source_key
+            for source_key in selected_sources
+            if not consents.get(source_key) and source_key not in imports
+        ]
+        if unapproved:
+            raise AnalysisError(
+                "External evidence transfer was not approved for: " + ", ".join(sorted(unapproved))
+            )
         payload = build_dynamic_knowledge_base(
             gene=gene,
             region=resolved["region"],
             genome_build=resolved["genome_build"],
             variants=variants,
             manifest_subset=manifest_subset,
-            selected_sources=request_payload["options"].get("knowledge_sources") or None,
+            selected_sources=selected_sources,
             selected_workflows=request_payload["options"].get("knowledge_workflows") or None,
             source_imports=request_payload["options"].get("knowledge_source_imports") or None,
             use_local_article_evidence=bool(request_payload["options"].get("use_local_article_evidence", False)),
@@ -655,6 +704,10 @@ class WorkflowRunner:
         prepared,
         warnings: list[str],
     ) -> dict[str, Any]:
+        dynamic_path = getattr(prepared, "dynamic_knowledge_base_path", None)
+        dynamic_payload = read_json(Path(dynamic_path), default={}) if dynamic_path else {}
+        if not isinstance(dynamic_payload, dict):
+            dynamic_payload = {}
         return {
             "schema_version": REPORT_SCHEMA_VERSION,
             "gene": gene,
@@ -680,14 +733,14 @@ class WorkflowRunner:
             "population_statistics": prepared.popstats,
             "population_insights": prepared.population_insights,
             "population_database": prepared.population_database,
-            "predictive_theses": prepared.predictive_theses,
             "interpretation": getattr(prepared, "interpretation", {}),
             "general_database": {
                 "path": prepared.general_database_path,
                 "status": prepared.general_database_status,
             },
             "dynamic_knowledge_base": {
-                "path": getattr(prepared, "dynamic_knowledge_base_path", None),
+                **dynamic_payload,
+                "path": dynamic_path,
                 "status": getattr(prepared, "dynamic_knowledge_base_status", ""),
             },
         }
@@ -769,7 +822,6 @@ class WorkflowRunner:
             variant_interpretations=analysis_payload.get("variant_interpretations", {}),
             methylation_insights=methylation_insights,
             population_insights=analysis_payload.get("population_insights", {}),
-            predictive_theses=analysis_payload.get("predictive_theses", {}),
             analysis_scope=resolved["scope"],
             interpretation=analysis_payload.get("interpretation", {}),
         )
@@ -789,12 +841,20 @@ class WorkflowRunner:
         for key, filename in companion_files.items():
             if (gene_dir / filename).is_file():
                 artifacts[key] = _artifact_url(job_id, f"genes/{gene}/{filename}")
-        canonical = dict(analysis_payload)
-        canonical["schema_version"] = REPORT_SCHEMA_VERSION
-        canonical["artifacts"] = artifacts
-        canonical["warnings"] = list(warnings)
-        canonical["source_provenance"] = dict(canonical.get("source_provenance", {}))
-        canonical["source_provenance"]["variant_source"] = variant_source
+        canonical = build_canonical_report(
+            {
+                **analysis_payload,
+                "job_id": job_id,
+                "variants": variants,
+                "methylation": methylation,
+                "artifacts": artifacts,
+                "warnings": list(warnings),
+                "source_provenance": {
+                    **dict(analysis_payload.get("source_provenance", {})),
+                    "variant_source": variant_source,
+                },
+            }
+        )
         write_json_atomic(report_json_path, canonical)
         with summary_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["metric", "value"])

@@ -34,14 +34,13 @@ MANIFEST_PATH = PROJECT_ROOT / "data" / "infinium-methylationepic-v-1-0-b5-manif
 CURATED_BUNDLE_PATH = GENE_DATA_DIR / "gene_data_bundle.zip"
 BULK_SHARD_DIR = GENE_DATA_DIR / "bulk_gene_data_shards"
 INDEX_PATH = GENE_DATA_DIR / "gene_data_index.json"
-FORMAT_VERSION = "bulk-protein-coding-v1"
-DATA_VERSION = "2026-05-31"
+FORMAT_VERSION = "bulk-protein-coding-v2"
+DATA_VERSION = "2026-08-17"
 SHARD_COUNT = 64
 ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 GENERATED_SUFFIXES = (
     "_interpretation_db.json",
     "_population_db.json",
-    "_synthesis.json",
     "_epigenetics_hg19.csv",
 )
 MANIFEST_COLUMNS = [
@@ -62,25 +61,6 @@ MANIFEST_COLUMNS = [
     "Start_hg38",
     "End_hg38",
 ]
-METHYLATION_SOURCES = [
-    {
-        "key": "whitelist",
-        "label": "Whitelist mean beta",
-        "description": "Uses compact curated-lite probe IDs selected from the local EPIC manifest annotation.",
-    },
-    {
-        "key": "gene_name_related",
-        "label": "Gene-name-related mean beta",
-        "description": "Uses rows whose retained gene annotation explicitly names the current gene.",
-    },
-    {
-        "key": "all_numeric",
-        "label": "All numeric-row mean beta",
-        "description": "Uses every numeric beta value that survived preprocessing for the current sample.",
-    },
-]
-
-
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -401,60 +381,6 @@ def _build_population_database(symbol: str, hgnc: dict[str, str], coordinate: di
     }
 
 
-def _build_synthesis_database(symbol: str, hgnc: dict[str, str]) -> dict[str, Any]:
-    base_prediction = (
-        f"A GT-confirmed non-reference call in {symbol} suggests gene-locus research context for "
-        f"{hgnc.get('name', symbol)}. This curated-lite synthesis does not provide a deterministic clinical prediction."
-    )
-    cases = [
-        {
-            "case_id": "gene_variant_found",
-            "label": "Gene variant found",
-            "requires_variant": True,
-            "methylation_source": None,
-            "methylation_band": None,
-            "prediction": base_prediction,
-            "rationale": "Base curated-lite case for an observed variant in the gene interval.",
-            "research_focus": [hgnc.get("name", symbol)],
-        }
-    ]
-    for source in METHYLATION_SOURCES:
-        for band in ("high", "medium", "low"):
-            cases.append(
-                {
-                    "case_id": f"gene_variant_found__{source['key']}__{band}",
-                    "label": f"Gene variant found + {band} {source['label'].lower()}",
-                    "requires_variant": True,
-                    "methylation_source": source["key"],
-                    "methylation_band": band,
-                    "prediction": (
-                        f"When a {symbol} variant is paired with {band} methylation in the "
-                        f"{source['label'].lower()}, keep the result at regulatory-context level. {base_prediction}"
-                    ),
-                    "rationale": source["description"],
-                    "research_focus": [hgnc.get("name", symbol)],
-                }
-            )
-    return {
-        "database_name": f"NophiGene {symbol} Curated-Lite Predictive Synthesis Database",
-        "version": DATA_VERSION,
-        "curation_level": "curated-lite",
-        "gene_name": symbol,
-        "source_interpretation_database": f"NophiGene {symbol} Curated-Lite Interpretation Database",
-        "matching_rule": (
-            "One base case matches when a gene-region variant is visible; methylation-combined cases add "
-            "low, medium, or high beta context from the retained EPIC manifest views."
-        ),
-        "disclaimer": "Curated-lite predictive theses are metadata-backed research summaries, not diagnostic or therapeutic claims.",
-        "seeded_markers": [],
-        "concrete_variant_prediction": base_prediction,
-        "variant_prediction_rules": [],
-        "case_count": len(cases),
-        "methylation_sources": METHYLATION_SOURCES,
-        "cases": cases,
-    }
-
-
 def _json_bytes(payload: dict[str, Any]) -> bytes:
     return (json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n").encode("utf-8")
 
@@ -529,7 +455,6 @@ def build_bulk_gene_data(
         filenames = {
             "interpretation": f"{file_stem.lower()}_interpretation_db.json",
             "population": f"{file_stem.lower()}_population_db.json",
-            "synthesis": f"{file_stem.lower()}_synthesis.json",
             "epigenetics": f"{file_stem}_epigenetics_hg19.csv",
         }
         payloads = {
@@ -537,7 +462,6 @@ def build_bulk_gene_data(
                 _build_interpretation_database(symbol, hgnc, coordinate, probe_ids, len(rows))
             ),
             filenames["population"]: _json_bytes(_build_population_database(symbol, hgnc, coordinate)),
-            filenames["synthesis"]: _json_bytes(_build_synthesis_database(symbol, hgnc)),
             filenames["epigenetics"]: _csv_bytes(rows, manifest_columns),
         }
         shard_id = _shard_id_for_gene(symbol, shard_count)

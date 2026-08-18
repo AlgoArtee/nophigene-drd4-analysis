@@ -1,4 +1,4 @@
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -20,7 +20,7 @@ RUN python -m pip install --upgrade pip && \
     python -m pip wheel --wheel-dir /wheels -r requirements-app.txt
 
 
-FROM python:3.10-slim
+FROM python:3.12-slim-bookworm
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -36,6 +36,8 @@ RUN apt-get update && \
         libbz2-1.0 \
         libcurl4 \
         liblzma5 \
+        libsqlcipher0 \
+        sqlcipher \
         samtools && \
     rm -rf /var/lib/apt/lists/*
 
@@ -50,14 +52,18 @@ COPY requirements-app.txt .
 RUN python -m pip install --upgrade pip && \
     python -m pip install --no-index --find-links=/wheels -r requirements-app.txt
 
+COPY --chown=${USERNAME}:${USERNAME} alembic.ini ./alembic.ini
+COPY --chown=${USERNAME}:${USERNAME} migrations ./migrations
+COPY --chown=${USERNAME}:${USERNAME} docker/app-entrypoint.sh ./docker/app-entrypoint.sh
 COPY --chown=${USERNAME}:${USERNAME} src ./src
 
 RUN mkdir -p data results && \
+    chmod 0755 docker/app-entrypoint.sh && \
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/app
 
 USER ${USERNAME}
 
 EXPOSE 8766
 
-ENTRYPOINT ["python", "src/app.py"]
+ENTRYPOINT ["./docker/app-entrypoint.sh"]
 CMD ["web", "--host", "0.0.0.0", "--port", "8766"]

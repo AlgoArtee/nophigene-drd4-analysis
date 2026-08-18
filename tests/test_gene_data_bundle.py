@@ -38,17 +38,11 @@ def _install_test_bundle(monkeypatch, tmp_path: Path) -> None:
         "database_name": "NophiGene TEST1 Population Database",
         "gene_population_patterns": [{"summary": "archive population"}],
     }
-    synthesis = {
-        "database_name": "NophiGene TEST1 Predictive Synthesis Database",
-        "case_count": 10,
-        "concrete_variant_prediction": "archive synthesis",
-    }
     manifest = "IlmnID,CHR,MAPINFO,UCSC_RefGene_Name\ncg00000001,1,101,TEST1\n"
 
     with zipfile.ZipFile(analysis.GENE_DATA_BUNDLE_PATH, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         _write_zip_member(bundle, "test1_interpretation_db.json", interpretation)
         _write_zip_member(bundle, "test1_population_db.json", population)
-        _write_zip_member(bundle, "test1_synthesis.json", synthesis)
         _write_zip_member(bundle, "TEST1_epigenetics_hg19.csv", manifest)
 
 
@@ -57,16 +51,13 @@ def test_gene_data_loaders_fall_back_to_archive(monkeypatch, tmp_path: Path) -> 
 
     knowledge_base = analysis.load_gene_interpretation_database("TEST1")
     population_database = analysis.load_gene_population_database("test1")
-    synthesis_database = analysis.load_gene_synthesis_database("TEST1")
     manifest = analysis.load_gene_epigenetics_manifest("TEST1")
 
     assert knowledge_base is not None
     assert population_database is not None
-    assert synthesis_database is not None
     assert manifest is not None
     assert knowledge_base["gene_context"]["gene_region"]["start"] == 101
     assert population_database["gene_population_patterns"][0]["summary"] == "archive population"
-    assert synthesis_database["concrete_variant_prediction"] == "archive synthesis"
     assert manifest["IlmnID"].tolist() == ["cg00000001"]
 
 
@@ -103,11 +94,10 @@ def test_missing_gene_data_still_returns_none(monkeypatch, tmp_path: Path) -> No
 
     assert analysis.load_gene_interpretation_database("NOPE") is None
     assert analysis.load_gene_population_database("NOPE") is None
-    assert analysis.load_gene_synthesis_database("NOPE") is None
     assert analysis.load_gene_epigenetics_manifest("NOPE") is None
 
 
-def test_gene_data_bundle_contains_valid_generated_quartets() -> None:
+def test_gene_data_bundle_contains_valid_generated_triplets() -> None:
     required_csv_columns = {"IlmnID", "CHR", "MAPINFO", "UCSC_RefGene_Name"}
     bundle_path = analysis.GENE_DATA_BUNDLE_PATH
 
@@ -122,7 +112,6 @@ def test_gene_data_bundle_contains_valid_generated_quartets() -> None:
             gene_name = payload["gene_context"]["gene_name"]
             file_gene_name = sanitize_gene_name_for_filename(gene_name)
             assert f"{file_gene_name.lower()}_population_db.json" in members
-            assert f"{file_gene_name.lower()}_synthesis.json" in members
             csv_name = f"{file_gene_name}_epigenetics_hg19.csv"
             assert csv_name in members
 
