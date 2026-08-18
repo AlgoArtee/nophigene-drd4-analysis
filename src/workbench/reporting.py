@@ -15,7 +15,7 @@ from .evidence import deduplicate_literature, medical_gate, source_coverage
 from .interactions import build_interaction_graph
 from .model_registry import inspect_model_inputs, list_model_manifests
 from .pgx import resolve_pgx_diplotype
-from .statistics import apply_family_fdr, empirical_single_sample_result, reference_compatibility
+from .statistics import build_single_person_statistics
 
 REPORT_SCHEMA_VERSION = "3.0"
 DEFAULT_PAGE_SIZE = 20
@@ -98,8 +98,6 @@ def _variant_records(frame: pd.DataFrame) -> tuple[list[dict[str, Any]], list[di
         output = {**_jsonable(row), "qc_pass": not reasons, "qc_reasons": reasons, "non_reference": non_reference}
         if alt_col and "," in _text(row.get(alt_col)):
             output["normalization_status"] = "requires_multiallelic_split"
-            output["qc_pass"] = False
-            output["qc_reasons"] = [*output["qc_reasons"], "multiallelic_not_normalized"]
         all_rows.append(output)
         if output["qc_pass"] and non_reference:
             primary.append(output)
@@ -329,56 +327,46 @@ def _prediction_section(payload: dict[str, Any], context: dict[str, Any]) -> dic
     }
 
 
-def _statistics_section(payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    """Build guarded single-sample comparisons without pooling cohorts."""
-    comparisons = payload.get("statistical_comparisons") or []
-    results: list[dict[str, Any]] = []
-    if isinstance(comparisons, list):
-        for comparison in comparisons:
-            if not isinstance(comparison, dict):
-                continue
-            cohort_context = dict(comparison.get("cohort_context") or {})
-            compatibility = reference_compatibility(context, cohort_context)
-            base = {
-                "entity_type": _text(comparison.get("entity_type") or "measurement"),
-                "entity_key": _text(comparison.get("entity_key")),
-                "family": _text(comparison.get("family") or "unspecified"),
-                "cohort_id": _text(comparison.get("cohort_id")),
-                "cohort_source_type": _text(comparison.get("cohort_source_type") or "unspecified"),
-                "compatibility": compatibility,
-            }
-            value = _number(comparison.get("test_value"))
-            reference_values = comparison.get("reference_values")
-            if not compatibility["compatible"]:
-                results.append({**base, "status": "not_assessed", "limitations": ["incompatible_reference_context"]})
-            elif value is None or not isinstance(reference_values, list):
-                results.append({**base, "status": "descriptive_only", "limitations": ["raw_reference_distribution_unavailable"]})
-            else:
-                results.append({**base, **empirical_single_sample_result(value, reference_values)})
-    results = apply_family_fdr(results)
-    legacy = payload.get("population_statistics")
-    descriptive: list[dict[str, Any]] = []
-    if isinstance(legacy, pd.DataFrame):
-        descriptive = _jsonable(legacy.head(200))
-    elif isinstance(legacy, list):
-        descriptive = _jsonable(legacy[:200])
-    elif legacy is not None:
-        descriptive = [{"source_summary": _jsonable(legacy)}]
-    status = "not_assessed"
-    if any(row.get("status") == "exploratory" for row in results):
-        status = "exploratory"
-    elif results or descriptive:
-        status = "descriptive_only"
-    return {
-        "status": status,
-        "records": results,
-        "descriptive_source_records": descriptive,
-        "reference_minimum": 30,
-        "multiple_testing": "Benjamini-Hochberg FDR within each declared analysis family",
-        "cohort_policy": "public and user cohorts remain separate and are never silently pooled",
-        "measurement_policy": "beta values for interpretation; M-values for methylation tests where supplied",
-        "limitations": ["No inferential output is emitted without a compatible raw reference distribution."],
-    }
+def _statistics_section(
+    payload: dict[str, Any],
+    *,
+    gene: str,
+    variants: pd.DataFrame,
+    primary_variants: list[dict[str, Any]],
+    all_variants: list[dict[str, Any]],
+    methylation: pd.DataFrame,
+    primary_methylation: list[dict[str, Any]],
+    all_methylation: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build statistics only from the current person's observed result rows."""
+    knowledge_base = payload.get("knowledge_base") if isinstance(payload.get("knowledge_base"), dict) else {}
+    gene_context = knowledge_base.get("gene_context") if isinstance(knowledge_base.get("gene_context"), dict) else {}
+    methylation_insights = (
+        payload.get("methylation_insights") if isinstance(payload.get("methylation_insights"), dict) else {}
+    )
+    curated_probe_ids = gene_context.get("relevant_methylation_probe_ids") or methylation_insights.get("probe_ids") or []
+    result = build_single_person_statistics(
+        gene=gene,
+        variants=variants,
+        all_variant_rows=all_variants,
+        primary_variant_rows=primary_variants,
+        methylation=methylation,
+        all_methylation_rows=all_methylation,
+        primary_methylation_rows=primary_methylation,
+        scope_regions=dict(payload.get("scope_regions") or {}),
+        analysis_scope=_text(payload.get("analysis_scope")),
+        active_region=_text(payload.get("region")),
+        curated_probe_ids=curated_probe_ids,
+    )
+    result["records"][0].update(
+        {
+            "genome_build": _text(payload.get("genome_build")),
+            "analysis_scope": _text(payload.get("analysis_scope")),
+            "region": _text(payload.get("region")),
+            "scope_regions": _jsonable(payload.get("scope_regions") or {}),
+        }
+    )
+    return result
 
 
 def build_canonical_report(payload: dict[str, Any]) -> dict[str, Any]:
@@ -418,6 +406,7 @@ def build_canonical_report(payload: dict[str, Any]) -> dict[str, Any]:
             "genome_build": _text(payload.get("genome_build")),
             "region": _text(payload.get("region")),
             "analysis_scope": _text(payload.get("analysis_scope")),
+            "scope_regions": _jsonable(payload.get("scope_regions") or {}),
             "sample_context": _jsonable(context),
             "evidence_snapshot_id": _text(snapshot.get("snapshot_id")) if isinstance(snapshot, dict) else "",
             "status": _text(payload.get("status") or "succeeded"),
@@ -453,7 +442,16 @@ def build_canonical_report(payload: dict[str, Any]) -> dict[str, Any]:
                 "unsupported_variant_classes": ["structural_variants", "copy_number_variants", "VNTRs"],
                 "policy": "measured observations only; no phenotype inference",
             },
-            "statistics": {**_statistics_section(payload, context), "missing_context": missing_context},
+            "statistics": _statistics_section(
+                payload,
+                gene=gene,
+                variants=variants,
+                primary_variants=primary_variants,
+                all_variants=all_variants,
+                methylation=methylation,
+                primary_methylation=primary_methylation,
+                all_methylation=all_methylation,
+            ),
             "literature": literature,
             "medical": medical,
             "interactions": {
@@ -508,6 +506,13 @@ def _table(rows: Any, *, limit: int = DEFAULT_PAGE_SIZE) -> str:
     return f'<div class="table-shell"><table><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
+def _metric_cards(items: Iterable[tuple[str, Any]]) -> str:
+    return '<div class="metrics">' + "".join(
+        f"<article><span>{html.escape(label)}</span><strong>{_cell(value)}</strong></article>"
+        for label, value in items
+    ) + "</div>"
+
+
 def render_evidence_first_html(report: dict[str, Any]) -> str:
     run = report["run"]
     summary = report["summary"]
@@ -537,7 +542,7 @@ def render_evidence_first_html(report: dict[str, Any]) -> str:
           <article><span>Assessed evidence sources</span><strong>{summary['evidence_coverage']['assessed_source_count']}</strong></article>
           <article><span>Source failures</span><strong>{summary['evidence_coverage']['failed_source_count']}</strong></article>
         </div>
-        <p><strong>Context unavailable:</strong> {html.escape(missing_context)}. Affected statistics and medical applicability remain not assessed.</p>
+        <p><strong>Context unavailable:</strong> {html.escape(missing_context)}. Medical applicability or external model eligibility may remain unassessed; descriptive statistics are still calculated from the observed rows.</p>
         <p class="notice">Research-use-only workbench. Measured observations, statistics, established medical evidence, and predictions are intentionally separated.</p>
       </section>
     """
@@ -550,10 +555,46 @@ def render_evidence_first_html(report: dict[str, Any]) -> str:
       </section>
     """
     statistics = sections["statistics"]
+    variant_statistics = statistics["variant_statistics"]
+    methylation_statistics = statistics["methylation_statistics"]
+    variant_counts = variant_statistics["counts"]
+    methylation_counts = methylation_statistics["counts"]
+    variant_region_counts = {row["category"]: row["count"] for row in variant_statistics["by_region"]}
+    variant_cards = _metric_cards(
+        (
+            ("QC non-reference variants", variant_counts["qc_passing_non_reference_count"]),
+            ("Promoter variants", variant_region_counts.get("promoter", 0)),
+            ("Gene-body variants", variant_region_counts.get("gene_body", 0)),
+            ("Named variant IDs", variant_counts["named_variant_count"]),
+        )
+    )
+    methylation_cards = _metric_cards(
+        (
+            ("Valid beta values", methylation_counts["valid_beta_count"]),
+            ("Gene-named probes", methylation_counts["gene_named_probe_count"]),
+            ("Promoter probes", methylation_counts["promoter_probe_count"]),
+            ("Gene-body probes", methylation_counts["gene_body_probe_count"]),
+        )
+    )
+    extremes = [
+        {"extreme": "lowest", **row} for row in methylation_statistics["extremes"]["lowest"]
+    ] + [{"extreme": "highest", **row} for row in methylation_statistics["extremes"]["highest"]]
     stats_panel = f"""
       <section id="panel-statistics" class="panel" role="tabpanel" aria-labelledby="tab-statistics" hidden>
-        <h2>Statistics</h2><p>Status: <strong>{html.escape(statistics['status'])}</strong>. Exploratory tests require at least 30 compatible reference samples and BH-FDR correction.</p>
-        {_table(statistics['records'])}
+        <h2>Single-person descriptive statistics</h2>
+        <p>Status: <strong>{html.escape(statistics['status'])}</strong>. Every value below is calculated only from the variant and methylation rows in this person's gene analysis.</p>
+        <h3>Variants</h3>{variant_cards}
+        <h4>Region distribution</h4>{_table(variant_statistics['by_region'])}
+        <h4>Variant and genotype distributions</h4>{_table(variant_statistics['by_type'])}{_table(variant_statistics['genotypes'])}
+        <h4>A/C/G/T composition</h4>{_table(variant_statistics['reference_bases'])}{_table(variant_statistics['alternate_bases'])}{_table(variant_statistics['dosage_weighted_alternate_copies'])}
+        <h4>Substitutions and density</h4>{_table(variant_statistics['substitutions'])}{_table(variant_statistics['density'])}
+        <h4>Variant quality summaries</h4>{_table(variant_statistics['quality'])}
+        <h3>Methylation</h3>{methylation_cards}
+        <h4>Beta summaries by subset</h4>{_table(methylation_statistics['subsets'])}
+        <h4>Genomic and manifest annotations</h4>{_table(methylation_statistics['by_region'])}{_table(methylation_statistics['by_refgene_group'])}{_table(methylation_statistics['by_cpg_island_relation'])}
+        <h4>Beta distribution and measurement quality</h4>{_table(methylation_statistics['beta_histogram'])}{_table(methylation_statistics['quality'])}
+        <h4>Annotation coverage and probe extremes</h4>{_table(methylation_statistics['annotation_coverage'])}{_table(extremes)}
+        <details><summary><strong>Raw field coverage</strong></summary><h4>Variant fields</h4>{_table(variant_statistics['raw_field_coverage'])}<h4>Methylation fields</h4>{_table(methylation_statistics['raw_field_coverage'])}</details>
       </section>
     """
     literature = sections["literature"]
@@ -590,12 +631,12 @@ def render_evidence_first_html(report: dict[str, Any]) -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(run.get('gene') or 'Gene')} evidence-first report</title>
 <style>
-:root{{--bg:#f4f7f5;--panel:#fff;--ink:#17211e;--muted:#52645e;--accent:#176b58;--line:#d7e1dd;--warn:#fff4d6}}
-*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}}main{{max-width:1500px;margin:auto;padding:28px}}
+:root{{--bg:#f8e7e6;--bg-2:#f2d3d6;--panel:rgba(255,247,247,.90);--panel-strong:rgba(255,252,252,.96);--ink:#2a1118;--muted:#6b4b56;--accent:#a1143d;--accent-2:#d11f4f;--line:rgba(118,19,45,.14);--warn:rgba(209,31,79,.10);--shadow:0 24px 70px rgba(90,12,36,.16)}}
+*{{box-sizing:border-box}}body{{margin:0;background:radial-gradient(circle at 0 0,rgba(209,31,79,.30),transparent 28rem),radial-gradient(circle at 100% 0,rgba(124,13,45,.24),transparent 26rem),linear-gradient(180deg,var(--bg),var(--bg-2));color:var(--ink);font:15px/1.5 system-ui,sans-serif}}main{{max-width:1500px;margin:auto;padding:28px}}
 header,.panel,details{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}}h1{{margin:.1em 0}}.muted{{color:var(--muted)}}
-.tabs{{display:flex;gap:8px;overflow:auto;margin:18px 0}}.tab{{border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:999px;white-space:nowrap;cursor:pointer}}.tab[aria-selected=true]{{background:var(--accent);color:#fff}}
+.tabs{{display:flex;gap:8px;overflow:auto;margin:18px 0}}.tab{{border:1px solid var(--line);background:var(--panel-strong);color:var(--muted);padding:10px 14px;border-radius:999px;white-space:nowrap;cursor:pointer}}.tab[aria-selected=true]{{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff9fa}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:15px 0}}.metrics article{{border:1px solid var(--line);border-radius:12px;padding:14px}}.metrics span{{display:block;color:var(--muted)}}.metrics strong{{font-size:1.5rem}}
-.notice{{background:var(--warn);border-radius:10px;padding:12px}}.empty{{color:var(--muted);font-style:italic}}.table-shell{{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-bottom:20px}}table{{border-collapse:collapse;width:100%;font-size:.88rem}}th,td{{text-align:left;padding:9px;border-bottom:1px solid var(--line);vertical-align:top;max-width:360px;overflow-wrap:anywhere}}th{{background:#edf4f1;position:sticky;top:0}}pre{{white-space:pre-wrap;max-height:36rem;overflow:auto}}
+.notice{{background:var(--warn);border-radius:10px;padding:12px}}.empty{{color:var(--muted);font-style:italic}}.table-shell{{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-bottom:20px}}table{{border-collapse:collapse;width:100%;font-size:.88rem}}th,td{{text-align:left;padding:9px;border-bottom:1px solid var(--line);vertical-align:top;max-width:360px;overflow-wrap:anywhere}}th{{background:rgba(209,31,79,.10);position:sticky;top:0}}pre{{white-space:pre-wrap;max-height:36rem;overflow:auto}}
 </style></head><body><main>
 <header><p class="muted">NophiGene Version 2 · schema {REPORT_SCHEMA_VERSION}</p><h1>{html.escape(run.get('gene') or 'Gene')} evidence-first report</h1><p>{html.escape(run.get('genome_build') or 'build not declared')} · {html.escape(run.get('region') or 'region not declared')}</p></header>
 <nav class="tabs" role="tablist" aria-label="Result sections">{tabs}</nav>

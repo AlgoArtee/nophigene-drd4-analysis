@@ -117,7 +117,9 @@ def persist_canonical_report(session: Session, report: dict[str, Any]) -> dict[s
         "interactions": 0,
     }
     run.schema_version = "3.0"
-    run.status = str(report.get("run", {}).get("status") or run.status)
+    report_status = str(report.get("run", {}).get("status") or "")
+    if run.status not in {"partial", "failed", "cancelled"} and report_status:
+        run.status = report_status
     gene = _gene(session, str(report.get("run", {}).get("gene") or "").upper())
     gene_id = gene.id if gene else None
     assembly = str(report.get("run", {}).get("genome_build") or "")

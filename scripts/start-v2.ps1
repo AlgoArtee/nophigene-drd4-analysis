@@ -76,6 +76,18 @@ function Test-DockerEngine {
     return $LASTEXITCODE -eq 0
 }
 
+function Set-CryptographicRandomBytes {
+    param([Parameter(Mandatory)][byte[]]$Buffer)
+
+    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $generator.GetBytes($Buffer)
+    }
+    finally {
+        $generator.Dispose()
+    }
+}
+
 function Remove-RuntimeSecretFiles {
     foreach ($path in @($databaseSecretPath, $sessionSecretPath, $dandelionSecretPath, $dandelionArtifactSecretPath)) {
         if (Test-Path -LiteralPath $path) {
@@ -182,7 +194,7 @@ else {
     }
     catch {
         $databaseBytes = New-Object byte[] 48
-        [System.Security.Cryptography.RandomNumberGenerator]::Fill($databaseBytes)
+        Set-CryptographicRandomBytes -Buffer $databaseBytes
         $databaseKey = [Convert]::ToBase64String($databaseBytes)
         $credential = [Activator]::CreateInstance($credentialType, @($vaultResource, $vaultUser, $databaseKey))
         $vault.Add($credential)
@@ -190,7 +202,7 @@ else {
     }
 
     $sessionBytes = New-Object byte[] 32
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($sessionBytes)
+    Set-CryptographicRandomBytes -Buffer $sessionBytes
     $sessionToken = [Convert]::ToBase64String($sessionBytes).Replace("+", "-").Replace("/", "_").TrimEnd("=")
     try {
         $dandelionCredential = $vault.Retrieve($vaultResource, $dandelionVaultUser)
@@ -200,7 +212,7 @@ else {
     }
     catch {
         $dandelionBytes = New-Object byte[] 48
-        [System.Security.Cryptography.RandomNumberGenerator]::Fill($dandelionBytes)
+        Set-CryptographicRandomBytes -Buffer $dandelionBytes
         $dandelionRunnerKey = [Convert]::ToBase64String($dandelionBytes)
         $dandelionCredential = [Activator]::CreateInstance($credentialType, @($vaultResource, $dandelionVaultUser, $dandelionRunnerKey))
         $vault.Add($dandelionCredential)
@@ -214,7 +226,7 @@ else {
     }
     catch {
         $artifactBytes = New-Object byte[] 48
-        [System.Security.Cryptography.RandomNumberGenerator]::Fill($artifactBytes)
+        Set-CryptographicRandomBytes -Buffer $artifactBytes
         $dandelionArtifactKey = [Convert]::ToBase64String($artifactBytes)
         $artifactCredential = [Activator]::CreateInstance($credentialType, @($vaultResource, $dandelionArtifactVaultUser, $dandelionArtifactKey))
         $vault.Add($artifactCredential)

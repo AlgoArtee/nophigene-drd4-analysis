@@ -9,5 +9,7 @@
 - Added typed literature, medical-evidence gates, statistics safeguards, interaction graphs, PGx resolution, and independent model contracts.
 - Consolidated supported execution on the secured Version 2 Docker Compose launcher and Python 3.12 `.venv-v2` development environment.
 - Moved retired Version 1 material into `version1/`.
+- Replaced standard cohort/reference comparisons with single-person descriptive variant, methylation, annotation, quality, and raw-field statistics.
+- Added latest-successful-run-per-gene personal rollups with cross-window locus/probe deduplication and explicit DANDELION exclusion.
 
 The historical Version 1 changelog is preserved at `version1/CHANGELOG.md`.

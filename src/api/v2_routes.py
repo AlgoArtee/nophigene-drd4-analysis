@@ -7,6 +7,8 @@ import hashlib
 import shutil
 import uuid
 import os
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +46,7 @@ try:
     )
     from ..workbench.models import (
         DeletionRecord,
+        MethylationMeasurement,
         ModelRun,
         Prediction,
         Run,
@@ -52,6 +55,7 @@ try:
         StatisticalDataset,
         StatisticalDatasetFile,
         StatisticalResult,
+        VariantCall,
     )
     from ..workbench.persistence import persist_canonical_report
 except ImportError:
@@ -79,6 +83,7 @@ except ImportError:
     )
     from workbench.models import (
         DeletionRecord,
+        MethylationMeasurement,
         ModelRun,
         Prediction,
         Run,
@@ -87,6 +92,7 @@ except ImportError:
         StatisticalDataset,
         StatisticalDatasetFile,
         StatisticalResult,
+        VariantCall,
     )
     from workbench.persistence import persist_canonical_report
 
@@ -161,6 +167,7 @@ def index():
             "version": "2.0",
             "report_schema_version": "3.0",
             "runs": "/api/v2/runs",
+            "personal_statistics": "/api/v2/personal-statistics",
             "evidence_sources": "/api/v2/evidence/sources",
             "models": "/api/v2/models",
             "statistical_datasets": "/api/v2/statistical-datasets",
@@ -182,6 +189,7 @@ def openapi_document():
         "/api/v2/runs/{id}/evidence/refresh": {"post": "Explicitly refresh selected evidence sources"},
         "/api/v2/runs/{id}/interactions": {"get": "Expand one to three gene hops"},
         "/api/v2/runs/{id}/exports": {"post": "Create a sensitive full-fidelity export"},
+        "/api/v2/personal-statistics": {"get": "Read latest-per-gene single-person descriptive statistics"},
         "/api/v2/evidence/sources": {"get": "List the typed vetted source catalog"},
         "/api/v2/models": {"get": "List immutable model manifests"},
         "/api/v2/statistical-datasets": {
@@ -898,15 +906,43 @@ def submit_run():
     return response
 
 
-def _sync_run(job: dict[str, Any]) -> None:
+def _sync_run(job: dict[str, Any]) -> bool:
     with session_scope(_engine()) as session:
         run = session.get(Run, job["id"])
         if run is None:
-            return
+            return False
         run.status = job["status"]
         run.stage = job["stage"]
         run.progress_percent = int(job.get("progress", {}).get("percent") or 0)
         run.error = dict(job.get("error") or {})
+        for attribute in ("started_at", "finished_at"):
+            value = job.get(attribute)
+            if not value:
+                continue
+            try:
+                setattr(run, attribute, datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+            except ValueError:
+                current_app.logger.warning("Ignored invalid %s timestamp for run %s", attribute, job.get("id"))
+        return True
+
+
+def persist_completed_standard_run(app, manager, run_id: str) -> None:
+    """Completion hook that makes API rollups independent of result-page access."""
+    with app.app_context():
+        job = manager.get(run_id)
+        if job.get("status") not in {"succeeded", "partial"}:
+            return
+        if job.get("operation") not in {"full_workflow", "render_reports"}:
+            _sync_run(job)
+            return
+        for _attempt in range(20):
+            if _sync_run(job):
+                break
+            time.sleep(0.05)
+        else:
+            app.logger.warning("Completed run %s was not yet present in persistence", run_id)
+            return
+        _canonical_results(run_id)
 
 
 @api_v2.get("/runs")
@@ -937,6 +973,146 @@ def _canonical_results(run_id: str) -> list[dict[str, Any]]:
             for report in reports:
                 persist_canonical_report(session, report)
     return reports
+
+
+def _region_stat_count(rows: list[dict[str, Any]], category: str) -> int:
+    overlap = "promoter_and_gene"
+    accepted = {category, overlap} if category in {"promoter", "gene_body"} else {category}
+    return sum(int(row.get("count") or 0) for row in rows if row.get("category") in accepted)
+
+
+def _methylation_subset(rows: list[dict[str, Any]], subset: str) -> dict[str, Any]:
+    return next((dict(row) for row in rows if row.get("subset") == subset), {})
+
+
+def _persist_finished_standard_jobs() -> None:
+    """Idempotently materialize canonical summaries for completed API jobs."""
+    with session_scope(_engine()) as session:
+        persisted = {
+            (row.run_id, str(row.entity_key or "").upper())
+            for row in session.scalars(
+                select(StatisticalResult).where(
+                    StatisticalResult.family == "single_sample_descriptive",
+                    StatisticalResult.analysis_run_id.is_(None),
+                )
+            ).all()
+        }
+    for job in _jobs().list():
+        if job.get("status") not in {"succeeded", "partial"}:
+            continue
+        if job.get("operation") not in {"full_workflow", "render_reports"}:
+            continue
+        try:
+            _sync_run(job)
+            expected_genes = {
+                str(outcome.get("gene") or "").upper()
+                for outcome in job.get("outcomes", [])
+                if outcome.get("status") == "succeeded" and outcome.get("gene")
+            }
+            if expected_genes and all((str(job["id"]), gene) in persisted for gene in expected_genes):
+                continue
+            _canonical_results(str(job["id"]))
+        except Exception as exc:  # One unreadable historical job must not hide later valid statistics.
+            current_app.logger.warning("Could not persist completed run %s for personal statistics: %s", job.get("id"), exc)
+
+
+@api_v2.get("/personal-statistics")
+def personal_statistics():
+    """Return one-person rollups using the latest successful standard run per gene."""
+    _persist_finished_standard_jobs()
+    with session_scope(_engine()) as session:
+        summaries = session.scalars(
+            select(StatisticalResult).where(
+                StatisticalResult.family == "single_sample_descriptive",
+                StatisticalResult.analysis_run_id.is_(None),
+            )
+        ).all()
+        runs = {
+            run.id: run
+            for run in session.scalars(
+                select(Run).where(Run.id.in_({row.run_id for row in summaries}))
+            ).all()
+        } if summaries else {}
+        latest: dict[str, tuple[StatisticalResult, Run]] = {}
+        for summary in summaries:
+            run = runs.get(summary.run_id)
+            if run is None or run.status not in {"succeeded", "partial"}:
+                continue
+            if (run.configuration or {}).get("kind") == "cohort_statistical_analysis":
+                continue
+            gene = str(summary.entity_key or "").strip().upper()
+            if not gene:
+                continue
+            candidate_time = run.finished_at or run.updated_at or run.created_at
+            current = latest.get(gene)
+            current_time = (current[1].finished_at or current[1].updated_at or current[1].created_at) if current else None
+            if current is None or (candidate_time, run.id) > (current_time, current[1].id):
+                latest[gene] = (summary, run)
+
+        genes: list[dict[str, Any]] = []
+        selected_run_ids: set[str] = set()
+        for gene, (summary, run) in sorted(latest.items()):
+            details = dict(summary.details or {})
+            variant = dict(details.get("variant_statistics") or {})
+            methylation = dict(details.get("methylation_statistics") or {})
+            variant_counts = dict(variant.get("counts") or {})
+            methylation_counts = dict(methylation.get("counts") or {})
+            region_rows = list(variant.get("by_region") or [])
+            all_beta = _methylation_subset(list(methylation.get("subsets") or []), "all_rows")
+            selected_run_ids.add(run.id)
+            timestamp = run.finished_at or run.updated_at or run.created_at
+            timestamp_text = timestamp.isoformat() if timestamp else None
+            build = details.get("genome_build") or ""
+            scope = details.get("analysis_scope") or ""
+            genes.append(
+                {
+                    "gene": gene,
+                    "run_id": run.id,
+                    "timestamp": timestamp_text,
+                    "generated_at": timestamp_text,
+                    "build": build,
+                    "genome_build": build,
+                    "scope": scope,
+                    "analysis_scope": scope,
+                    "region": details.get("region") or "",
+                    "variant_count": int(variant_counts.get("qc_passing_non_reference_count") or 0),
+                    "promoter_variant_count": _region_stat_count(region_rows, "promoter"),
+                    "gene_body_variant_count": _region_stat_count(region_rows, "gene_body"),
+                    "methylation_probe_count": int(methylation_counts.get("valid_beta_count") or 0),
+                    "mean_beta": all_beta.get("mean"),
+                    "median_beta": all_beta.get("median"),
+                }
+            )
+
+        unique_variant_loci: set[str] = set()
+        unique_probe_ids: set[str] = set()
+        if selected_run_ids:
+            variant_calls = session.scalars(
+                select(VariantCall).where(VariantCall.run_id.in_(selected_run_ids))
+            ).all()
+            for call in variant_calls:
+                if call.qc_pass and bool((call.raw_fields or {}).get("non_reference")):
+                    unique_variant_loci.add(call.locus_id)
+            measurements = session.scalars(
+                select(MethylationMeasurement).where(MethylationMeasurement.run_id.in_(selected_run_ids))
+            ).all()
+            unique_probe_ids = {row.probe_id for row in measurements if row.probe_id}
+
+    return jsonify(
+        {
+            "scope": "single_person",
+            "selection_policy": "latest_successful_run_per_gene",
+            "generated_at": utc_now(),
+            "gene_count": len(genes),
+            "totals": {
+                "per_gene_variant_assignments": sum(row["variant_count"] for row in genes),
+                "unique_variant_loci": len(unique_variant_loci),
+                "per_gene_methylation_probe_assignments": sum(row["methylation_probe_count"] for row in genes),
+                "unique_methylation_probes": len(unique_probe_ids),
+            },
+            "genes": genes,
+        }
+    )
 
 
 @api_v2.get("/runs/<run_id>/result")

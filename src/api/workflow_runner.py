@@ -22,7 +22,6 @@ try:
         analyze_prepared_data,
         build_gene_manifest_subset,
         build_gene_methylation_table,
-        fetch_population_stats,
         generate_report,
         load_full_methylation_manifest,
         load_methylation_beta_values,
@@ -47,7 +46,6 @@ except ImportError:
         analyze_prepared_data,
         build_gene_manifest_subset,
         build_gene_methylation_table,
-        fetch_population_stats,
         generate_report,
         load_full_methylation_manifest,
         load_methylation_beta_values,
@@ -547,9 +545,9 @@ class WorkflowRunner:
             region=resolved["region"],
             genome_build=resolved["genome_build"],
         )
+        # Population/reference sidecars are retained in the profile contract for
+        # compatibility, but standard reports are descriptive for one person.
         popstats = None
-        if profile.get("population_statistics_path"):
-            popstats = fetch_population_stats(profile["population_statistics_path"], variants)
         prepared = analyze_prepared_data(
             variants=variants,
             methylation=methylation,
@@ -715,6 +713,7 @@ class WorkflowRunner:
             "region": resolved["region"],
             "analysis_scope": prepared.analysis_scope,
             "analysis_scope_label": prepared.analysis_scope_label,
+            "scope_regions": resolved.get("scope_regions", {}),
             "source_provenance": {
                 "region_sources": resolved["selected_sources"],
                 "region_candidates": resolved["candidate_regions"],
@@ -811,20 +810,6 @@ class WorkflowRunner:
         methylation_insights = _rehydrate_methylation_insights(
             analysis_payload.get("methylation_insights", {})
         )
-        generate_report(
-            variants,
-            methylation,
-            popstats,
-            str(html_path),
-            gene_name=gene,
-            region=resolved["region"],
-            methylation_output_path=gene_dir / "methylation.csv",
-            variant_interpretations=analysis_payload.get("variant_interpretations", {}),
-            methylation_insights=methylation_insights,
-            population_insights=analysis_payload.get("population_insights", {}),
-            analysis_scope=resolved["scope"],
-            interpretation=analysis_payload.get("interpretation", {}),
-        )
         artifacts = {
             "report_html": _artifact_url(job_id, f"genes/{gene}/report.html"),
             "report_json": _artifact_url(job_id, f"genes/{gene}/report.json"),
@@ -855,6 +840,27 @@ class WorkflowRunner:
                 },
             }
         )
+        generate_report(
+            variants,
+            methylation,
+            popstats,
+            str(html_path),
+            gene_name=gene,
+            region=resolved["region"],
+            methylation_output_path=gene_dir / "methylation.csv",
+            variant_interpretations=analysis_payload.get("variant_interpretations", {}),
+            methylation_insights=methylation_insights,
+            population_insights=analysis_payload.get("population_insights", {}),
+            analysis_scope=resolved["scope"],
+            interpretation=analysis_payload.get("interpretation", {}),
+            run_id=job_id,
+            genome_build=resolved["genome_build"],
+            scope_regions=dict(analysis_payload.get("scope_regions") or {}),
+            knowledge_base=analysis_payload.get("knowledge_base", {}),
+            source_provenance=canonical.get("run_details", {}).get("source_provenance", {}),
+            artifacts=artifacts,
+            canonical_report=canonical,
+        )
         write_json_atomic(report_json_path, canonical)
         with summary_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["metric", "value"])
@@ -867,7 +873,11 @@ class WorkflowRunner:
                     {"metric": "analysis_scope", "value": resolved["scope"]},
                     {"metric": "variant_count", "value": len(variants)},
                     {"metric": "methylation_probe_count", "value": len(methylation)},
-                    {"metric": "has_population_statistics", "value": popstats is not None},
+                    {"metric": "statistics_scope", "value": "single_person"},
+                    {
+                        "metric": "statistics_status",
+                        "value": canonical.get("sections", {}).get("statistics", {}).get("status", "no_data"),
+                    },
                     {
                         "metric": "interpretation_mode",
                         "value": analysis_payload.get("interpretation", {})

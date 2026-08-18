@@ -425,8 +425,8 @@ def test_load_methylation_beta_values_reuses_cached_processed_csv(monkeypatch, t
     ]
 
 
-def test_preprocessing_defaults_do_not_force_custom_manifest() -> None:
-    """The analysis form should keep the custom manifest override empty by default."""
+def test_preprocessing_defaults_autofill_prepared_manifest() -> None:
+    """A completed preprocessing run should hand its prepared manifest to analysis."""
     form = {
         "vcf": "",
         "idat": "",
@@ -442,13 +442,14 @@ def test_preprocessing_defaults_do_not_force_custom_manifest() -> None:
         "region": "15:99191768-99507759",
         "manifest_source": "data/infinium-methylationepic-v-1-0-b5-manifest-file.csv",
         "filtered_manifest": "src/gene_data/IGF1R_epigenetics_hg19.csv",
+        "manifest_ready": True,
     }
 
     _apply_preprocessing_defaults(form, preprocess_state)
 
     assert form["region"] == "15:99191768-99507759"
     assert form["analysis_scope"] == "promoter_plus_gene"
-    assert form["manifest_file"] == ""
+    assert form["manifest_file"] == "src/gene_data/IGF1R_epigenetics_hg19.csv"
     assert form["out"] == "results/igf1r_promoter_plus_gene_report.html"
 
 

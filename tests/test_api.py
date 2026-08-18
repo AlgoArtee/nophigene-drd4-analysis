@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,6 +20,8 @@ from src.api.serialization import write_json_atomic
 from src.api.workflow_runner import WorkflowRunner, normalize_job_request
 from src.workbench.database import create_database_engine, ensure_schema
 from src.workbench.models import Run
+from src.workbench.persistence import persist_canonical_report
+from src.workbench.reporting import build_canonical_report
 from src.workflow import select_profile_variant_source
 
 
@@ -131,6 +134,112 @@ def test_v2_exposes_schema_three_and_enforces_batch_limit(tmp_path: Path) -> Non
         persisted = session.get(Run, run_id)
         assert persisted is not None
         assert persisted.genes == ["DRD4"]
+
+
+def test_personal_statistics_uses_latest_standard_run_and_deduplicates_overlapping_windows(tmp_path: Path) -> None:
+    store = ProfileStore(tmp_path / "profiles.json")
+    manager = JobManager(jobs_root=tmp_path / "jobs", profile_store=store)
+    engine = create_database_engine(test_url="sqlite+pysqlite:///:memory:")
+    ensure_schema(engine)
+    app = Flask(__name__)
+    app.config.update(
+        TESTING=True,
+        NOPHIGENE_PROFILE_STORE=store,
+        NOPHIGENE_JOB_MANAGER=manager,
+        NOPHIGENE_DATABASE_ENGINE=engine,
+    )
+    app.register_blueprint(api_v2)
+    empty = app.test_client().get("/api/v2/personal-statistics").get_json()
+    assert empty["gene_count"] == 0
+    assert empty["genes"] == []
+    assert empty["totals"]["unique_variant_loci"] == 0
+
+    def persist_run(
+        run_id: str,
+        gene: str,
+        finished: str,
+        variants: list[dict[str, object]],
+        probes: list[dict[str, object]],
+        *,
+        status: str = "succeeded",
+        kind: str = "single_person_gene_analysis",
+    ) -> None:
+        timestamp = datetime.fromisoformat(finished).replace(tzinfo=timezone.utc)
+        report = build_canonical_report(
+            {
+                "run_id": run_id,
+                "status": status,
+                "gene": gene,
+                "genome_build": "GRCh38",
+                "region": "1:90-300",
+                "analysis_scope": "promoter_plus_gene",
+                "scope_regions": {
+                    "promoter_only": "1:90-110",
+                    "gene_only": "1:100-300",
+                    "promoter_plus_gene": "1:90-300",
+                },
+                "variants": variants,
+                "methylation": probes,
+            }
+        )
+        with Session(engine) as session:
+            session.add(
+                Run(
+                    id=run_id,
+                    status=status,
+                    stage="complete",
+                    progress_percent=100,
+                    genes=[gene],
+                    configuration={"kind": kind},
+                    started_at=timestamp,
+                    finished_at=timestamp,
+                )
+            )
+            session.flush()
+            persist_canonical_report(session, report)
+            session.commit()
+
+    variant = lambda pos, alt="G": {  # noqa: E731 - compact fixture builder
+        "CHROM": "chr1", "POS": pos, "REF": "A", "ALT": alt, "GT": "0/1",
+        "FILTER": "PASS", "GQ": 30, "DP": 20,
+    }
+    probe = lambda probe_id, beta: {"probe_id": probe_id, "beta_value": beta}  # noqa: E731
+    persist_run("1" * 32, "GENE1", "2026-01-01T00:00:00", [variant(175)], [probe("cgOld", 0.1)])
+    persist_run("2" * 32, "GENE1", "2026-02-01T00:00:00", [variant(100), variant(150, "T")], [probe("cgShared", 0.2), probe("cg1", 0.4)])
+    persist_run("3" * 32, "GENE2", "2026-03-01T00:00:00", [variant(100), variant(250, "C")], [probe("cgShared", 0.2), probe("cg2", 0.8)])
+    persist_run("4" * 32, "FAILED", "2026-04-01T00:00:00", [variant(275)], [probe("cgFailed", 0.9)], status="failed")
+    persist_run("5" * 32, "COHORT", "2026-05-01T00:00:00", [variant(280)], [probe("cgCohort", 0.7)], kind="cohort_statistical_analysis")
+
+    response = app.test_client().get("/api/v2/personal-statistics")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["scope"] == "single_person"
+    assert payload["selection_policy"] == "latest_successful_run_per_gene"
+    assert payload["gene_count"] == 2
+    assert [row["gene"] for row in payload["genes"]] == ["GENE1", "GENE2"]
+    assert payload["genes"][0] == {
+        "gene": "GENE1",
+        "run_id": "2" * 32,
+        "timestamp": "2026-02-01T00:00:00",
+        "generated_at": "2026-02-01T00:00:00",
+        "build": "GRCh38",
+        "genome_build": "GRCh38",
+        "scope": "promoter_plus_gene",
+        "analysis_scope": "promoter_plus_gene",
+        "region": "1:90-300",
+        "variant_count": 2,
+        "promoter_variant_count": 1,
+        "gene_body_variant_count": 2,
+        "methylation_probe_count": 2,
+        "mean_beta": 0.3,
+        "median_beta": 0.3,
+    }
+    assert payload["totals"] == {
+        "per_gene_variant_assignments": 4,
+        "unique_variant_loci": 3,
+        "per_gene_methylation_probe_assignments": 4,
+        "unique_methylation_probes": 3,
+    }
 
 
 def test_job_validation_rejects_empty_and_oversized_gene_lists() -> None:
@@ -261,6 +370,32 @@ def test_running_jobs_are_marked_interrupted_and_queued_jobs_can_be_cancelled(tm
     cancelled = manager.cancel(cancellable_id)
     assert cancelled["status"] == "cancelled"
     blocker.set()
+
+
+def test_job_manager_calls_completion_hooks_without_result_endpoint_access(tmp_path: Path) -> None:
+    completed: list[tuple[str, str]] = []
+    hook_completed = threading.Event()
+
+    class ImmediateRunner:
+        def execute(self, job_id, _request, _job_dir, _progress):
+            return {"status": "succeeded", "genes": [{"gene": "DRD4", "status": "succeeded"}]}
+
+    manager = JobManager(
+        jobs_root=tmp_path / "jobs",
+        profile_store=ProfileStore(tmp_path / "profiles.json"),
+        runner=ImmediateRunner(),
+    )
+    def completion_hook(run_id: str, result: dict[str, object]) -> None:
+        completed.append((run_id, str(result["status"])))
+        hook_completed.set()
+
+    manager.add_completion_hook(completion_hook)
+    job = manager.submit(normalize_job_request({"operation": "resolve_regions", "genes": ["DRD4"]}))
+    terminal = manager.wait_for_terminal(job["id"])
+    assert hook_completed.wait(timeout=1)
+
+    assert terminal["status"] == "succeeded"
+    assert completed == [(job["id"], "succeeded")]
 
 
 def test_variant_source_prefers_matching_vcf_then_bam(tmp_path: Path) -> None:

@@ -7,10 +7,10 @@
   {% if preprocess_notice %}<div class="message success">{{ preprocess_notice }}</div>{% endif %}
   {% if extraction_error %}<div class="message error">{{ extraction_error }}</div>{% endif %}
 
-  <div class="run-grid">
+  <div class="run-grid workflow-grid">
     <article class="card">
       <span class="step">1</span><h3>Resolve the gene and EPIC probes</h3>
-      <form method="post">
+      <form method="post" data-preprocess-form>
         <input type="hidden" name="workflow" value="preprocess">
         <label>Gene symbol<input name="gene_name" value="{{ preprocess_state.gene_name or 'DRD4' }}" required></label>
         <label>Resolved region<input name="preprocess_region" value="{{ preprocess_state.region }}" placeholder="chromosome:start-end"></label>
@@ -45,20 +45,63 @@
         <label>IDAT prefix
           <select name="idat" required><option value="">Select an IDAT pair</option>{% for path in idat_prefixes %}<option value="{{ path }}"{% if path == form.idat %} selected{% endif %}>{{ path }}</option>{% endfor %}</select>
         </label>
-        <label>Prepared manifest<input name="manifest_file" value="{{ form.manifest_file }}" required></label>
+        <label>Prepared manifest<input name="manifest_file" value="{{ form.manifest_file }}" data-prepared-manifest required></label>
         <label>Region<input name="region" value="{{ form.region }}" required></label>
         <label>Analysis focus
           <select name="analysis_scope">{% for item in analysis_scope_options %}<option value="{{ item.key }}"{% if item.selected == 'true' %} selected{% endif %}>{{ item.label }}</option>{% endfor %}</select>
         </label>
-        <label>Optional matched population/reference file<input name="popstats" value="{{ form.popstats }}"></label>
         <label>Output report<input name="out" value="{{ form.out }}" required></label>
         <button type="submit"{% if not analysis_unlocked %} disabled{% endif %}>Run evidence-first analysis</button>
       </form>
       <p class="help">Primary variant QC uses PASS and GQ≥20/DP≥10 when those fields are present. Flagged probes are retained but excluded from primary results.</p>
     </article>
+
+    {% set preprocessing_progress = 100 if preprocess_state.manifest_ready else 50 if preprocess_state.region_ready else 0 %}
+    <article class="card preprocessing-status-card" data-preprocessing-status aria-busy="false">
+      <div class="preprocessing-status-heading">
+        <div><span class="eyebrow">Status indicator</span><h3>Preprocessing Status</h3></div>
+        <span class="status-pill{% if analysis_unlocked %} ready{% endif %}" data-preprocessing-status-pill>{{ 'Analysis unlocked' if analysis_unlocked else 'Waiting' }}</span>
+      </div>
+      <p class="help" data-preprocessing-live aria-live="polite">{{ 'The prepared manifest is ready for step 2.' if preprocess_state.manifest_ready else 'Complete both preprocessing stages to unlock the analysis.' }}</p>
+      <div class="preprocessing-status-grid">
+        <div class="preprocessing-progress-column">
+          <div class="preprocessing-progress-title">Step Flow</div>
+          <div class="preprocessing-vertical-track" role="progressbar" aria-label="Preprocessing completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ preprocessing_progress }}">
+            <div class="preprocessing-vertical-fill" data-preprocessing-progress-fill style="height: {{ preprocessing_progress }}%;"></div>
+          </div>
+          <div class="preprocessing-progress-caption" data-preprocessing-progress-caption>{{ preprocessing_progress }}%</div>
+        </div>
+
+        <div class="preprocessing-step-stack">
+          <section class="preprocessing-step-entry{% if preprocess_state.region_ready %} is-complete{% endif %}">
+            <div class="preprocessing-step-meta">
+              <span class="preprocessing-step-index">01</span>
+              <span class="preprocessing-step-state">{{ 'Complete' if preprocess_state.region_ready else 'Pending' }}</span>
+            </div>
+            <div>
+              <h4>Resolve gene coordinates</h4>
+              <p>{{ preprocess_result.steps[0].summary if preprocess_result else 'Enter a gene symbol, then resolve it to a genome interval.' }}</p>
+            </div>
+            <small><strong>Region:</strong> <code>{{ preprocess_state.region if preprocess_state.region_ready else 'not resolved' }}</code></small>
+          </section>
+
+          <section class="preprocessing-step-entry{% if preprocess_state.manifest_ready %} is-complete{% endif %}">
+            <div class="preprocessing-step-meta">
+              <span class="preprocessing-step-index">02</span>
+              <span class="preprocessing-step-state">{{ 'Complete' if preprocess_state.manifest_ready else 'Pending' }}</span>
+            </div>
+            <div>
+              <h4>Prepare EPIC probes</h4>
+              <p>{{ preprocess_result.steps[1].summary if preprocess_result else 'Filter the EPIC manifest to the resolved interval.' }}</p>
+            </div>
+            <small><strong>Prepared manifest:</strong> <code>{{ preprocess_state.filtered_manifest or 'not created' }}</code></small>
+          </section>
+        </div>
+      </div>
+    </article>
   </div>
   <div class="section-heading cohort-heading">
-    <div><span class="eyebrow">Cohort statistics</span><h2>DANDELION disease-gene prioritisation</h2><p>Run gene→gene or SNP→gene trans-regulatory analyses in the offline R worker.</p></div>
+    <div><span class="eyebrow">Separate cohort research</span><h2>DANDELION disease-gene prioritisation</h2><p>Run gene→gene or SNP→gene trans-regulatory analyses in the offline R worker. These results never enter personal statistics.</p></div>
     <span class="status-pill" data-dandelion-status>Checking worker…</span>
   </div>
   <div class="message warning">DANDELION output is hypothesis-generating cohort evidence. It is shown under Statistics and Interactions, never Medical or Predictions.</div>

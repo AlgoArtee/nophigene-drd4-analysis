@@ -12,6 +12,35 @@
   document.querySelectorAll('[data-task-target]').forEach((button) => {
     button.addEventListener('click', () => showTask(button.dataset.taskTarget));
   });
+
+  const preprocessForm = document.querySelector('[data-preprocess-form]');
+  if (preprocessForm) {
+    preprocessForm.addEventListener('submit', (event) => {
+      const action = event.submitter?.value || '';
+      if (!['find_region', 'select_methylation'].includes(action)) return;
+      const status = document.querySelector('[data-preprocessing-status]');
+      if (!status) return;
+      const fill = status.querySelector('[data-preprocessing-progress-fill]');
+      const track = fill?.parentElement;
+      const caption = status.querySelector('[data-preprocessing-progress-caption]');
+      const pill = status.querySelector('[data-preprocessing-status-pill]');
+      const live = status.querySelector('[data-preprocessing-live]');
+      const target = action === 'find_region' ? 48 : 94;
+      const message = action === 'find_region'
+        ? 'Resolving the gene interval…'
+        : 'Filtering and saving the prepared manifest…';
+      status.setAttribute('aria-busy', 'true');
+      if (fill) fill.style.height = `${target}%`;
+      if (track) track.setAttribute('aria-valuenow', String(target));
+      if (caption) caption.textContent = 'Working…';
+      if (pill) {
+        pill.textContent = 'Working…';
+        pill.classList.add('ready');
+      }
+      if (live) live.textContent = message;
+    });
+  }
+
   document.querySelectorAll('[data-result-target]').forEach((button) => {
     button.addEventListener('click', () => {
       const key = button.dataset.resultTarget;
@@ -78,6 +107,37 @@
     const number = Number(value);
     if (!Number.isFinite(number)) return '—';
     return number === 0 || Math.abs(number) >= 0.001 ? number.toPrecision(4) : number.toExponential(3);
+  };
+
+  const refreshPersonalStatistics = async () => {
+    const shells = document.querySelectorAll('[data-personal-statistics]');
+    if (!shells.length) return;
+    try {
+      const payload = await apiJson('/api/v2/personal-statistics');
+      shells.forEach((shell) => {
+        shell.querySelector('[data-personal-statistics-status]').textContent = `${payload.gene_count} gene${payload.gene_count === 1 ? '' : 's'}`;
+        shell.querySelector('[data-personal-gene-count]').textContent = payload.gene_count;
+        shell.querySelector('[data-personal-variant-count]').textContent = payload.totals.unique_variant_loci;
+        shell.querySelector('[data-personal-probe-count]').textContent = payload.totals.unique_methylation_probes;
+        const rows = shell.querySelector('[data-personal-statistics-rows]');
+        rows.replaceChildren();
+        payload.genes.forEach((item) => {
+          const row = document.createElement('tr');
+          [item.gene, item.variant_count, item.promoter_variant_count, item.gene_body_variant_count,
+            item.methylation_probe_count, numberText(item.mean_beta), numberText(item.median_beta),
+            item.genome_build, item.analysis_scope?.replaceAll('_', ' '), item.run_id].forEach((value) => addCell(row, value));
+          rows.appendChild(row);
+        });
+        shell.querySelector('[data-personal-statistics-empty]').hidden = payload.gene_count !== 0;
+        shell.querySelector('.table-shell').hidden = payload.gene_count === 0;
+      });
+    } catch (error) {
+      shells.forEach((shell) => {
+        const status = shell.querySelector('[data-personal-statistics-status]');
+        status.textContent = 'Unavailable';
+        status.title = error.message;
+      });
+    }
   };
 
   const renderDandelionResult = (report) => {
@@ -346,6 +406,6 @@
     });
   });
 
-  Promise.allSettled([refreshDandelionDatasets(), refreshDandelionHistory(), refreshDandelionHealth()]);
+  Promise.allSettled([refreshPersonalStatistics(), refreshDandelionDatasets(), refreshDandelionHistory(), refreshDandelionHealth()]);
   showTask(document.body.dataset.initialTask || 'run');
 })();

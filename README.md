@@ -7,6 +7,7 @@ It is research-use-only and does not provide diagnoses or treatment recommendati
 ## What changed in Version 2
 
 - Canonical report schema `3.0` with Summary plus Objective Data, Statistics, Scientific Literature, Medical Information, Interactions, and Predictions.
+- Single-person descriptive statistics for variants, methylation, raw-field coverage, and a latest-successful-run-per-gene personal rollup at `/api/v2/personal-statistics`.
 - Normalized SQLAlchemy 2 persistence backed by Community SQLCipher in the supported Linux container.
 - Versioned Alembic migrations, encrypted pre-migration backups, seven-daily/four-weekly rotation, and a hash-chained audit log.
 - `/api/v2` for new runs; `/api/v1` remains read-only for legacy jobs and artifacts.
@@ -64,6 +65,7 @@ Run a plaintext local development server only when working with non-sensitive fi
 - API index: [http://127.0.0.1:8766/api/v2](http://127.0.0.1:8766/api/v2)
 - OpenAPI: [http://127.0.0.1:8766/api/v2/openapi.json](http://127.0.0.1:8766/api/v2/openapi.json)
 - Health: [http://127.0.0.1:8766/api/v2/health](http://127.0.0.1:8766/api/v2/health)
+- Personal statistics: [http://127.0.0.1:8766/api/v2/personal-statistics](http://127.0.0.1:8766/api/v2/personal-statistics)
 
 `POST /api/v2/runs` accepts one gene in the UI and at most 100 unique genes through the API. A reusable sample profile is required for processing operations.
 
@@ -96,11 +98,12 @@ Imported licensed evidence does not require external-transfer consent. A linkout
 ## Scientific safeguards
 
 - Primary variant rows require PASS plus GQ ≥20 and DP ≥10 when those fields exist. Missing QC values are retained and reported rather than invented.
-- Multi-allelic alleles must be split and normalized; native GRCh37 and GRCh38 identities remain distinct.
+- Multi-allelic calls are reported as their own descriptive category; split/normalized alleles are still required before identity-sensitive external matching. Native GRCh37 and GRCh38 identities remain distinct.
 - Ambiguous liftover, invalid REF mapping, or incomplete chain/tool provenance blocks the affected adapter.
-- Methylation beta values are displayed for interpretation. Compatible tests can use M-values.
-- Single-sample comparisons require at least 30 raw values from an exactly compatible tissue/platform/normalization/build reference cohort.
-- Public and user cohorts are never silently pooled. Raw p-values, effects, uncertainty, and within-family BH q-values remain separate.
+- Standard methylation statistics summarize valid beta values, M-values, detection p-values, bead counts, annotations, and missing/invalid values from this person only. Beta values outside `[0,1]` are excluded and counted as invalid.
+- Standard variant statistics summarize QC, region, type, genotype, A/C/G/T composition, dosage, substitutions, density, quality fields, and raw-field coverage from this person only.
+- Standard reports contain no population comparison, percentile, p-value, FDR, phenotype bucket, or minimum cohort-size gate. Missing metrics remain `null` with an availability explanation.
+- DANDELION remains a separate cohort-research workflow. Its runs and results never enter personal statistics or totals.
 - Medical records require an authoritative clinical source and release/effective date. GWAS, trials, preprints, case reports, and adverse-event signals stay in Literature.
 - PGx diplotypes resolve only when every defining locus is QC-covered and exactly one solution remains; otherwise phenotype is not assessed.
 - Model outputs remain independent. No NophiGene consensus score is calculated.
@@ -125,7 +128,7 @@ DANDELION is integrated as a statistical method, not as an AI model. Put cohort 
 
 The `dandelion-worker` uses pinned R 4.6.1 and DANDELION 0.1.0. It has no network, no Docker socket, no elevated capabilities, and accepts only HMAC-signed manifests. It executes one CPU job at a time, streams delimited exposure columns in configurable chunks, validates p-values, preserves raw RDS results, and checks that package significance calls equal Benjamini–Hochberg q-values for the same exposure family. See [docs/DANDELION.md](docs/DANDELION.md) for the file contract and API examples.
 
-DANDELION results populate Statistics and typed directed Interactions. Objective Data is not applicable for this cohort workflow; Literature and Medical remain not assessed; Predictions remains not requested. No result is presented as causal or medically established.
+DANDELION results populate their separate cohort Statistics and typed directed Interactions. Objective Data is not applicable for this cohort workflow; Literature and Medical remain not assessed; Predictions remains not requested. No result is presented as causal or medically established, and no DANDELION result contributes to the standard personal rollup.
 
 ## Database and migrations
 

@@ -26,6 +26,8 @@ def test_launchers_are_verbose_version_two_compose_entry_points() -> None:
     assert "Show-ComposeDiagnostics" in start_script
     assert '"config", "--quiet"' in start_script
     assert '"Secret values" "redacted"' in start_script
+    assert "RandomNumberGenerator]::Create()" in start_script
+    assert "RandomNumberGenerator]::Fill" not in start_script
     assert "docker compose" in stop_script
     assert "Runtime secret" in stop_script or "runtime secret" in stop_script
     assert "Results retained" in stop_script

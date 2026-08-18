@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -20,7 +21,7 @@ from src.workbench.models import EvidenceRecord, MethylationMeasurement, Run, Va
 from src.workbench.persistence import persist_canonical_report
 from src.workbench.pgx import resolve_pgx_diplotype
 from src.workbench.reporting import build_canonical_report, render_evidence_first_html
-from src.workbench.statistics import apply_family_fdr, empirical_single_sample_result, reference_compatibility
+from src.workbench.statistics import describe_numeric
 
 
 def test_report_schema_separates_six_sections_and_limits_primary_tables() -> None:
@@ -91,25 +92,27 @@ def test_literature_dedup_and_provider_states_are_explicit() -> None:
     assert coverage["not_assessed"][0]["source_key"] == "string"
 
 
-def test_statistics_require_compatible_context_and_thirty_references() -> None:
-    exact = {"tissue": "blood", "platform": "EPIC", "normalization": "SeSAMe", "genome_build": "GRCh38"}
-    assert reference_compatibility(exact, dict(exact))["compatible"] is True
-    mismatch = reference_compatibility(exact, {**exact, "tissue": "brain"})
-    assert mismatch["compatible"] is False
-    assert mismatch["mismatches"] == ["tissue"]
-    assert empirical_single_sample_result(0.2, [0.1] * 29)["status"] == "descriptive_only"
-    exploratory = empirical_single_sample_result(0.2, [index / 100 for index in range(30)])
-    assert exploratory["status"] == "exploratory"
-    rows = apply_family_fdr(
-        [
-            {"family": "methylation", "raw_p": 0.01},
-            {"family": "methylation", "raw_p": 0.04},
-            {"family": "variant", "raw_p": 0.02},
-        ]
-    )
-    assert rows[0]["q_value"] == 0.02
-    assert rows[1]["q_value"] == 0.04
-    assert rows[2]["q_value"] == 0.02
+def test_numeric_description_reports_quantiles_population_std_and_invalid_values() -> None:
+    summary = describe_numeric([0.0, 0.2, 0.8, 1.0, 1.2, None], valid_range=(0.0, 1.0))
+
+    assert summary == {
+        "row_count": 6,
+        "valid_count": 4,
+        "missing_count": 1,
+        "invalid_count": 1,
+        "minimum": 0.0,
+        "p10": 0.06,
+        "q1": 0.15,
+        "median": 0.5,
+        "mean": 0.5,
+        "q3": 0.85,
+        "p90": 0.94,
+        "maximum": 1.0,
+        "iqr": 0.7,
+        "population_std": 0.412311,
+        "availability": "available",
+        "explanation": None,
+    }
 
 
 def test_interaction_graph_uses_gene_hops_and_hard_cap() -> None:
@@ -184,43 +187,132 @@ def test_html_has_accessible_seven_result_tabs_and_run_details() -> None:
     assert "Medical Information" in rendered
     assert "Run Details" in rendered
     assert "Predictive Theses" not in rendered
+    for forbidden in ("reference sample", "cohort comparison", "p-value", "FDR", "≥30"):
+        assert forbidden.casefold() not in rendered.casefold()
 
 
-def test_canonical_report_runs_only_compatible_raw_reference_comparisons() -> None:
-    context = {"tissue": "blood", "platform": "EPIC", "normalization": "SeSAMe", "genome_build": "GRCh38"}
+def test_statistics_handle_empty_data_single_observations_and_unavailable_promoter_coordinates() -> None:
+    empty = build_canonical_report({"gene": "EMPTY", "variants": [], "methylation": []})
+    assert empty["sections"]["statistics"]["status"] == "no_data"
+
     report = build_canonical_report(
         {
-            "gene": "DRD4",
-            "sample_context": context,
+            "gene": "REVERSE",
+            "region": "19:100-250",
+            "analysis_scope": "gene_only",
+            "scope_regions": {"promoter_only": "", "gene_only": "19:100-250", "promoter_plus_gene": "19:100-250"},
+            "variants": [
+                {"CHROM": "chr19", "POS": 250, "REF": "T", "ALT": "C", "GT": "0/1", "FILTER": "PASS"}
+            ],
+            "methylation": [{"probe_id": "cg1", "beta_value": 0.4}],
+        }
+    )
+    statistics = report["sections"]["statistics"]
+    region_counts = {row["category"]: row["count"] for row in statistics["variant_statistics"]["by_region"]}
+    promoter_density = next(row for row in statistics["variant_statistics"]["density"] if row["region"] == "promoter")
+    beta = next(row for row in statistics["methylation_statistics"]["subsets"] if row["subset"] == "all_rows")
+
+    assert region_counts["gene_body"] == 1
+    assert promoter_density["variants_per_kb"] is None
+    assert promoter_density["explanation"] == "Region coordinates are unavailable."
+    assert beta["population_std"] == 0.0
+    assert next(row for row in statistics["variant_statistics"]["quality"] if row["metric"] == "genotype_quality")["explanation"] == "The field has no valid numeric values."
+
+
+def test_version_two_uses_the_version_one_color_palette() -> None:
+    stylesheet = (Path(__file__).parents[1] / "src" / "static" / "v2.css").read_text(encoding="utf-8")
+    report = render_evidence_first_html(
+        build_canonical_report({"gene": "DRD4", "variants": [], "methylation": []})
+    )
+    version_one_colors = {"#f8e7e6", "#f2d3d6", "#2a1118", "#6b4b56", "#a1143d", "#d11f4f", "#7c0d2d"}
+
+    assert version_one_colors <= set(color.lower() for color in re.findall(r"#[0-9a-fA-F]{6}", stylesheet))
+    assert {"#f8e7e6", "#f2d3d6", "#2a1118", "#6b4b56", "#a1143d", "#d11f4f"} <= set(
+        color.lower() for color in re.findall(r"#[0-9a-fA-F]{6}", report)
+    )
+    assert "#126a55" not in stylesheet
+    assert "#176b58" not in report
+
+
+def test_canonical_report_ignores_reference_comparisons_and_builds_single_person_statistics() -> None:
+    variants = pd.DataFrame(
+        [
+            {"CHROM": "chr1", "POS": 100, "REF": "A", "ALT": "G", "GT": "0/1", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 10, "ID": "rs1"},
+            {"CHROM": "1", "POS": 150, "REF": "G", "ALT": "C", "GT": "0/1", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 20, "ID": "rs2"},
+            {"CHROM": "1", "POS": 200, "REF": "C", "ALT": "T", "GT": "1/1", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 30, "ID": "."},
+            {"CHROM": "1", "POS": 250, "REF": "T", "ALT": "TA", "GT": "0/1", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 40, "ID": "custom"},
+            {"CHROM": "1", "POS": 300, "REF": "A", "ALT": "G,T", "GT": "1/2", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 50, "ID": "rs5"},
+            {"CHROM": "1", "POS": 310, "REF": "A", "ALT": "G", "GT": "0/0", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 60, "ID": "rs6"},
+            {"CHROM": "1", "POS": 320, "REF": "A", "ALT": "G", "GT": "./.", "FILTER": "PASS", "GQ": 30, "DP": 20, "QUAL": 70, "ID": "rs7"},
+            {"CHROM": "1", "POS": 330, "REF": "A", "ALT": "G", "GT": "0/1", "FILTER": "LowQual", "GQ": 30, "DP": 20, "QUAL": 80, "ID": "rs8"},
+        ]
+    )
+    methylation = pd.DataFrame(
+        [
+            {"probe_id": "cg1", "CHR": "chr1", "MAPINFO": 100, "beta_value": 0.0, "m_value": -3, "detection_p": 0.001, "bead_count": 5, "UCSC_RefGene_Name": "TEST", "UCSC_RefGene_Group": "TSS200", "Relation_to_UCSC_CpG_Island": "Island"},
+            {"probe_id": "cg2", "CHR": "1", "MAPINFO": 150, "beta_value": 0.2, "m_value": -2, "detection_p": 0.001, "bead_count": 5, "UCSC_RefGene_Name": "TEST;OTHER", "UCSC_RefGene_Group": "TSS1500", "Relation_to_UCSC_CpG_Island": "Shore"},
+            {"probe_id": "cg3", "CHR": "1", "MAPINFO": 200, "beta_value": 0.8, "m_value": 2, "detection_p": 0.001, "bead_count": 5, "UCSC_RefGene_Name": "OTHER", "UCSC_RefGene_Group": "Body", "Relation_to_UCSC_CpG_Island": "Island"},
+            {"probe_id": "cg4", "CHR": "1", "MAPINFO": 300, "beta_value": 1.0, "m_value": 3, "detection_p": 0.001, "bead_count": 5, "UCSC_RefGene_Name": "TEST", "UCSC_RefGene_Group": "Body", "Relation_to_UCSC_CpG_Island": "OpenSea"},
+            {"probe_id": "cg5", "CHR": "1", "MAPINFO": 250, "beta_value": 1.2, "m_value": 4, "detection_p": 0.001, "bead_count": 5, "UCSC_RefGene_Name": "TEST", "UCSC_RefGene_Group": "Body", "Relation_to_UCSC_CpG_Island": "OpenSea"},
+            {"probe_id": "cg6", "CHR": "1", "MAPINFO": 260, "beta_value": None, "m_value": None, "detection_p": 0.2, "bead_count": 2, "UCSC_RefGene_Name": "", "UCSC_RefGene_Group": "", "Relation_to_UCSC_CpG_Island": ""},
+        ]
+    )
+    report = build_canonical_report(
+        {
+            "gene": "TEST",
+            "region": "1:50-350",
+            "analysis_scope": "promoter_plus_gene",
+            "scope_regions": {"promoter_only": "1:50-150", "gene_only": "1:150-350", "promoter_plus_gene": "1:50-350"},
+            "variants": variants,
+            "methylation": methylation,
+            "knowledge_base": {"gene_context": {"relevant_methylation_probe_ids": ["cg2", "cg4"]}},
             "statistical_comparisons": [
-                {
-                    "entity_type": "methylation_probe",
-                    "entity_key": "cg1",
-                    "family": "methylation",
-                    "test_value": 0.4,
-                    "reference_values": [index / 100 for index in range(30)],
-                    "cohort_id": "public-a",
-                    "cohort_source_type": "public",
-                    "cohort_context": context,
-                },
-                {
-                    "entity_type": "methylation_probe",
-                    "entity_key": "cg2",
-                    "family": "methylation",
-                    "test_value": 0.4,
-                    "reference_values": [index / 100 for index in range(30)],
-                    "cohort_id": "user-b",
-                    "cohort_source_type": "user",
-                    "cohort_context": {**context, "tissue": "brain"},
-                },
+                {"entity_key": "must-be-ignored", "reference_values": [0.1] * 100, "raw_p": 0.001}
             ],
         }
     )
-    rows = report["sections"]["statistics"]["records"]
-    assert rows[0]["status"] == "exploratory"
-    assert rows[0]["q_value"] is not None
-    assert rows[1]["status"] == "not_assessed"
-    assert rows[1]["q_value"] is None
+    statistics = report["sections"]["statistics"]
+    variant = statistics["variant_statistics"]
+    methylation_stats = statistics["methylation_statistics"]
+    substitutions = {row["category"]: row["count"] for row in variant["substitutions"]}
+    regions = {row["category"]: row["count"] for row in variant["by_region"]}
+    types = {row["category"]: row["count"] for row in variant["by_type"]}
+    dosage = {row["base"]: row["allele_copies"] for row in variant["dosage_weighted_alternate_copies"]}
+    all_beta = next(row for row in methylation_stats["subsets"] if row["subset"] == "all_rows")
+
+    assert statistics["scope"] == "single_person"
+    assert statistics["status"] == "descriptive"
+    assert variant["counts"] == {
+        "total_count": 8,
+        "raw_row_count": 8,
+        "filter_pass_count": 7,
+        "filter_non_pass_count": 1,
+        "qc_passing_non_reference_count": 5,
+        "non_reference_count": 6,
+        "reference_count": 1,
+        "missing_genotype_count": 1,
+        "named_rsid_count": 6,
+        "named_variant_count": 6,
+        "unlabeled_count": 1,
+        "unlabeled_variant_count": 1,
+    }
+    assert regions == {"promoter": 1, "gene_body": 3, "promoter_and_gene": 1, "other_analyzed_region": 0, "unclassified": 0}
+    assert types["snv"] == 3 and types["insertion"] == 1 and types["multiallelic"] == 1
+    assert dosage == {"A": 0.0, "C": 1.0, "G": 2.0, "T": 3.0}
+    assert substitutions["A>G"] == 2 and substitutions["A>T"] == 1 and substitutions["G>C"] == 1 and substitutions["C>T"] == 1
+    assert variant["transition_transversion"] == {"transition_count": 3, "transversion_count": 2, "ratio": 1.5}
+    assert next(row for row in variant["quality"] if row["metric"] == "qual")["median"] == 30.0
+    assert methylation_stats["counts"]["valid_beta_count"] == 4
+    assert methylation_stats["counts"]["invalid_beta_count"] == 1
+    assert methylation_stats["counts"]["missing_beta_count"] == 1
+    assert methylation_stats["counts"]["gene_named_probe_count"] == 4
+    assert methylation_stats["counts"]["curated_whitelist_probe_count"] == 2
+    assert all_beta["mean"] == all_beta["median"] == 0.5
+    assert sum(row["count"] for row in methylation_stats["beta_histogram"]) == 4
+    assert methylation_stats["extremes"]["highest"][0]["probe_id"] == "cg4"
+    assert methylation_stats["extremes"]["lowest"][0]["probe_id"] == "cg1"
+    assert "must-be-ignored" not in json.dumps(statistics)
+    assert not {"raw_p", "q_value", "percentile"} & statistics["records"][0].keys()
 
 
 def test_pgx_requires_complete_qc_coverage_and_one_solution() -> None:

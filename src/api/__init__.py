@@ -7,7 +7,7 @@ from flask import Flask
 from .jobs import get_default_job_manager
 from .profiles import get_default_profile_store
 from .routes import api_v1
-from .v2_routes import api_v2
+from .v2_routes import api_v2, persist_completed_standard_run
 try:
     from ..workbench.database import get_default_engine
     from ..workbench.model_jobs import get_default_model_job_manager
@@ -30,6 +30,10 @@ def register_api(app: Flask) -> None:
     app.config.setdefault("NOPHIGENE_DATABASE_ENGINE", get_default_engine())
     app.config.setdefault("NOPHIGENE_MODEL_JOB_MANAGER", get_default_model_job_manager())
     app.config.setdefault("NOPHIGENE_STATISTICAL_JOB_MANAGER", get_default_statistical_job_manager())
+    job_manager = app.config["NOPHIGENE_JOB_MANAGER"]
+    job_manager.add_completion_hook(
+        lambda run_id, _result: persist_completed_standard_run(app, job_manager, run_id)
+    )
     app.register_blueprint(api_v1)
     app.register_blueprint(api_v2)
-    app.config["NOPHIGENE_JOB_MANAGER"].start()
+    job_manager.start()

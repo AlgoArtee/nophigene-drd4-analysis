@@ -829,6 +829,10 @@ def test_mt_rnr1_zero_probe_preprocessing_unlocks_analysis(monkeypatch, tmp_path
 
     assert response.status_code == 200
     assert captured_call["allow_empty"] is True
+    page = response.get_data(as_text=True)
+    assert f'name="manifest_file" value="{output_path.as_posix()}" data-prepared-manifest' in page
+    assert 'aria-label="Preprocessing completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"' in page
+    assert "Analysis unlocked" in page
 
     with client.session_transaction() as session_state:
         preprocess_state = session_state["preprocess_state"]
@@ -883,5 +887,11 @@ def test_v2_navigation_replaces_monolithic_workspace(monkeypatch) -> None:
     page = app.test_client().get("/").get_data(as_text=True)
     for label in ("Run", "Results", "History", "Data Explorer", "Settings"):
         assert label in page
+    assert 'class="run-grid workflow-grid"' in page
+    assert 'data-preprocessing-status' in page
+    assert 'aria-label="Preprocessing completion"' in page
+    assert "Optional matched population/reference file" not in page
+    assert "Across analyzed genes" in page
+    assert "Separate cohort research" in page
     assert "App Structure" not in page
     assert "Predictive Theses" not in page

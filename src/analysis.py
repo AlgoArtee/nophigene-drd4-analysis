@@ -458,6 +458,7 @@ class AnalysisResult:
     dynamic_knowledge_base_path: Path | None
     dynamic_knowledge_base_status: str
     interpretation: dict[str, Any]
+    canonical_report: dict[str, Any]
 
 
 @dataclass
@@ -5259,6 +5260,13 @@ def generate_report(
     dynamic_knowledge_base_status: str = "",
     dynamic_knowledge_base_path: str | Path | None = None,
     interpretation: dict[str, Any] | None = None,
+    run_id: str = "",
+    genome_build: str = "",
+    scope_regions: dict[str, str] | None = None,
+    knowledge_base: dict[str, Any] | None = None,
+    source_provenance: dict[str, Any] | None = None,
+    artifacts: dict[str, Any] | None = None,
+    canonical_report: dict[str, Any] | None = None,
 ) -> Path:
     """Generate a report artifact from the assembled analysis tables.
 
@@ -5317,22 +5325,26 @@ def generate_report(
 
     # Schema 3 is the only active renderer.
     if suffix in {".html", ".json", ".csv"}:
-        canonical = build_canonical_report(
+        canonical = canonical_report or build_canonical_report(
             {
+                "run_id": run_id,
                 "gene": gene_name,
-                "genome_build": (
-                    (interpretation or {}).get("interpretation_context", {}).get("genome_build", "")
-                ),
+                "genome_build": genome_build
+                or (interpretation or {}).get("interpretation_context", {}).get("genome_build", ""),
                 "region": region,
                 "analysis_scope": normalized_analysis_scope,
                 "analysis_scope_label": analysis_scope_label,
+                "scope_regions": dict(scope_regions or {}),
                 "variants": prepared_variants,
                 "methylation": methylation,
                 "population_statistics": popstats,
                 "variant_interpretations": variant_interpretations or {},
                 "methylation_insights": methylation_insights or {},
                 "population_insights": population_insights or {},
+                "knowledge_base": knowledge_base or {},
                 "interpretation": interpretation or {},
+                "source_provenance": source_provenance or {},
+                "artifacts": artifacts or {},
                 "dynamic_knowledge_base": {
                     **dynamic_payload,
                     "status": dynamic_knowledge_base_status,
@@ -5352,8 +5364,35 @@ def generate_report(
                     {"metric": "gene", "value": canonical["run"]["gene"]},
                     {"metric": "genome_build", "value": canonical["run"]["genome_build"]},
                     {"metric": "region", "value": canonical["run"]["region"]},
+                    {"metric": "statistics_scope", "value": "single_person"},
                     {"metric": "qc_variant_count", "value": summary["qc"]["variant_pass_count"]},
                     {"metric": "qc_methylation_count", "value": summary["qc"]["methylation_pass_count"]},
+                    {
+                        "metric": "mean_beta",
+                        "value": next(
+                            (
+                                row.get("mean")
+                                for row in canonical["sections"]["statistics"]
+                                .get("methylation_statistics", {})
+                                .get("subsets", [])
+                                if row.get("subset") == "all_rows"
+                            ),
+                            None,
+                        ),
+                    },
+                    {
+                        "metric": "median_beta",
+                        "value": next(
+                            (
+                                row.get("median")
+                                for row in canonical["sections"]["statistics"]
+                                .get("methylation_statistics", {})
+                                .get("subsets", [])
+                                if row.get("subset") == "all_rows"
+                            ),
+                            None,
+                        ),
+                    },
                     {"metric": "assessed_source_count", "value": summary["evidence_coverage"]["assessed_source_count"]},
                     {"metric": "failed_source_count", "value": summary["evidence_coverage"]["failed_source_count"]},
                 ]
@@ -5382,6 +5421,9 @@ def run_analysis(
     interpretation_mode: str = "research",
     sample_context: dict[str, Any] | None = None,
     requested_models: list[dict[str, Any]] | None = None,
+    run_id: str = "",
+    scope_regions: dict[str, str] | None = None,
+    source_provenance: dict[str, Any] | None = None,
 ) -> AnalysisResult:
     """Run the end-to-end gene analysis workflow.
 
@@ -5456,6 +5498,47 @@ def run_analysis(
     methylation.to_csv(methylation_output_path, index=False)
     logger.info("Saved methylation data to %s", methylation_output_path)
 
+    normalized_scope_regions = dict(scope_regions or {})
+    normalized_scope_regions.setdefault(normalized_analysis_scope, region)
+    report_artifacts = {
+        "report": str(report_path),
+        "methylation": str(methylation_output_path),
+    }
+    report_provenance = {
+        "vcf": str(vcf_path),
+        "idat": str(idat_base),
+        "manifest": str(manifest_filepath or ""),
+        **dict(source_provenance or {}),
+    }
+    dynamic_payload = _dynamic_payload_for_report(prepared.dynamic_knowledge_base_path)
+    canonical_report = build_canonical_report(
+        {
+            "run_id": run_id,
+            "gene": normalized_gene_name,
+            "genome_build": genome_build
+            or prepared.interpretation.get("interpretation_context", {}).get("genome_build", ""),
+            "region": region,
+            "analysis_scope": normalized_analysis_scope,
+            "analysis_scope_label": analysis_scope_label,
+            "scope_regions": normalized_scope_regions,
+            "variants": variants,
+            "methylation": methylation,
+            "population_statistics": popstats,
+            "variant_interpretations": prepared.variant_interpretations,
+            "methylation_insights": prepared.methylation_insights,
+            "population_insights": prepared.population_insights,
+            "knowledge_base": prepared.knowledge_base,
+            "interpretation": prepared.interpretation,
+            "source_provenance": report_provenance,
+            "artifacts": report_artifacts,
+            "dynamic_knowledge_base": {
+                **dynamic_payload,
+                "status": prepared.dynamic_knowledge_base_status,
+                "path": str(prepared.dynamic_knowledge_base_path or ""),
+            },
+        }
+    )
+
     final_report_path = generate_report(
         variants,
         methylation,
@@ -5471,6 +5554,13 @@ def run_analysis(
         dynamic_knowledge_base_status=prepared.dynamic_knowledge_base_status,
         dynamic_knowledge_base_path=prepared.dynamic_knowledge_base_path,
         interpretation=prepared.interpretation,
+        run_id=run_id,
+        genome_build=genome_build or "",
+        scope_regions=normalized_scope_regions,
+        knowledge_base=prepared.knowledge_base,
+        source_provenance=report_provenance,
+        artifacts=report_artifacts,
+        canonical_report=canonical_report,
     )
 
     return AnalysisResult(
@@ -5494,6 +5584,7 @@ def run_analysis(
         dynamic_knowledge_base_path=prepared.dynamic_knowledge_base_path,
         dynamic_knowledge_base_status=prepared.dynamic_knowledge_base_status,
         interpretation=prepared.interpretation,
+        canonical_report=canonical_report,
     )
 
 

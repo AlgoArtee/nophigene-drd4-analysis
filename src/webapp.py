@@ -12,7 +12,7 @@ import uuid
 import traceback
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -74,8 +74,10 @@ try:
         genome_build_from_knowledge_base,
         knowledge_base_matches_build,
     )
-    from .workbench.reporting import build_canonical_report
     from .workbench.evidence import CORE_SOURCE_KEYS, list_core_source_metadata
+    from .workbench.database import session_scope
+    from .workbench.models import Run
+    from .workbench.persistence import persist_canonical_report
 except ImportError:
     from analysis import (
         ANALYSIS_SCOPE_OPTIONS,
@@ -126,8 +128,10 @@ except ImportError:
         genome_build_from_knowledge_base,
         knowledge_base_matches_build,
     )
-    from workbench.reporting import build_canonical_report
     from workbench.evidence import CORE_SOURCE_KEYS, list_core_source_metadata
+    from workbench.database import session_scope
+    from workbench.models import Run
+    from workbench.persistence import persist_canonical_report
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -2436,9 +2440,12 @@ def _apply_preprocessing_defaults(form: dict[str, str], preprocess_state: dict[s
     analysis_scope = normalize_analysis_scope(str(preprocess_state.get("analysis_scope", DEFAULT_ANALYSIS_SCOPE)))
     scope_regions = dict(preprocess_state.get("scope_regions") or {})
     scoped_region = str(scope_regions.get(analysis_scope) or preprocess_state.get("region") or DEFAULT_REGION)
+    prepared_manifest = str(preprocess_state.get("filtered_manifest") or "").strip()
     form["analysis_scope"] = analysis_scope
     if scoped_region:
         form["region"] = scoped_region
+    if preprocess_state.get("manifest_ready") and prepared_manifest:
+        form["manifest_file"] = prepared_manifest
 
     default_outputs = {
         f"results/{DEFAULT_REPORT_NAME}",
@@ -2505,10 +2512,9 @@ def _build_field_info(
             "example": form["manifest_file"]
             or str(preprocess_state.get("manifest_source", "data/infinium-methylationepic-manifest-file.csv")),
             "details": (
-                "Optional override. Leave this empty unless you specifically want to force methylprep to use "
-                "a custom vendor manifest file. The preprocessing workflow already saves a gene-specific subset "
-                "like src/gene_data/GENE_epigenetics_hg19.csv, and that saved subset is reused for the probe "
-                "annotation join after methylprep finishes."
+                "The preprocessing workflow fills this with the saved gene-specific subset, such as "
+                "src/gene_data/GENE_epigenetics_hg19.csv. You can still edit the field when a different "
+                "prepared manifest is required."
             ),
         },
     }
@@ -3602,6 +3608,7 @@ def index() -> str:
                 )
 
                 try:
+                    run_id = uuid.uuid4().hex
                     analysis_result = run_analysis(
                         vcf_path=str(_resolve_user_path(form["vcf"])),
                         idat_base=str(_resolve_user_path(form["idat"])),
@@ -3609,7 +3616,9 @@ def index() -> str:
                         gene_name=str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
                         region=form["region"],
                         analysis_scope=form["analysis_scope"],
-                        popstats_source=str(_resolve_user_path(form["popstats"])) if form["popstats"] else None,
+                        # Retain the legacy form value for compatibility, but
+                        # standard statistics never use population sidecars.
+                        popstats_source=None,
                         manifest_filepath=(
                             str(_resolve_user_path(form["manifest_file"])) if form["manifest_file"] else None
                         ),
@@ -3622,6 +3631,13 @@ def index() -> str:
                         ),
                         genome_build=str(preprocess_state.get("build", "")) or None,
                         interpretation_mode="dual",
+                        run_id=run_id,
+                        scope_regions=dict(preprocess_state.get("scope_regions") or {}),
+                        source_provenance={
+                            "vcf": form["vcf"],
+                            "idat": form["idat"],
+                            "manifest": form["manifest_file"],
+                        },
                     )
 
                     methylation_probe_preview = analysis_result.methylation_insights.get("probe_preview")
@@ -3647,29 +3663,30 @@ def index() -> str:
                         dynamic_payload=dynamic_payload,
                         selected_source_keys=list(knowledge_sources_state.get("selected_sources", [])),
                     )
-                    result = build_canonical_report(
-                        {
-                            "gene": str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)),
-                            "genome_build": str(preprocess_state.get("build", "")),
-                            "region": form["region"],
-                            "analysis_scope": form["analysis_scope"],
-                            "variants": analysis_result.variants,
-                            "methylation": analysis_result.methylation,
-                            "population_statistics": analysis_result.popstats,
-                            "knowledge_base": analysis_result.knowledge_base,
-                            "dynamic_knowledge_base": dynamic_payload or {},
-                            "interpretation": getattr(analysis_result, "interpretation", {}),
-                            "source_provenance": {
-                                "vcf": form["vcf"],
-                                "idat": form["idat"],
-                                "manifest": form["manifest_file"],
-                            },
-                            "artifacts": {
-                                "report": _as_relative_display(analysis_result.report_path),
-                                "methylation": _as_relative_display(analysis_result.methylation_output_path),
-                            },
-                        }
-                    )
+                    result = analysis_result.canonical_report
+                    finished_at = datetime.now(timezone.utc)
+                    with session_scope(app.config["NOPHIGENE_DATABASE_ENGINE"]) as db_session:
+                        db_session.add(
+                            Run(
+                                id=run_id,
+                                schema_version="3.0",
+                                status="succeeded",
+                                stage="analysis",
+                                progress_percent=100,
+                                genes=[str(preprocess_state.get("gene_name", DEFAULT_GENE_NAME)).upper()],
+                                context=dict(result.get("run", {}).get("sample_context") or {}),
+                                configuration={
+                                    "kind": "single_person_gene_analysis",
+                                    "analysis_scope": form["analysis_scope"],
+                                    "region": form["region"],
+                                    "scope_regions": dict(preprocess_state.get("scope_regions") or {}),
+                                },
+                                started_at=finished_at,
+                                finished_at=finished_at,
+                            )
+                        )
+                        db_session.flush()
+                        persist_canonical_report(db_session, result)
                 except AnalysisError as exc:
                     analysis_error = str(exc)
 

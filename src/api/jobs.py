@@ -7,9 +7,10 @@ import re
 import threading
 import time
 import uuid
+import logging
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .errors import APIError
 from .profiles import ProfileStore, get_default_profile_store
@@ -24,6 +25,7 @@ except ImportError:
 DEFAULT_JOBS_ROOT = PROJECT_ROOT / "results" / "api" / "jobs"
 JOB_ID_PATTERN = re.compile(r"^[a-f0-9]{32}$")
 TERMINAL_STATUSES = {"succeeded", "partial", "failed", "cancelled"}
+logger = logging.getLogger(__name__)
 
 
 class JobManager:
@@ -43,6 +45,13 @@ class JobManager:
         self._lock = threading.RLock()
         self._thread: threading.Thread | None = None
         self._started = False
+        self._completion_hooks: list[Callable[[str, dict[str, Any]], None]] = []
+
+    def add_completion_hook(self, hook: Callable[[str, dict[str, Any]], None]) -> None:
+        """Register an idempotent post-completion hook for successful/partial jobs."""
+        with self._lock:
+            if hook not in self._completion_hooks:
+                self._completion_hooks.append(hook)
 
     @property
     def worker_alive(self) -> bool:
@@ -266,6 +275,11 @@ class JobManager:
                     }
                 )
                 self._write_job(job)
+            for hook in list(self._completion_hooks):
+                try:
+                    hook(job_id, deepcopy(result))
+                except Exception:
+                    logger.exception("Job completion hook failed for %s", job_id)
         except Exception as exc:
             with self._lock:
                 job = self.get(job_id)
