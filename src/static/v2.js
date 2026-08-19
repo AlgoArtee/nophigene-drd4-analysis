@@ -109,6 +109,119 @@
     return number === 0 || Math.abs(number) >= 0.001 ? number.toPrecision(4) : number.toExponential(3);
   };
 
+  document.querySelectorAll('[data-literature-browser]').forEach((browser) => {
+    const dataElement = browser.querySelector('[data-literature-data]');
+    let findings = [];
+    try {
+      findings = JSON.parse(dataElement?.textContent || '[]');
+    } catch (_error) {
+      findings = [];
+    }
+    const search = browser.querySelector('[data-literature-search]');
+    const priority = browser.querySelector('[data-literature-priority]');
+    const source = browser.querySelector('[data-literature-source]');
+    const variant = browser.querySelector('[data-literature-variant]');
+    const pageSize = browser.querySelector('[data-literature-page-size]');
+    const rows = browser.querySelector('[data-literature-rows]');
+    const status = browser.querySelector('[data-literature-status]');
+    const pageLabel = browser.querySelector('[data-literature-page]');
+    const previous = browser.querySelector('[data-literature-previous]');
+    const next = browser.querySelector('[data-literature-next]');
+    let page = 1;
+
+    const sources = [...new Set(findings.flatMap((item) => item.sources || [item.source_key]).filter(Boolean))].sort();
+    const variants = [...new Set(findings.map((item) => item.variant).filter(Boolean))].sort();
+    sources.forEach((value) => source.appendChild(new Option(value, value)));
+    variants.forEach((value) => variant.appendChild(new Option(value, value)));
+
+    const appendTextCell = (row, value) => {
+      const cell = document.createElement('td');
+      cell.textContent = value || '—';
+      row.appendChild(cell);
+      return cell;
+    };
+    const render = () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      const filtered = findings.filter((item) => {
+        if (priority.value && String(item.priority_tier) !== priority.value) return false;
+        if (source.value && !(item.sources || [item.source_key]).includes(source.value)) return false;
+        if (variant.value && item.variant !== variant.value) return false;
+        if (!query) return true;
+        return [item.finding, item.paper, item.title, item.phenotype, item.genotypes, item.variant,
+          item.pmid, item.pmcid, item.doi, ...(item.sources || []), ...(item.evidence_tags || [])]
+          .filter(Boolean).join(' ').toLocaleLowerCase().includes(query);
+      });
+      const size = Number(pageSize.value) || 20;
+      const pages = Math.max(1, Math.ceil(filtered.length / size));
+      page = Math.min(page, pages);
+      const start = (page - 1) * size;
+      const visible = filtered.slice(start, start + size);
+      rows.replaceChildren();
+      visible.forEach((item) => {
+        const row = document.createElement('tr');
+        appendTextCell(row, item.rank);
+        const evidenceCell = appendTextCell(row, '');
+        const priorityBadge = document.createElement('span');
+        priorityBadge.className = `literature-badge priority-${item.priority_tier || 6}`;
+        priorityBadge.textContent = item.priority_label || 'Gene-relevant evidence';
+        evidenceCell.replaceChildren(priorityBadge);
+        (item.evidence_tags || []).forEach((tag) => {
+          const badge = document.createElement('span');
+          badge.className = 'literature-tag';
+          badge.textContent = tag.replaceAll('_', ' ');
+          evidenceCell.appendChild(badge);
+        });
+        appendTextCell(row, item.finding || item.summary || 'Citation metadata only; no finding was synthesized.');
+        const paperCell = appendTextCell(row, '');
+        const paperText = item.paper || item.title || 'Publication';
+        if (item.url) {
+          const link = document.createElement('a');
+          link.href = item.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = paperText;
+          paperCell.replaceChildren(link);
+        } else {
+          paperCell.textContent = paperText;
+        }
+        appendTextCell(row, item.phenotype);
+        appendTextCell(row, item.genotypes);
+        appendTextCell(row, item.variant);
+        appendTextCell(row, (item.sources || [item.source_key]).filter(Boolean).join(', '));
+        appendTextCell(row, [item.pmid && `PMID ${item.pmid}`, item.pmcid, item.doi && `DOI ${item.doi}`].filter(Boolean).join(' · '));
+        rows.appendChild(row);
+      });
+      if (!visible.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 9;
+        cell.className = 'empty';
+        cell.textContent = 'No findings match these filters.';
+        row.appendChild(cell);
+        rows.appendChild(row);
+      }
+      status.textContent = filtered.length === findings.length
+        ? `${findings.length} ranked finding${findings.length === 1 ? '' : 's'}`
+        : `${filtered.length} of ${findings.length} findings match`;
+      pageLabel.textContent = `Page ${page} of ${pages}`;
+      previous.disabled = page <= 1;
+      next.disabled = page >= pages;
+    };
+    [search, priority, source, variant, pageSize].forEach((control) => control.addEventListener('input', () => {
+      page = 1;
+      render();
+    }));
+    previous.addEventListener('click', () => {
+      page = Math.max(1, page - 1);
+      render();
+    });
+    next.addEventListener('click', () => {
+      page += 1;
+      render();
+    });
+    render();
+  });
+
   const refreshPersonalStatistics = async () => {
     const shells = document.querySelectorAll('[data-personal-statistics]');
     if (!shells.length) return;
@@ -406,6 +519,264 @@
     });
   });
 
-  Promise.allSettled([refreshPersonalStatistics(), refreshDandelionDatasets(), refreshDandelionHistory(), refreshDandelionHealth()]);
+  const modelState = {settings: null, metadata: null};
+  const modelStatusLabel = (value) => String(value || 'unavailable').replaceAll('_', ' ');
+
+  const refreshModelSettings = async () => {
+    const payload = await apiJson('/api/v2/model-settings');
+    modelState.settings = payload;
+    const credentialStatus = payload.alphagenome?.credential?.status || 'missing';
+    const workerStatus = payload.alphagenome?.worker?.worker?.status || 'unavailable';
+    document.querySelectorAll('[data-alphagenome-credential-status]').forEach((item) => {
+      item.textContent = modelStatusLabel(credentialStatus);
+      item.classList.toggle('ready', credentialStatus === 'verified');
+    });
+    document.querySelectorAll('[data-alphagenome-readiness]').forEach((item) => {
+      const ready = credentialStatus === 'verified' && workerStatus === 'ready';
+      item.textContent = ready ? 'Ready' : `${modelStatusLabel(credentialStatus)} credential · ${modelStatusLabel(workerStatus)} worker`;
+      item.classList.toggle('ready', ready);
+    });
+    document.querySelectorAll('[data-model-catalog]').forEach((container) => {
+      container.replaceChildren();
+      payload.models.forEach((model) => {
+        const row = document.createElement('article');
+        row.className = 'model-catalog-row';
+        const title = document.createElement('strong');
+        title.textContent = model.name || model.id;
+        const status = document.createElement('span');
+        status.className = 'evidence-badge';
+        let availability = model.id === 'alphagenome-api'
+          ? (credentialStatus === 'verified' && workerStatus === 'ready' ? 'ready' : 'configuration required')
+          : (['unsupported_for_epic_5mc', 'blocked_pending_verified_release', 'framework_only'].includes(model.status)
+            ? 'scientifically blocked' : 'missing adapter/assets');
+        status.textContent = availability;
+        const detail = document.createElement('small');
+        detail.textContent = model.description || model.scientific_gate || model.status || '';
+        row.append(title, status, detail);
+        container.appendChild(row);
+      });
+    });
+    return payload;
+  };
+
+  const pollModelJob = async (jobId, onUpdate) => {
+    for (;;) {
+      const job = await apiJson(`/api/v2/model-jobs/${encodeURIComponent(jobId)}`);
+      onUpdate?.(job);
+      if (['succeeded', 'partial', 'failed', 'blocked', 'cancelled'].includes(job.status)) return job;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  };
+
+  document.querySelectorAll('[data-alphagenome-credential-settings]').forEach((settings) => {
+    const input = settings.querySelector('[data-alphagenome-api-key]');
+    const message = settings.querySelector('[data-alphagenome-credential-message]');
+    settings.querySelector('[data-alphagenome-credential-save]')?.addEventListener('click', async () => {
+      const apiKey = input.value.trim();
+      if (!apiKey) return setMessage(message, 'Enter an API key before saving.', 'error');
+      try {
+        await apiJson('/api/v2/model-settings/alphagenome-api/credential', {
+          method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({api_key: apiKey}),
+        });
+        input.value = '';
+        setMessage(message, 'Credential encrypted and stored. Verify metadata access before running the model.', 'success');
+        await refreshModelSettings();
+      } catch (error) {
+        setMessage(message, error.message, 'error');
+      }
+    });
+    settings.querySelector('[data-alphagenome-credential-verify]')?.addEventListener('click', async () => {
+      try {
+        const job = await apiJson('/api/v2/model-settings/alphagenome-api/credential/verify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+        setMessage(message, `Verification queued (${job.id}). No personal data is sent.`, 'success');
+        const finalState = await pollModelJob(job.id, (state) => setMessage(message, `Metadata verification: ${modelStatusLabel(state.stage)} · ${state.progress_percent}%`, state.status === 'failed' ? 'error' : 'success'));
+        await refreshModelSettings();
+        setMessage(message, finalState.status === 'succeeded' ? 'Credential verified and ontology metadata loaded.' : `Verification ${modelStatusLabel(finalState.status)}.`, finalState.status === 'succeeded' ? 'success' : 'error');
+      } catch (error) {
+        setMessage(message, error.message, 'error');
+      }
+    });
+    settings.querySelector('[data-alphagenome-credential-delete]')?.addEventListener('click', async () => {
+      try {
+        await apiJson('/api/v2/model-settings/alphagenome-api/credential', {method: 'DELETE'});
+        input.value = '';
+        setMessage(message, 'Credential and cached provider metadata removed.', 'success');
+        await refreshModelSettings();
+      } catch (error) {
+        setMessage(message, error.message, 'error');
+      }
+    });
+  });
+
+  const predictionRequestSettings = (step) => ({
+    gene: step.dataset.gene || '',
+    ontology_terms: Array.from(step._selectedOntology || []),
+    modalities: Array.from(step.querySelectorAll('[data-alphagenome-modality]:checked')).map((item) => item.value),
+    sequence_length: Number(step.querySelector('[data-alphagenome-sequence-length]')?.value || 1048576),
+  });
+
+  document.querySelectorAll('[data-model-step]').forEach((step) => {
+    const runId = step.dataset.runId;
+    if (!runId) return;
+    step._selectedOntology = new Set();
+    let previewDigest = '';
+    const search = step.querySelector('[data-alphagenome-tissue-search]');
+    const results = step.querySelector('[data-alphagenome-tissue-results]');
+    const selection = step.querySelector('[data-alphagenome-tissue-selection]');
+    const previewMessage = step.querySelector('[data-prediction-preview-message]');
+    const previewPanel = step.querySelector('[data-prediction-preview-panel]');
+    const consent = step.querySelector('[data-prediction-consent]');
+    const submit = step.querySelector('[data-prediction-submit]');
+    const jobMessage = step.querySelector('[data-prediction-job-message]');
+    const renderSelection = () => {
+      selection.replaceChildren();
+      step._selectedOntology.forEach((curie) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ontology-chip';
+        button.textContent = `${curie} ×`;
+        button.addEventListener('click', () => { step._selectedOntology.delete(curie); renderSelection(); previewDigest = ''; submit.disabled = true; });
+        selection.appendChild(button);
+      });
+    };
+    let searchTimer;
+    search?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(async () => {
+        const query = search.value.trim();
+        results.replaceChildren();
+        if (query.length < 2) return;
+        try {
+          const payload = await apiJson(`/api/v2/models/alphagenome-api/metadata?q=${encodeURIComponent(query)}`);
+          payload.ontology_terms.slice(0, 20).forEach((term) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ontology-result';
+            button.textContent = `${term.biosample_name || term.ontology_curie} · ${term.ontology_curie}`;
+            button.disabled = step._selectedOntology.has(term.ontology_curie) || step._selectedOntology.size >= 5;
+            button.addEventListener('click', () => {
+              step._selectedOntology.add(term.ontology_curie);
+              search.value = '';
+              results.replaceChildren();
+              renderSelection();
+              previewDigest = '';
+              submit.disabled = true;
+            });
+            results.appendChild(button);
+          });
+          if (!payload.ontology_terms.length) results.textContent = payload.reason || 'No matching ontology-backed biosamples.';
+        } catch (error) {
+          results.textContent = error.message;
+        }
+      }, 250);
+    });
+    step.querySelectorAll('[data-alphagenome-modality], [data-alphagenome-sequence-length]').forEach((control) => control.addEventListener('change', () => { previewDigest = ''; submit.disabled = true; }));
+    step.querySelector('[data-prediction-preview]')?.addEventListener('click', async () => {
+      previewPanel.hidden = true;
+      try {
+        const payload = await apiJson(`/api/v2/runs/${encodeURIComponent(runId)}/predictions/preview`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(predictionRequestSettings(step)),
+        });
+        previewPanel.hidden = false;
+        previewDigest = payload.payload_sha256;
+        step.querySelector('[data-preview-selected]').textContent = payload.selected_variant_count;
+        step.querySelector('[data-preview-omitted]').textContent = payload.omitted_variant_count;
+        step.querySelector('[data-preview-terms]').textContent = payload.payload.ontology_terms.length;
+        const rows = step.querySelector('[data-prediction-preview-rows]');
+        rows.replaceChildren();
+        payload.payload.variants.forEach((variant) => {
+          const row = document.createElement('tr');
+          const interval = variant.model_interval_0_based_half_open;
+          [variant.variant, `${interval.start}–${interval.end} (${interval.length} bp)`, variant.reference_allele_verified ? 'yes' : 'no'].forEach((value) => addCell(row, value));
+          rows.appendChild(row);
+        });
+        step.querySelector('[data-prediction-transfer-notice]').textContent = payload.external_transfer_notice;
+        step.querySelector('[data-prediction-digest]').textContent = `SHA-256 ${payload.payload_sha256}`;
+        consent.checked = false;
+        submit.disabled = true;
+        const blockers = payload.blockers || [];
+        setMessage(previewMessage, payload.status === 'ready' ? 'Preflight passed. Review the complete payload below.' : `Blocked: ${blockers.join(', ')}`, payload.status === 'ready' ? 'success' : 'error');
+      } catch (error) {
+        previewDigest = '';
+        setMessage(previewMessage, error.message, 'error');
+      }
+    });
+    consent?.addEventListener('change', () => { submit.disabled = !(consent.checked && previewDigest); });
+    submit?.addEventListener('click', async () => {
+      try {
+        const job = await apiJson(`/api/v2/runs/${encodeURIComponent(runId)}/predictions`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({...predictionRequestSettings(step), payload_sha256: previewDigest, external_transfer_consent: true}),
+        });
+        submit.disabled = true;
+        setMessage(jobMessage, `Queued model job ${job.id}.`, 'success');
+        const finalState = await pollModelJob(job.id, (state) => setMessage(jobMessage, `${modelStatusLabel(state.stage)} · ${state.progress_percent}%`, state.status === 'failed' ? 'error' : 'success'));
+        setMessage(jobMessage, `Model job ${modelStatusLabel(finalState.status)}. Open Predictions to inspect every available score or failure.`, ['succeeded', 'partial'].includes(finalState.status) ? 'success' : 'error');
+        document.querySelectorAll(`[data-predictions-result][data-run-id="${CSS.escape(runId)}"]`).forEach((panel) => panel._refreshPredictions?.());
+      } catch (error) {
+        setMessage(jobMessage, error.message, 'error');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-predictions-result]').forEach((panel) => {
+    const runId = panel.dataset.runId;
+    const gene = panel.dataset.gene;
+    let allScores = [];
+    let page = 1;
+    const filter = panel.querySelector('[data-prediction-score-filter]');
+    const pageSize = panel.querySelector('[data-prediction-score-page-size]');
+    const renderScores = () => {
+      const query = (filter.value || '').trim().toLowerCase();
+      const visible = allScores.filter((score) => !query || JSON.stringify(score).toLowerCase().includes(query));
+      const size = Number(pageSize.value || 20);
+      const pages = Math.max(1, Math.ceil(visible.length / size));
+      page = Math.min(page, pages);
+      const rows = panel.querySelector('[data-prediction-score-rows]');
+      rows.replaceChildren();
+      visible.slice((page - 1) * size, page * size).forEach((score) => {
+        const row = document.createElement('tr');
+        [score.variant, score.output_type || score.output_name, numberText(score.raw_score), numberText(score.quantile_score), score.scorer, score.track_name, score.gene_name || score.gene_id, [score.ontology_curie, score.biosample_name].filter(Boolean).join(' · ')].forEach((value) => addCell(row, value));
+        rows.appendChild(row);
+      });
+      if (!rows.children.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 8; cell.textContent = 'No model scores match the current filter.'; row.appendChild(cell); rows.appendChild(row); }
+      panel.querySelector('[data-prediction-score-page]').textContent = `Page ${page} of ${pages} · ${visible.length} rows`;
+      panel.querySelector('[data-prediction-score-prev]').disabled = page <= 1;
+      panel.querySelector('[data-prediction-score-next]').disabled = page >= pages;
+    };
+    filter.addEventListener('input', () => { page = 1; renderScores(); });
+    pageSize.addEventListener('change', () => { page = 1; renderScores(); });
+    panel.querySelector('[data-prediction-score-prev]').addEventListener('click', () => { page = Math.max(1, page - 1); renderScores(); });
+    panel.querySelector('[data-prediction-score-next]').addEventListener('click', () => { page += 1; renderScores(); });
+    const refresh = async () => {
+      const payload = await apiJson(`/api/v2/runs/${encodeURIComponent(runId)}/predictions?gene=${encodeURIComponent(gene)}`);
+      panel.querySelector('[data-predictions-status]').textContent = modelStatusLabel(payload.status);
+      panel.querySelector('[data-predictions-observed]').textContent = payload.counts?.observed_allele_count ?? 0;
+      panel.querySelector('[data-predictions-native]').textContent = payload.counts?.source_native_annotation_count ?? 0;
+      panel.querySelector('[data-predictions-runs]').textContent = payload.counts?.model_run_count ?? 0;
+      panel.querySelector('[data-predictions-scores]').textContent = payload.counts?.completed_prediction_count ?? 0;
+      const jobs = panel.querySelector('[data-predictions-job-rows]');
+      jobs.replaceChildren();
+      (payload.model_runs || []).forEach((job) => { const row = document.createElement('tr'); [job.id, job.model_id, modelStatusLabel(job.status), `${job.progress_percent || 0}%`, job.started_at, job.finished_at].forEach((value) => addCell(row, value)); jobs.appendChild(row); });
+      if (!jobs.children.length) { const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 6; cell.textContent = 'No model jobs have been submitted for this run.'; row.appendChild(cell); jobs.appendChild(row); }
+      allScores = payload.predictions || [];
+      renderScores();
+      const failures = panel.querySelector('[data-predictions-failures]');
+      if ((payload.failures || []).length) setMessage(failures, `${payload.failures.length} model output failure(s): ${payload.failures.map((item) => item.code || item.message).join(', ')}`, 'error');
+      else failures.hidden = true;
+      const notices = panel.querySelector('[data-predictions-notices]');
+      if ((payload.notices || []).length) setMessage(notices, payload.notices.map((item) => item.message).join(' '), 'warning');
+      else notices.hidden = true;
+      return payload;
+    };
+    panel._refreshPredictions = refresh;
+    refresh().then((payload) => {
+      if (['queued', 'running'].includes(payload.status)) {
+        const timer = setInterval(async () => { try { const next = await refresh(); if (!['queued', 'running'].includes(next.status)) clearInterval(timer); } catch (_error) { clearInterval(timer); } }, 2500);
+      }
+    }).catch(() => {});
+  });
+
+  Promise.allSettled([refreshPersonalStatistics(), refreshDandelionDatasets(), refreshDandelionHistory(), refreshDandelionHealth(), refreshModelSettings()]);
   showTask(document.body.dataset.initialTask || 'run');
 })();

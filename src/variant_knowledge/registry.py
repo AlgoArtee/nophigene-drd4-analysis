@@ -21,6 +21,7 @@ LANE_LABELS = {
     "pharmacogenomics": "Pharmacogenomics and drug response",
     "nutrition_exposome": "Nutrition and exposome",
     "licensed": "Licensed aggregators",
+    "interactions": "Gene and protein interactions",
 }
 
 DEFAULT_LICENSE_NOTE = (
@@ -70,6 +71,7 @@ LIVE_CONNECTOR_KINDS = {
     "cpic",
     "fda_pgx",
     "dgidb",
+    "string",
 }
 
 
@@ -106,6 +108,7 @@ def _canonical_key(name: str) -> str:
         ("database of genomic variants", "dgv"),
         ("dgv", "dgv"),
         ("ncbi gene", "ncbi_gene"),
+        ("string", "string"),
         ("omim", "omim"),
         ("genereviews", "genereviews"),
         ("orphanet", "orphanet"),
@@ -243,6 +246,8 @@ def _infer_lane(key: str, name: str) -> str:
         return "population"
     if any(token in lower for token in ("genecards", "varsome", "franklin", "hgmd", "disgenet")):
         return "licensed"
+    if any(token in lower for token in ("string", "reactome", "intact", "biogrid", "interaction")):
+        return "interactions"
     return "clinical"
 
 
@@ -275,6 +280,20 @@ SOURCE_OVERRIDES: dict[str, dict[str, Any]] = {
         "access_type": "open_api",
         "homepage": "https://civicdb.org/",
         "lane": "clinical",
+    },
+    "string": {
+        "connector_kind": "string",
+        "access_type": "open_api",
+        "homepage": "https://version-12-0.string-db.org/",
+        "license_note": (
+            "STRING v12.0 API results are used with source/version provenance. Functional associations do not "
+            "necessarily represent direct physical binding."
+        ),
+        "lane": "interactions",
+        "rate_limit_per_second": 1.0,
+        "supports_variant": False,
+        "supports_gene": True,
+        "supports_region": False,
     },
     "ncbi_gene": {
         "connector_kind": "ncbi_gene",

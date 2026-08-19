@@ -893,5 +893,11 @@ def test_v2_navigation_replaces_monolithic_workspace(monkeypatch) -> None:
     assert "Optional matched population/reference file" not in page
     assert "Across analyzed genes" in page
     assert "Separate cohort research" in page
+    assert "Models and prediction settings" in page
+    assert 'data-model-step' in page
+    assert "Source-native annotations" in page
+    assert "Review exact transfer" in page
+    assert "AlphaGenome API credential" in page
+    assert 'data-alphagenome-credential-settings' in page
     assert "App Structure" not in page
     assert "Predictive Theses" not in page

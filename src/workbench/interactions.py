@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict, deque
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable
 
 MAX_HOPS = 3
 DEFAULT_NODE_CAP = 150
+INTERACTION_SOURCE_KEYS = frozenset(
+    {"string", "reactome", "intact", "biogrid", "ensembl_interactions"}
+)
+BUNDLED_INTERACTION_SNAPSHOT_PATH = Path(__file__).resolve().parent / "data" / "interaction_snapshots.json"
 SOURCE_TIERS = {
     "intact": 5,
     "biogrid": 5,
@@ -18,6 +25,30 @@ SOURCE_TIERS = {
     "gtex": 3,
     "string": 2,
 }
+
+
+@lru_cache(maxsize=1)
+def _bundled_interaction_snapshots() -> dict[str, list[dict[str, Any]]]:
+    try:
+        payload = json.loads(BUNDLED_INTERACTION_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    genes = payload.get("genes") if isinstance(payload, dict) else {}
+    if not isinstance(genes, dict):
+        return {}
+    return {
+        str(gene).upper(): [dict(item) for item in rows if isinstance(item, dict)]
+        for gene, rows in genes.items()
+        if isinstance(rows, list)
+    }
+
+
+def bundled_interaction_records(gene: str) -> list[dict[str, Any]]:
+    """Return version-pinned, source-attributed interaction snapshot rows."""
+    records = [dict(item) for item in _bundled_interaction_snapshots().get(str(gene or "").upper(), [])]
+    for record in records:
+        record.setdefault("evidence_origin", "bundled_versioned_interaction_snapshot")
+    return records
 
 
 def _rank(edge: dict[str, Any], corroboration: int) -> tuple[float, float, str]:

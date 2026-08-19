@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import hashlib
+import csv
+import io
 import shutil
 import uuid
 import os
@@ -22,7 +24,9 @@ from .serialization import read_json, utc_now
 from .workflow_runner import MAX_GENES_PER_JOB, normalize_job_request
 
 try:
+    from ..bam_extraction import HG38_FASTA
     from ..variant_knowledge.registry import list_source_specs
+    from ..workbench.artifacts import ArtifactStore
     from ..workbench.audit import append_audit_event
     from ..workbench.database import get_default_engine, session_scope
     from ..workbench.dandelion import (
@@ -44,7 +48,10 @@ try:
         list_model_manifests,
         model_installation_plan,
     )
+    from ..workbench.model_credentials import ModelCredentialStore
+    from ..workbench.model_jobs import ModelJobManager
     from ..workbench.models import (
+        Artifact,
         DeletionRecord,
         MethylationMeasurement,
         ModelRun,
@@ -58,8 +65,18 @@ try:
         VariantCall,
     )
     from ..workbench.persistence import persist_canonical_report
+    from ..workbench.predictions import (
+        DEFAULT_SEQUENCE_LENGTH,
+        REGULATORY_OVERVIEW_MODALITIES,
+        SUPPORTED_ALPHAGENOME_MODALITIES,
+        SUPPORTED_SEQUENCE_LENGTHS,
+        prepare_alphagenome_disclosure,
+        validate_reference_alleles,
+    )
 except ImportError:
+    from bam_extraction import HG38_FASTA
     from variant_knowledge.registry import list_source_specs
+    from workbench.artifacts import ArtifactStore
     from workbench.audit import append_audit_event
     from workbench.database import get_default_engine, session_scope
     from workbench.dandelion import (
@@ -81,7 +98,10 @@ except ImportError:
         list_model_manifests,
         model_installation_plan,
     )
+    from workbench.model_credentials import ModelCredentialStore
+    from workbench.model_jobs import ModelJobManager
     from workbench.models import (
+        Artifact,
         DeletionRecord,
         MethylationMeasurement,
         ModelRun,
@@ -95,6 +115,14 @@ except ImportError:
         VariantCall,
     )
     from workbench.persistence import persist_canonical_report
+    from workbench.predictions import (
+        DEFAULT_SEQUENCE_LENGTH,
+        REGULATORY_OVERVIEW_MODALITIES,
+        SUPPORTED_ALPHAGENOME_MODALITIES,
+        SUPPORTED_SEQUENCE_LENGTHS,
+        prepare_alphagenome_disclosure,
+        validate_reference_alleles,
+    )
 
 api_v2 = Blueprint("api_v2", __name__, url_prefix="/api/v2")
 
@@ -108,7 +136,26 @@ def _profiles():
 
 
 def _model_jobs():
-    return current_app.config["NOPHIGENE_MODEL_JOB_MANAGER"]
+    manager = current_app.config.get("NOPHIGENE_MODEL_JOB_MANAGER")
+    if manager is None:
+        manager = ModelJobManager(Path(_jobs().jobs_root).parent / "model-jobs")
+        current_app.config["NOPHIGENE_MODEL_JOB_MANAGER"] = manager
+    return manager
+
+
+def _model_credentials():
+    store = current_app.config.get("NOPHIGENE_MODEL_CREDENTIAL_STORE")
+    if store is None:
+        store = ModelCredentialStore(Path(_jobs().jobs_root).parent / "model-credentials")
+        current_app.config["NOPHIGENE_MODEL_CREDENTIAL_STORE"] = store
+    return store
+
+
+def _model_artifact_store() -> ArtifactStore:
+    configured = current_app.config.get("NOPHIGENE_MODEL_ARTIFACT_ROOT") or os.environ.get(
+        "NOPHIGENE_MODEL_ARTIFACT_ROOT", "results/model-artifacts"
+    )
+    return ArtifactStore(Path(configured))
 
 
 def _statistical_jobs():
@@ -170,6 +217,7 @@ def index():
             "personal_statistics": "/api/v2/personal-statistics",
             "evidence_sources": "/api/v2/evidence/sources",
             "models": "/api/v2/models",
+            "model_settings": "/api/v2/model-settings",
             "statistical_datasets": "/api/v2/statistical-datasets",
             "statistical_analyses": "/api/v2/statistical-analyses",
             "health": "/api/v2/health",
@@ -192,6 +240,20 @@ def openapi_document():
         "/api/v2/personal-statistics": {"get": "Read latest-per-gene single-person descriptive statistics"},
         "/api/v2/evidence/sources": {"get": "List the typed vetted source catalog"},
         "/api/v2/models": {"get": "List immutable model manifests"},
+        "/api/v2/model-settings": {"get": "Read non-secret model and worker readiness"},
+        "/api/v2/model-settings/alphagenome-api/credential": {
+            "put": "Encrypt and replace the AlphaGenome credential",
+            "delete": "Remove the AlphaGenome credential",
+        },
+        "/api/v2/model-settings/alphagenome-api/credential/verify": {
+            "post": "Verify metadata access without transferring person-specific data"
+        },
+        "/api/v2/models/alphagenome-api/metadata": {"get": "Search sanitized output metadata"},
+        "/api/v2/runs/{id}/predictions/preview": {"post": "Preview and hash the exact external disclosure"},
+        "/api/v2/runs/{id}/predictions": {
+            "post": "Submit a consented prediction manifest",
+            "get": "Read source-native annotations and model results",
+        },
         "/api/v2/statistical-datasets": {
             "post": "Register an immutable local cohort dataset",
             "get": "List cohort datasets",
@@ -960,14 +1022,26 @@ def get_run(run_id: str):
 
 def _canonical_results(run_id: str) -> list[dict[str, Any]]:
     manager = _jobs()
-    result_manifest = manager.result(run_id)
+    try:
+        result_manifest = manager.result(run_id)
+    except (FileNotFoundError, ValueError, APIError):
+        result_manifest = {}
     reports: list[dict[str, Any]] = []
-    for outcome in result_manifest.get("genes", []):
+    for outcome in (result_manifest or {}).get("genes", []):
         if outcome.get("status") != "succeeded":
             continue
         report = read_json(manager.jobs_root / run_id / "genes" / str(outcome.get("gene")) / "report.json")
         if isinstance(report, dict) and report.get("schema_version") == "3.0":
             reports.append(report)
+    if not reports:
+        with session_scope(_engine()) as session:
+            run = session.get(Run, run_id)
+            configured = dict(run.configuration or {}) if run is not None else {}
+        report_path = Path(str(configured.get("canonical_report_path") or ""))
+        if report_path.is_file():
+            report = read_json(report_path)
+            if isinstance(report, dict) and report.get("schema_version") == "3.0":
+                reports.append(report)
     if reports:
         with session_scope(_engine()) as session:
             for report in reports:
@@ -1263,7 +1337,125 @@ def evidence_sources():
 @api_v2.get("/models")
 def models():
     manifests = list_model_manifests()
-    return jsonify({"models": manifests, "count": len(manifests), "consensus_enabled": False})
+    credential_status = _model_credentials().status("alphagenome-api")
+    worker = _model_jobs().health()
+    augmented = []
+    for manifest in manifests:
+        if manifest["id"] == "alphagenome-api":
+            availability = (
+                "ready" if credential_status["status"] == "verified" and worker["worker"].get("status") == "ready"
+                else "configuration_required"
+            )
+        elif manifest.get("status") in {"unsupported_for_epic_5mc", "blocked_pending_verified_release", "framework_only"}:
+            availability = "scientifically_blocked"
+        else:
+            availability = "adapter_or_assets_not_installed"
+        augmented.append({**manifest, "runtime_availability": availability})
+    return jsonify({"models": augmented, "count": len(augmented), "consensus_enabled": False})
+
+
+@api_v2.get("/model-settings")
+def model_settings():
+    return jsonify(
+        {
+            "models": list_model_manifests(),
+            "alphagenome": {
+                "credential": _model_credentials().status("alphagenome-api"),
+                "worker": _model_jobs().health(),
+                "default_modalities": list(REGULATORY_OVERVIEW_MODALITIES),
+                "supported_modalities": list(SUPPORTED_ALPHAGENOME_MODALITIES),
+                "supported_sequence_lengths": list(SUPPORTED_SEQUENCE_LENGTHS),
+                "default_sequence_length": DEFAULT_SEQUENCE_LENGTH,
+                "maximum_variants": 20,
+                "maximum_ontology_terms": 5,
+                "provider_endpoint_policy": "fixed_official_sdk_endpoint",
+            },
+            "consensus_enabled": False,
+        }
+    )
+
+
+@api_v2.put("/model-settings/alphagenome-api/credential")
+def save_alphagenome_credential():
+    payload = _json_body()
+    try:
+        state = _model_credentials().save("alphagenome-api", str(payload.get("api_key") or ""))
+    except Exception as exc:
+        raise APIError("invalid_model_credential", str(exc), 422) from exc
+    with session_scope(_engine()) as session:
+        append_audit_event(
+            session,
+            "model_credential_configured",
+            entity_type="model",
+            entity_id="alphagenome-api",
+            payload={"status": "configured"},
+        )
+    return jsonify(state)
+
+
+@api_v2.delete("/model-settings/alphagenome-api/credential")
+def delete_alphagenome_credential():
+    state = _model_credentials().delete("alphagenome-api")
+    (_model_credentials().root / "alphagenome-api.metadata.json").unlink(missing_ok=True)
+    with session_scope(_engine()) as session:
+        append_audit_event(
+            session,
+            "model_credential_removed",
+            entity_type="model",
+            entity_id="alphagenome-api",
+            payload={"status": "missing"},
+        )
+    return jsonify(state)
+
+
+@api_v2.post("/model-settings/alphagenome-api/credential/verify")
+def verify_alphagenome_credential():
+    credential_state = _model_credentials().status("alphagenome-api")
+    if credential_state["status"] == "missing":
+        raise APIError("model_credential_missing", "Configure the AlphaGenome credential before verification.", 409)
+    job = _model_jobs().submit(
+        run_id="model-settings",
+        model_id="alphagenome-api",
+        inputs={"operation": "metadata", "credential_revision": credential_state.get("updated_at")},
+    )
+    return jsonify(job), 202
+
+
+def _alphagenome_metadata_payload() -> dict[str, Any]:
+    path = _model_credentials().root / "alphagenome-api.metadata.json"
+    if not path.is_file():
+        return {
+            "status": "unavailable",
+            "reason": "Verify the configured AlphaGenome credential to load provider output metadata.",
+            "ontology_terms": [],
+            "supported_modalities": list(SUPPORTED_ALPHAGENOME_MODALITIES),
+            "supported_sequence_lengths": list(SUPPORTED_SEQUENCE_LENGTHS),
+        }
+    payload = read_json(path, default={})
+    return {
+        **(payload if isinstance(payload, dict) else {}),
+        "status": "available",
+        "supported_modalities": list(SUPPORTED_ALPHAGENOME_MODALITIES),
+        "supported_sequence_lengths": list(SUPPORTED_SEQUENCE_LENGTHS),
+    }
+
+
+@api_v2.get("/models/alphagenome-api/metadata")
+def alphagenome_metadata():
+    payload = _alphagenome_metadata_payload()
+    query = str(request.args.get("q") or "").strip().casefold()
+    outputs = {item.strip().upper() for item in str(request.args.get("outputs") or "").split(",") if item.strip()}
+    rows = list(payload.get("ontology_terms") or [])
+    if query:
+        rows = [row for row in rows if query in json.dumps(row, ensure_ascii=False).casefold()]
+    if outputs:
+        rows = [row for row in rows if str(row.get("output_type") or "").upper() in outputs]
+    deduplicated: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        curie = str(row.get("ontology_curie") or "")
+        if curie and curie not in deduplicated:
+            deduplicated[curie] = row
+    return jsonify({**payload, "ontology_terms": list(deduplicated.values()), "ontology_term_count": len(deduplicated)})
 
 
 @api_v2.post("/models/<model_id>/eligibility")
@@ -1307,20 +1499,21 @@ def confirm_model_installation(model_id: str):
     ), 202
 
 
-def _persist_model_job(job: dict[str, Any], *, inputs: dict[str, Any] | None = None, predictions: list[Any] | None = None) -> None:
+def _persist_model_job(
+    job: dict[str, Any], *, inputs: dict[str, Any] | None = None, result: dict[str, Any] | None = None
+) -> None:
+    if (inputs or {}).get("operation") == "metadata" or (result or {}).get("kind") == "metadata":
+        return
     with session_scope(_engine()) as session:
         model_run = session.get(ModelRun, job["id"])
         if model_run is None:
-            input_checksum = hashlib.sha256(
-                json.dumps(inputs or {}, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-            ).hexdigest()
             model_run = ModelRun(
                 id=job["id"],
                 run_id=job["run_id"],
                 model_id=job["model_id"],
                 status=job["status"],
                 blockers=list(job.get("eligibility", {}).get("blockers") or []),
-                input_checksum_sha256=input_checksum,
+                input_checksum_sha256=str(job.get("input_checksum_sha256") or ""),
                 error=dict(job.get("error") or {}),
             )
             session.add(model_run)
@@ -1328,12 +1521,50 @@ def _persist_model_job(job: dict[str, Any], *, inputs: dict[str, Any] | None = N
             model_run.status = job["status"]
             model_run.blockers = list(job.get("eligibility", {}).get("blockers") or model_run.blockers or [])
             model_run.error = dict(job.get("error") or {})
+        model_run.container_digest = str(
+            (result or {}).get("worker_container_version")
+            or (result or {}).get("sdk_source_commit")
+            or model_run.container_digest
+            or ""
+        )
+        for field in ("started_at", "finished_at"):
+            value = job.get(field)
+            if value:
+                try:
+                    setattr(model_run, field, datetime.fromisoformat(str(value).replace("Z", "+00:00")))
+                except ValueError:
+                    pass
+        predictions = list((result or {}).get("predictions") or [])
+        raw_artifact = None
+        if result:
+            raw_bytes = json.dumps(result, indent=2, ensure_ascii=False, default=str).encode("utf-8")
+            checksum = hashlib.sha256(raw_bytes).hexdigest()
+            raw_artifact = session.scalar(
+                select(Artifact).where(
+                    Artifact.run_id == job["run_id"],
+                    Artifact.kind == "model_prediction_raw",
+                    Artifact.checksum_sha256 == checksum,
+                )
+            )
+            if raw_artifact is None:
+                raw_artifact = _model_artifact_store().put_bytes(
+                    session,
+                    raw_bytes,
+                    kind="model_prediction_raw",
+                    run_id=job["run_id"],
+                    filename=f"{job['model_id']}-{job['id']}.json",
+                    media_type="application/json",
+                    sensitive=True,
+                )
         if predictions:
             for index, item in enumerate(predictions):
                 row = item if isinstance(item, dict) else {"raw_output": item}
                 entity_type = str(row.get("entity_type") or "model_output")
                 entity_key = str(row.get("entity_key") or index)
                 output_name = str(row.get("output_name") or row.get("name") or "score")
+                prediction_id = hashlib.sha256(
+                    f"{job['id']}|{entity_type}|{entity_key}|{output_name}".encode("utf-8")
+                ).hexdigest()[:32]
                 exists = session.scalar(
                     select(Prediction.id).where(
                         Prediction.model_run_id == job["id"],
@@ -1346,22 +1577,72 @@ def _persist_model_job(job: dict[str, Any], *, inputs: dict[str, Any] | None = N
                     continue
                 session.add(
                     Prediction(
+                        id=prediction_id,
                         model_run_id=job["id"],
                         entity_type=entity_type,
                         entity_key=entity_key,
                         output_name=output_name,
                         raw_score=row.get("raw_score") if isinstance(row.get("raw_score"), (int, float)) else None,
                         validated_label=str(row.get("validated_label") or ""),
-                        calibration=str(row.get("calibration") or ""),
-                        applicability=dict(row.get("applicability") or {}),
+                        calibration=json.dumps(
+                            {
+                                "quantile_score": row.get("quantile_score"),
+                                "sdk_version": (result or {}).get("sdk_version"),
+                                "provider_model_revision": (result or {}).get("provider_model_revision"),
+                                "sdk_source_commit": (result or {}).get("sdk_source_commit"),
+                                "worker_container_version": (result or {}).get("worker_container_version"),
+                            },
+                            sort_keys=True,
+                        ),
+                        applicability={
+                            **dict(row.get("applicability") or {}),
+                            "variant": row.get("variant"),
+                            "model_interval_0_based_half_open": row.get("model_interval_0_based_half_open"),
+                            "retrieved_at": (result or {}).get("retrieved_at"),
+                            "external_transfer_occurred": bool((result or {}).get("external_transfer_occurred")),
+                        },
                         limitations=list(row.get("limitations") or []),
+                        raw_artifact_id=raw_artifact.id if raw_artifact is not None else None,
                     )
                 )
 
 
+def _reconcile_model_job(job_id: str) -> dict[str, Any]:
+    job = _model_jobs().get(job_id)
+    result = _model_jobs().result(job_id) if job.get("status") in {"succeeded", "partial", "failed"} else None
+    if job.get("status") in {"succeeded", "partial"} and result is None:
+        raise RuntimeError("A terminal model job is missing its authenticated result payload.")
+    if job.get("run_id") == "model-settings":
+        if result and result.get("kind") == "metadata":
+            metadata_path = _model_credentials().root / "alphagenome-api.metadata.json"
+            metadata_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+            _model_credentials().mark_status("alphagenome-api", "verified")
+        elif job.get("status") == "failed":
+            _model_credentials().mark_status("alphagenome-api", "invalid")
+        return {"model_job": job, "result": result}
+    _persist_model_job(job, result=result)
+    return {"model_job": job, "result": result}
+
+
+def persist_completed_model_job(app, manager, job_id: str) -> None:
+    """Idempotently persist worker output without depending on a result-page read."""
+    with app.app_context():
+        try:
+            _reconcile_model_job(job_id)
+        except Exception as exc:
+            app.logger.warning("Could not reconcile model job %s: %s", job_id, exc)
+            raise
+
+
 @api_v2.post("/runs/<run_id>/models/<model_id>")
 def submit_model_job(run_id: str, model_id: str):
-    _jobs().get(run_id)
+    _report_for_predictions(run_id)
+    if model_id == "alphagenome-api":
+        raise APIError(
+            "prediction_preview_required",
+            "AlphaGenome must use the run prediction preview and explicit consent endpoint.",
+            409,
+        )
     inputs = _json_body()
     eligibility = inspect_model_inputs(model_id, inputs)
     if eligibility.get("status") == "unknown_model":
@@ -1375,9 +1656,8 @@ def submit_model_job(run_id: str, model_id: str):
 @api_v2.get("/model-jobs/<job_id>")
 def get_model_job(job_id: str):
     try:
-        job = _model_jobs().get(job_id)
-        _persist_model_job(job)
-        return jsonify(job)
+        reconciled = _reconcile_model_job(job_id)
+        return jsonify(reconciled["model_job"])
     except (ValueError, FileNotFoundError) as exc:
         raise APIError("model_job_not_found", f"Model job '{job_id}' was not found.", 404) from exc
 
@@ -1386,7 +1666,8 @@ def get_model_job(job_id: str):
 def cancel_model_job(job_id: str):
     try:
         job = _model_jobs().cancel(job_id)
-        _persist_model_job(job)
+        if job.get("run_id") != "model-settings":
+            _persist_model_job(job)
         return jsonify(job)
     except FileNotFoundError as exc:
         raise APIError("model_job_not_found", f"Model job '{job_id}' was not found.", 404) from exc
@@ -1400,12 +1681,216 @@ def get_model_job_result(job_id: str):
         job = _model_jobs().get(job_id)
     except (ValueError, FileNotFoundError) as exc:
         raise APIError("model_job_not_found", f"Model job '{job_id}' was not found.", 404) from exc
-    if job["status"] != "succeeded":
+    if job["status"] not in {"succeeded", "partial", "failed"}:
         raise APIError("model_job_not_finished", "The model job has no validated result.", 409)
-    payload = read_json(_model_jobs().root / job_id / "predictions.json", default=[])
-    normalized = payload if isinstance(payload, list) else [payload]
-    _persist_model_job(job, predictions=normalized)
-    return jsonify({"model_job": job, "predictions": normalized, "consensus": None})
+    reconciled = _reconcile_model_job(job_id)
+    result = reconciled.get("result") or {}
+    return jsonify({"model_job": job, **result, "consensus": None})
+
+
+def _report_for_predictions(run_id: str, gene: str = "") -> dict[str, Any]:
+    reports = _canonical_results(run_id)
+    if not reports:
+        raise APIError("result_not_found", "No schema-v3 report is available for this run.", 404)
+    requested_gene = str(gene or "").strip().upper()
+    if requested_gene:
+        report = next((item for item in reports if str(item.get("run", {}).get("gene") or "").upper() == requested_gene), None)
+        if report is None:
+            raise APIError("gene_result_not_found", f"Run '{run_id}' has no report for {requested_gene}.", 404)
+        return report
+    return reports[0]
+
+
+def _prediction_preview(run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    report = _report_for_predictions(run_id, str(payload.get("gene") or ""))
+    predictions = dict(report.get("sections", {}).get("predictions") or {})
+    selection = dict(predictions.get("variant_selection") or {})
+    reference_path = Path(
+        current_app.config.get("NOPHIGENE_HG38_REFERENCE_FASTA")
+        or os.environ.get("NOPHIGENE_HG38_REFERENCE_FASTA")
+        or HG38_FASTA
+    )
+    selection = validate_reference_alleles(selection, reference_path)
+    modalities = payload.get("modalities") or list(REGULATORY_OVERVIEW_MODALITIES)
+    ontology_terms = payload.get("ontology_terms") or []
+    try:
+        sequence_length = int(payload.get("sequence_length") or DEFAULT_SEQUENCE_LENGTH)
+    except (TypeError, ValueError) as exc:
+        raise APIError("invalid_sequence_length", "sequence_length must be an integer.", 422) from exc
+    disclosure = prepare_alphagenome_disclosure(
+        selection,
+        ontology_terms=ontology_terms,
+        modalities=modalities,
+        sequence_length=sequence_length,
+    )
+    configuration_blockers: list[str] = []
+    credential = _model_credentials().status("alphagenome-api")
+    if credential["status"] != "verified":
+        configuration_blockers.append("alphagenome_credential_not_verified")
+    metadata = _alphagenome_metadata_payload()
+    allowed_terms = {str(item.get("ontology_curie") or "") for item in metadata.get("ontology_terms", [])}
+    if metadata.get("status") != "available":
+        configuration_blockers.append("alphagenome_metadata_unavailable")
+    else:
+        unknown_terms = sorted({str(item) for item in ontology_terms} - allowed_terms)
+        configuration_blockers.extend(f"unsupported_ontology_term:{item}" for item in unknown_terms)
+    worker = _model_jobs().health()
+    if worker.get("worker", {}).get("status") != "ready":
+        configuration_blockers.append("alphagenome_worker_unavailable")
+    blockers = sorted(set([*disclosure.get("blockers", []), *configuration_blockers]))
+    return {
+        **disclosure,
+        "status": "ready" if disclosure.get("payload", {}).get("variants") and not blockers else "blocked",
+        "blockers": blockers,
+        "run_id": run_id,
+        "gene": report.get("run", {}).get("gene"),
+        "credential": credential,
+        "worker": worker,
+        "reference_fasta_configured": reference_path.is_file() and Path(f"{reference_path}.fai").is_file(),
+        "selection": {
+            "selected": selection.get("selected", []),
+            "omitted": selection.get("omitted", []),
+            "selection_policy": selection.get("selection_policy"),
+            "maximum": selection.get("maximum"),
+        },
+        "external_transfer_notice": (
+            "Only the listed GRCh38 alleles, model intervals, and requested molecular output types are sent to "
+            "the AlphaGenome provider. The listed ontology CURIEs stay in the isolated worker as local result filters. "
+            "Genotypes, VCFs, IDATs, phenotype data, and reports are excluded."
+        ),
+    }
+
+
+@api_v2.post("/runs/<run_id>/predictions/preview")
+def preview_predictions(run_id: str):
+    return jsonify(_prediction_preview(run_id, _json_body()))
+
+
+@api_v2.post("/runs/<run_id>/predictions")
+def submit_predictions(run_id: str):
+    payload = _json_body()
+    preview = _prediction_preview(run_id, payload)
+    if preview["status"] != "ready":
+        raise APIError("model_prediction_blocked", "AlphaGenome preflight did not pass.", 422, details={"blockers": preview["blockers"]})
+    if payload.get("external_transfer_consent") is not True:
+        raise APIError("external_transfer_consent_required", "Explicit per-run AlphaGenome transfer consent is required.", 422)
+    if str(payload.get("payload_sha256") or "") != preview["payload_sha256"]:
+        raise APIError(
+            "prediction_payload_preview_confirmation_required",
+            "Review and confirm the current exact prediction payload before external transfer.",
+            409,
+        )
+    disclosure = preview["payload"]
+    inputs = {
+        "operation": "predictions",
+        "genome_build": "GRCh38",
+        "grch38_variant": bool(disclosure["variants"]),
+        "reference_validated": all(item.get("reference_allele_verified") for item in disclosure["variants"]),
+        "requested_modalities": list(disclosure["modalities"]),
+        "explicit_transfer_consent": True,
+        "variants": list(disclosure["variants"]),
+        "ontology_terms": list(disclosure["ontology_terms"]),
+        "sequence_length": disclosure["sequence_length"],
+        "disclosed_payload_sha256": preview["payload_sha256"],
+    }
+    job = _model_jobs().submit(run_id=run_id, model_id="alphagenome-api", inputs=inputs)
+    _persist_model_job(job, inputs=inputs)
+    with session_scope(_engine()) as session:
+        append_audit_event(
+            session,
+            "model_external_transfer_approved",
+            entity_type="model_run",
+            entity_id=job["id"],
+            payload={
+                "model_id": "alphagenome-api",
+                "run_id": run_id,
+                "payload_sha256": preview["payload_sha256"],
+                "variant_count": len(disclosure["variants"]),
+                "modalities": disclosure["modalities"],
+                "ontology_term_count": len(disclosure["ontology_terms"]),
+            },
+        )
+    return jsonify(job), (202 if job.get("status") == "queued" else 422)
+
+
+def _aggregate_predictions(run_id: str, gene: str = "") -> dict[str, Any]:
+    report = _report_for_predictions(run_id, gene)
+    aggregate = json.loads(json.dumps(report.get("sections", {}).get("predictions") or {}, default=str))
+    model_runs = []
+    completed: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+    notices: list[dict[str, Any]] = []
+    for job in _model_jobs().list():
+        if job.get("run_id") != run_id:
+            continue
+        try:
+            reconciled = _reconcile_model_job(str(job["id"]))
+            result = reconciled.get("result") or {}
+        except Exception as exc:
+            result = {}
+            failures.append({"model_job_id": job.get("id"), "code": "result_reconciliation_failed", "message": str(exc)})
+        model_runs.append(
+            {
+                key: job.get(key)
+                for key in (
+                    "id", "model_id", "status", "stage", "progress_percent", "created_at", "started_at",
+                    "finished_at", "error", "eligibility", "result_checksum_sha256", "prediction_count", "failure_count",
+                    "empty_output",
+                )
+            }
+        )
+        completed.extend(item for item in result.get("predictions", []) if isinstance(item, dict))
+        failures.extend(item for item in result.get("failures", []) if isinstance(item, dict))
+        if result.get("empty_output"):
+            notices.append(
+                {
+                    "model_job_id": job.get("id"),
+                    "code": "empty_provider_output",
+                    "message": "The provider completed the request but returned no tidy score rows for the requested outputs and ontology filters.",
+                }
+            )
+        if job.get("error"):
+            failures.append({"model_job_id": job.get("id"), **dict(job["error"])})
+    statuses = {str(item.get("status") or "") for item in model_runs}
+    if "running" in statuses:
+        status = "running"
+    elif "queued" in statuses:
+        status = "queued"
+    elif completed and (failures or "partial" in statuses):
+        status = "partial"
+    elif completed:
+        status = "completed"
+    elif "succeeded" in statuses:
+        status = "completed"
+    elif statuses & {"failed"}:
+        status = "failed"
+    elif statuses & {"blocked"}:
+        status = "blocked"
+    else:
+        status = aggregate.get("status") or "no_data"
+    aggregate.update(
+        status=status,
+        run_id=run_id,
+        model_runs=model_runs,
+        predictions=completed,
+        failures=failures,
+        notices=notices,
+        consensus=None,
+    )
+    counts = dict(aggregate.get("counts") or {})
+    counts.update(
+        model_run_count=len(model_runs),
+        completed_prediction_count=len(completed),
+        failure_count=len(failures),
+        empty_output_count=len(notices),
+    )
+    aggregate["counts"] = counts
+    return aggregate
+
+
+@api_v2.get("/runs/<run_id>/predictions")
+def predictions_for_run(run_id: str):
+    return jsonify(_aggregate_predictions(run_id, str(request.args.get("gene") or "")))
 
 
 @api_v2.get("/runs/<run_id>/interactions")
@@ -1439,7 +1924,45 @@ def export_run(run_id: str):
     password = str(payload.get("password") or "")
     export_dir = _jobs().jobs_root / run_id / "exports"
     export_path = export_dir / f"nophigene-{run_id}-{uuid.uuid4().hex[:8]}.zip"
-    manifest = create_export_bundle(reports[0], export_path, password=password)
+    snapshot = json.loads(json.dumps(reports[0], default=str))
+    aggregated = _aggregate_predictions(run_id, str(payload.get("gene") or ""))
+    snapshot.setdefault("sections", {})["predictions"] = aggregated
+    snapshot["export_snapshot"] = {
+        "created_at": utc_now(),
+        "base_report_generated_at": reports[0].get("generated_at"),
+        "model_job_ids": [item.get("id") for item in aggregated.get("model_runs", [])],
+        "model_result_checksums": [
+            item.get("result_checksum_sha256")
+            for item in aggregated.get("model_runs", [])
+            if item.get("result_checksum_sha256")
+        ],
+        "base_report_immutable": True,
+    }
+    model_files: dict[str, bytes] = {}
+    normalized_predictions = list(aggregated.get("predictions") or [])
+    if normalized_predictions:
+        model_files["models/predictions.json"] = json.dumps(
+            normalized_predictions, indent=2, ensure_ascii=False, default=str
+        ).encode("utf-8")
+        csv_buffer = io.StringIO(newline="")
+        csv_columns = [
+            "entity_key", "variant", "output_name", "output_type", "raw_score", "quantile_score",
+            "scorer", "track_name", "gene_id", "gene_name", "ontology_curie", "biosample_name",
+        ]
+        csv_writer = csv.DictWriter(csv_buffer, fieldnames=csv_columns, extrasaction="ignore")
+        csv_writer.writeheader()
+        csv_writer.writerows(normalized_predictions)
+        model_files["models/predictions.csv"] = csv_buffer.getvalue().encode("utf-8-sig")
+    for item in aggregated.get("model_runs", []):
+        job_id = str(item.get("id") or "")
+        if item.get("status") not in {"succeeded", "partial", "failed"}:
+            continue
+        model_result = _model_jobs().result(job_id)
+        if model_result:
+            model_files[f"models/{item.get('model_id')}-{job_id}.json"] = json.dumps(
+                model_result, indent=2, ensure_ascii=False, default=str
+            ).encode("utf-8")
+    manifest = create_export_bundle(snapshot, export_path, password=password, additional_files=model_files)
     with session_scope(_engine()) as session:
         append_audit_event(
             session,
@@ -1506,7 +2029,7 @@ def delete_sample(sample_id: str):
         if target.is_dir():
             shutil.rmtree(target)
             removed_paths.append(str(target))
-    model_root = _model_jobs().root.resolve()
+    model_root = _model_jobs().jobs.resolve()
     for job_id in model_job_ids:
         target = (model_root / job_id).resolve()
         try:
@@ -1534,11 +2057,21 @@ def delete_sample(sample_id: str):
 def health():
     manager = _jobs()
     dandelion = _statistical_jobs().health()
+    model_worker = _model_jobs().health()
+    model_credential = _model_credentials().status("alphagenome-api")
     return jsonify(
         {
             "status": "ok" if manager.worker_alive else "degraded",
             "worker": {"alive": manager.worker_alive, "queue_depth": manager.queue_depth},
             "dandelion": dandelion,
+            "models": {
+                "alphagenome": {
+                    "worker": model_worker,
+                    "credential_status": model_credential["status"],
+                    "ready": model_worker.get("worker", {}).get("status") == "ready"
+                    and model_credential["status"] == "verified",
+                }
+            },
             "database": {"schema": "3.0", "encryption_required_in_production": True},
             "gpu": {"status": "preflight_required", "message": "GPU models remain unavailable until WSL2/NVIDIA validation passes."},
         }

@@ -15,6 +15,7 @@ CORE_SAFETY_WORKFLOW_KEYS = (
     "clinical_variant_triage",
     "population_frequency_association",
     "regulatory_epigenomic_context",
+    "gene_interaction_network",
     "pharmacogenomics_drug_response",
     "literature_dataset_discovery",
 )
@@ -148,6 +149,23 @@ WORKFLOW_SPECS: tuple[WorkflowSpec, ...] = (
         requires_vcf=False,
         requires_manifest=True,
         licensed_notes=("Roadmap, IHEC, MethBank, and related resources may return metadata/linkouts when no live connector is configured.",),
+    ),
+    WorkflowSpec(
+        key="gene_interaction_network",
+        label="Gene and Protein Interaction Network",
+        purpose=(
+            "Retrieve version-pinned, source-backed functional association partners for the queried gene and "
+            "preserve the source's native confidence and evidence-channel scores."
+        ),
+        default_selected=True,
+        ordered_source_keys=("string",),
+        evidence_lanes=("interactions",),
+        report_section="Interactions",
+        requires_vcf=False,
+        requires_manifest=False,
+        licensed_notes=(
+            "STRING functional associations do not necessarily represent direct physical binding or causal regulation.",
+        ),
     ),
     WorkflowSpec(
         key="pharmacogenomics_drug_response",

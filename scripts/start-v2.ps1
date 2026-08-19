@@ -20,10 +20,14 @@ $databaseSecretPath = Join-Path $secretRoot "database-key"
 $sessionSecretPath = Join-Path $secretRoot "session-token"
 $dandelionSecretPath = Join-Path $secretRoot "dandelion-runner-key"
 $dandelionArtifactSecretPath = Join-Path $secretRoot "dandelion-artifact-key"
+$modelRunnerSecretPath = Join-Path $secretRoot "model-runner-key"
+$modelCredentialSecretPath = Join-Path $secretRoot "model-credential-key"
 $vaultResource = "NophiGene-v2"
 $vaultUser = "database-key"
 $dandelionVaultUser = "dandelion-runner-key"
 $dandelionArtifactVaultUser = "dandelion-artifact-key"
+$modelRunnerVaultUser = "model-runner-key"
+$modelCredentialVaultUser = "model-credential-key"
 $healthUrl = "http://127.0.0.1:$Port/api/v2/health"
 $publicUrl = "http://127.0.0.1:$Port/"
 $stageCount = 7
@@ -89,7 +93,7 @@ function Set-CryptographicRandomBytes {
 }
 
 function Remove-RuntimeSecretFiles {
-    foreach ($path in @($databaseSecretPath, $sessionSecretPath, $dandelionSecretPath, $dandelionArtifactSecretPath)) {
+    foreach ($path in @($databaseSecretPath, $sessionSecretPath, $dandelionSecretPath, $dandelionArtifactSecretPath, $modelRunnerSecretPath, $modelCredentialSecretPath)) {
         if (Test-Path -LiteralPath $path) {
             Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
         }
@@ -132,7 +136,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "Dockerfile") -PathType
 }
 foreach ($runtimeDirectory in @(
     (Join-Path $projectRoot "data\dandelion"),
-    (Join-Path $projectRoot "results\dandelion")
+    (Join-Path $projectRoot "results\dandelion"),
+    (Join-Path $projectRoot "results\model-jobs"),
+    (Join-Path $projectRoot "results\model-credentials"),
+    (Join-Path $projectRoot "results\model-artifacts")
 )) {
     if (-not (Test-Path -LiteralPath $runtimeDirectory)) {
         if ($DryRun) {
@@ -232,14 +239,44 @@ else {
         $vault.Add($artifactCredential)
         Write-Notice "Created a new managed-artifact encryption key in Windows Credential Manager."
     }
+    try {
+        $modelRunnerCredential = $vault.Retrieve($vaultResource, $modelRunnerVaultUser)
+        $modelRunnerCredential.RetrievePassword()
+        $modelRunnerKey = $modelRunnerCredential.Password
+        Write-Notice "Reused the model-runner signing key stored in Windows Credential Manager."
+    }
+    catch {
+        $modelRunnerBytes = New-Object byte[] 48
+        Set-CryptographicRandomBytes -Buffer $modelRunnerBytes
+        $modelRunnerKey = [Convert]::ToBase64String($modelRunnerBytes)
+        $modelRunnerCredential = [Activator]::CreateInstance($credentialType, @($vaultResource, $modelRunnerVaultUser, $modelRunnerKey))
+        $vault.Add($modelRunnerCredential)
+        Write-Notice "Created a new model-runner signing key in Windows Credential Manager."
+    }
+    try {
+        $modelCredentialCredential = $vault.Retrieve($vaultResource, $modelCredentialVaultUser)
+        $modelCredentialCredential.RetrievePassword()
+        $modelCredentialKey = $modelCredentialCredential.Password
+        Write-Notice "Reused the model-credential encryption key stored in Windows Credential Manager."
+    }
+    catch {
+        $modelCredentialBytes = New-Object byte[] 48
+        Set-CryptographicRandomBytes -Buffer $modelCredentialBytes
+        $modelCredentialKey = [Convert]::ToBase64String($modelCredentialBytes)
+        $modelCredentialCredential = [Activator]::CreateInstance($credentialType, @($vaultResource, $modelCredentialVaultUser, $modelCredentialKey))
+        $vault.Add($modelCredentialCredential)
+        Write-Notice "Created a new model-credential encryption key in Windows Credential Manager."
+    }
     New-Item -ItemType Directory -Path $secretRoot -Force | Out-Null
     [System.IO.File]::WriteAllText($databaseSecretPath, $databaseKey, [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText($sessionSecretPath, $sessionToken, [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText($dandelionSecretPath, $dandelionRunnerKey, [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText($dandelionArtifactSecretPath, $dandelionArtifactKey, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($modelRunnerSecretPath, $modelRunnerKey, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($modelCredentialSecretPath, $modelCredentialKey, [System.Text.UTF8Encoding]::new($false))
 
     $currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    foreach ($secretPath in @($databaseSecretPath, $sessionSecretPath, $dandelionSecretPath, $dandelionArtifactSecretPath)) {
+    foreach ($secretPath in @($databaseSecretPath, $sessionSecretPath, $dandelionSecretPath, $dandelionArtifactSecretPath, $modelRunnerSecretPath, $modelCredentialSecretPath)) {
         $acl = New-Object System.Security.AccessControl.FileSecurity
         $acl.SetAccessRuleProtection($true, $false)
         $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
@@ -250,7 +287,7 @@ else {
         $acl.AddAccessRule($rule)
         Set-Acl -LiteralPath $secretPath -AclObject $acl
     }
-    Write-Success "Database, browser-session, offline-runner, and managed-artifact secrets were written with a restricted ACL."
+    Write-Success "Database, browser-session, statistical-runner, model-runner, and credential-encryption secrets were written with a restricted ACL."
     Write-Detail "Secret directory" $secretRoot
     Write-Detail "Secret values" "redacted"
 }

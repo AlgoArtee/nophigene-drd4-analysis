@@ -5,6 +5,7 @@ ENCODE Portal (DCC) — encodeproject.org	Functional-genomics and epigenomics ex
 CIViC — civicdb.org	Open, community-curated interpretations of cancer variants, diagnoses, drugs and clinical evidence, including somatic variant–drug evidence statements and provenance.
 Database of Genomic Variants (DGV) - dgv.tcag.ca
 NCBI Gene	Gene-centred records linking sequences, expression, phenotypes, pathways, variation and publications.
+STRING — string-db.org	Versioned protein functional-association networks with combined confidence scores and evidence-channel scores; associations do not necessarily imply direct physical binding.
 OMIM — Online Mendelian Inheritance in Man	Authoritative, literature-curated descriptions of human genes, genetic phenotypes and Mendelian disorders.
 GeneReviews	Expert-written, peer-reviewed chapters on inherited disorders, diagnosis, testing, management and counselling.
 Orphanet	Rare-disease classifications, genes, epidemiology, diagnostic resources and expert centres.

@@ -56,6 +56,54 @@
       <p class="help">Primary variant QC uses PASS and GQ≥20/DP≥10 when those fields are present. Flagged probes are retained but excluded from primary results.</p>
     </article>
 
+    <article class="card model-step-card" data-model-step data-run-id="{{ prediction_run_id }}" data-gene="{{ prediction_gene }}">
+      <div class="model-step-heading"><div><span class="step">3</span><h3>Models and prediction settings</h3></div><span class="status-pill" data-model-step-status>{{ 'Ready to configure' if prediction_run_id else 'Complete step 2 first' }}</span></div>
+      <p class="help">This step is tied to immutable measured-data run <code data-model-run-label>{{ prediction_run_id or 'not available' }}</code>. Molecular model predictions remain separate from Medical Information.</p>
+      {% if not prediction_run_id %}<div class="message" data-model-step-locked>Run step 2 successfully to review the exact model disclosure payload.</div>{% endif %}
+      <div data-model-step-content{% if not prediction_run_id %} hidden{% endif %}>
+        <div class="model-option always-enabled">
+          <div><strong>Source-native annotations</strong><span class="evidence-badge">Automatic</span><p>Exact-allele predictor values already present in this run are shown without a new external transfer.</p></div>
+        </div>
+        <div class="model-option" data-alphagenome-option>
+          <div class="model-option-heading"><div><strong>AlphaGenome</strong><span class="evidence-badge" data-alphagenome-readiness>Checking…</span></div><small>Official SDK 0.8.0 · GRCh38 only · isolated worker</small></div>
+          <p class="help">Opt-in molecular variant-effect scoring. Select 1–5 ontology terms, requested outputs, and an SDK-supported sequence length.</p>
+          <div class="model-settings-grid">
+            <div>
+              <label for="alphagenome-tissue-search">Tissue or cell ontology</label>
+              <input id="alphagenome-tissue-search" type="search" data-alphagenome-tissue-search placeholder="Search biosample or ontology CURIE" autocomplete="off">
+              <div class="ontology-results" data-alphagenome-tissue-results aria-live="polite"></div>
+              <div class="ontology-selection" data-alphagenome-tissue-selection></div>
+            </div>
+            <div>
+              <label for="alphagenome-sequence-length">Sequence length</label>
+              <select id="alphagenome-sequence-length" data-alphagenome-sequence-length>
+                <option value="1048576" selected>1,048,576 bp (default)</option>
+                <option value="524288">524,288 bp</option>
+                <option value="131072">131,072 bp</option>
+              </select>
+            </div>
+          </div>
+          <fieldset class="modality-fieldset"><legend>Regulatory overview outputs</legend>
+            {% for value, label in [('RNA_SEQ','RNA-seq'),('CAGE','CAGE'),('DNASE','DNase'),('ATAC','ATAC'),('CHIP_HISTONE','Histone ChIP'),('CHIP_TF','TF ChIP'),('SPLICE_SITES','Splice sites'),('SPLICE_JUNCTIONS','Splice junctions')] %}
+            <label><input type="checkbox" value="{{ value }}" data-alphagenome-modality{% if value in ['RNA_SEQ','CAGE','DNASE','ATAC','CHIP_HISTONE','CHIP_TF'] %} checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+          </fieldset>
+          <div class="actions"><button type="button" data-prediction-preview>Review exact transfer</button></div>
+          <div data-prediction-preview-message hidden></div>
+          <div data-prediction-preview-panel hidden>
+            <div class="metric-grid compact-metrics"><article><span>Selected alleles</span><strong data-preview-selected>0</strong></article><article><span>Omitted alleles</span><strong data-preview-omitted>0</strong></article><article><span>Ontology terms</span><strong data-preview-terms>0</strong></article></div>
+            <div class="table-shell"><table><thead><tr><th>Variant</th><th>Interval (0-based, half-open)</th><th>REF validated</th></tr></thead><tbody data-prediction-preview-rows></tbody></table></div>
+            <p class="help" data-prediction-transfer-notice></p>
+            <p class="digest" data-prediction-digest></p>
+            <label class="consent"><input type="checkbox" data-prediction-consent>I reviewed this exact payload and consent to this run’s external AlphaGenome transfer.</label>
+            <button type="button" data-prediction-submit disabled>Queue AlphaGenome</button>
+          </div>
+          <div data-prediction-job-message hidden></div>
+        </div>
+        <details class="model-catalog"><summary>Other registered models and applicability</summary><div data-model-catalog>Loading model registry…</div></details>
+      </div>
+    </article>
+
     {% set preprocessing_progress = 100 if preprocess_state.manifest_ready else 50 if preprocess_state.region_ready else 0 %}
     <article class="card preprocessing-status-card" data-preprocessing-status aria-busy="false">
       <div class="preprocessing-status-heading">

@@ -1811,12 +1811,17 @@ def test_workflow_registry_references_valid_sources_and_core_defaults():
     synthetic_local_sources = {LOCAL_ARTICLE_SOURCE_KEY}
     workflows = list_workflow_specs()
     medgen_spec = get_source_spec("medgen")
+    string_spec = get_source_spec("string")
 
     assert [workflow.key for workflow in workflows if workflow.default_selected] == list(CORE_SAFETY_WORKFLOW_KEYS)
     assert medgen_spec is not None
     assert medgen_spec.access_type == "open_api"
     assert medgen_spec.connector_kind == "medgen"
     assert medgen_spec.ingestion_modes == ("official_api", "linkout_only")
+    assert string_spec is not None
+    assert string_spec.access_type == "open_api"
+    assert string_spec.connector_kind == "string"
+    assert string_spec.lane == "interactions"
     assert workflows
     for workflow in workflows:
         assert workflow.label
@@ -1825,6 +1830,11 @@ def test_workflow_registry_references_valid_sources_and_core_defaults():
         assert set(workflow.ordered_source_keys) <= source_keys | synthetic_local_sources
         if workflow.key == "clinical_variant_triage":
             assert workflow.ordered_source_keys[:4] == ("clinvar", "clingen", "medgen", "ensembl")
+        if workflow.key == "gene_interaction_network":
+            assert workflow.ordered_source_keys == ("string",)
+            assert workflow.default_selected
+            assert not workflow.requires_vcf
+            assert not workflow.requires_manifest
         if workflow.key == LOCAL_ARTICLE_WORKFLOW_KEY:
             assert workflow.ordered_source_keys == (LOCAL_ARTICLE_SOURCE_KEY,)
             assert not workflow.default_selected
@@ -1832,6 +1842,79 @@ def test_workflow_registry_references_valid_sources_and_core_defaults():
             joined_notes = " ".join(workflow.licensed_notes).lower()
             assert "scraping" in joined_notes
             assert "captcha" in joined_notes
+
+
+def test_string_connector_returns_only_direct_query_gene_functional_associations():
+    class RecordingStringClient:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def get_json(self, url, *, params=None, headers=None, rate_limit_per_second=None, timeout=None):
+            self.calls.append(
+                {
+                    "url": url,
+                    "params": params,
+                    "headers": headers,
+                    "rate_limit_per_second": rate_limit_per_second,
+                }
+            )
+            return [
+                {
+                    "stringId_A": "9606.ENSP_DRD4",
+                    "stringId_B": "9606.ENSP_SLC6A4",
+                    "preferredName_A": "DRD4",
+                    "preferredName_B": "SLC6A4",
+                    "score": 0.978,
+                    "ascore": 0.054,
+                    "escore": 0.0,
+                    "dscore": 0.0,
+                    "tscore": 0.978,
+                },
+                {
+                    "stringId_A": "9606.ENSP_DRD3",
+                    "stringId_B": "9606.ENSP_DRD4",
+                    "preferredName_A": "DRD3",
+                    "preferredName_B": "DRD4",
+                    "score": 0.943,
+                    "dscore": 0.9,
+                    "tscore": 0.454,
+                },
+                {
+                    "stringId_A": "9606.ENSP_DRD3",
+                    "stringId_B": "9606.ENSP_SLC6A4",
+                    "preferredName_A": "DRD3",
+                    "preferredName_B": "SLC6A4",
+                    "score": 0.7,
+                },
+            ]
+
+    spec = get_source_spec("string")
+    assert spec is not None
+    client = RecordingStringClient()
+    result = connector_for(spec, client, ResolvedCredential("string")).query(
+        KnowledgeQuery(gene="DRD4", region="11:637293-640706", genome_build="hg38")
+    )
+
+    assert result.status == "ok"
+    assert [record["partner_gene"] for record in result.records] == ["SLC6A4", "DRD3"]
+    assert all(record["edge_type"] == "functional_association" for record in result.records)
+    assert all(record["source_release"] == "12.0" for record in result.records)
+    assert result.records[0]["evidence_channels"]["text_mining"] == 0.978
+    assert "not necessarily direct physical binding" in result.records[0]["association_scope"]
+    assert client.calls == [
+        {
+            "url": "https://version-12-0.string-db.org/api/json/network",
+            "params": {
+                "identifiers": "DRD4",
+                "species": 9606,
+                "required_score": 400,
+                "add_nodes": 10,
+                "caller_identity": "NophiGene",
+            },
+            "headers": {"Accept": "application/json"},
+            "rate_limit_per_second": 1.0,
+        }
+    ]
 
 
 def test_request_client_prefers_explicit_ca_bundle(monkeypatch, tmp_path: Path):

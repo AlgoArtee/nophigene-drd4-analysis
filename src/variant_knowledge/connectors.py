@@ -84,6 +84,10 @@ EWAS_CATALOG_MAX_RECORDS = 5
 EWAS_ATLAS_REST_BASE = "https://ngdc.cncb.ac.cn/ewas/rest"
 EWAS_ATLAS_PORTAL_BASE = "https://ngdc.cncb.ac.cn/ewas"
 EWAS_ATLAS_MAX_RECORDS = 5
+STRING_V12_API_BASE = "https://version-12-0.string-db.org/api/json"
+STRING_V12_NETWORK_URL = f"{STRING_V12_API_BASE}/network"
+STRING_DIRECT_PARTNER_LIMIT = 10
+STRING_REQUIRED_SCORE = 400
 
 
 def _ncbi_request_params(params: dict[str, Any]) -> dict[str, Any]:
@@ -7126,6 +7130,136 @@ class MaveDbConnector(BaseConnector):
         return value[: limit - 1].rstrip() + "..."
 
 
+class StringConnector(BaseConnector):
+    """Version-pinned STRING functional-association connector for human genes."""
+
+    def query(self, context: KnowledgeQuery) -> SourceResult:
+        started = time.monotonic()
+        url = STRING_V12_NETWORK_URL
+        try:
+            payload = self.client.get_json(
+                url,
+                params={
+                    "identifiers": context.gene,
+                    "species": 9606,
+                    "required_score": STRING_REQUIRED_SCORE,
+                    "add_nodes": STRING_DIRECT_PARTNER_LIMIT,
+                    "caller_identity": "NophiGene",
+                },
+                headers={"Accept": "application/json"},
+                rate_limit_per_second=self.spec.rate_limit_per_second,
+            )
+        except KnowledgeRequestError as exc:
+            return _request_failure_result(self.spec, exc, queried_urls=[url], started=started)
+        if not isinstance(payload, list):
+            message = "STRING v12 network response was not a JSON list."
+            return SourceResult(
+                self.spec.key,
+                "failed",
+                message,
+                errors=[message],
+                queried_urls=[url],
+                elapsed_ms=_elapsed_ms(started),
+            )
+        records = self._direct_records(payload, context)
+        message = (
+            f"Queried STRING v12.0; {len(records)} direct functional association(s) returned for {context.gene}."
+            if records
+            else f"Queried STRING v12.0; no direct functional associations met the score threshold for {context.gene}."
+        )
+        return SourceResult(
+            self.spec.key,
+            "ok",
+            message,
+            records,
+            queried_urls=[url],
+            elapsed_ms=_elapsed_ms(started),
+        )
+
+    def _direct_records(self, payload: list[Any], context: KnowledgeQuery) -> list[dict[str, Any]]:
+        query_gene = context.gene.upper()
+        records: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            gene_a = _clean_cell(item.get("preferredName_A")).upper()
+            gene_b = _clean_cell(item.get("preferredName_B")).upper()
+            if gene_a == query_gene:
+                partner = gene_b
+                source_string_id = _clean_cell(item.get("stringId_A"))
+                target_string_id = _clean_cell(item.get("stringId_B"))
+            elif gene_b == query_gene:
+                partner = gene_a
+                source_string_id = _clean_cell(item.get("stringId_B"))
+                target_string_id = _clean_cell(item.get("stringId_A"))
+            else:
+                continue
+            if not partner or partner == query_gene or partner in seen:
+                continue
+            score = self._score(item.get("score"))
+            channels = {
+                "neighborhood": self._score(item.get("nscore")),
+                "fusion": self._score(item.get("fscore")),
+                "cooccurrence": self._score(item.get("pscore")),
+                "coexpression": self._score(item.get("ascore")),
+                "experiments": self._score(item.get("escore")),
+                "databases": self._score(item.get("dscore")),
+                "text_mining": self._score(item.get("tscore")),
+            }
+            channel_text = ", ".join(
+                f"{name.replace('_', ' ')} {value:.3f}"
+                for name, value in channels.items()
+                if value is not None and value > 0
+            )
+            score_text = f"{score:.3f}" if score is not None else "not reported"
+            summary = (
+                f"STRING v12.0 functional association between {query_gene} and {partner}; combined score "
+                f"{score_text}{'; evidence channels: ' + channel_text if channel_text else ''}. "
+                "STRING associations do not necessarily indicate direct physical binding."
+            )
+            record_id = f"string-v12:{source_string_id}:{target_string_id}"
+            records.append(
+                {
+                    "record_id": record_id,
+                    "source_id": record_id,
+                    "category": "protein_functional_association",
+                    "source": self.spec.name,
+                    "source_key": self.spec.key,
+                    "source_release": "12.0",
+                    "label": f"{query_gene}–{partner} STRING functional association",
+                    "summary": summary,
+                    "gene": query_gene,
+                    "source_gene": query_gene,
+                    "partner_gene": partner,
+                    "target_gene": partner,
+                    "edge_type": "functional_association",
+                    "interaction_type": "functional_association",
+                    "directed": False,
+                    "native_score": score,
+                    "score": score,
+                    "score_type": "STRING combined score (0-1)",
+                    "evidence_channels": channels,
+                    "association_scope": "functional association; not necessarily direct physical binding",
+                    "string_id_source": source_string_id,
+                    "string_id_target": target_string_id,
+                    "url": f"https://version-12-0.string-db.org/network/{source_string_id}",
+                }
+            )
+            seen.add(partner)
+            if len(records) >= STRING_DIRECT_PARTNER_LIMIT:
+                break
+        records.sort(key=lambda record: (-(record.get("native_score") or 0.0), record["partner_gene"]))
+        return records
+
+    @staticmethod
+    def _score(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+
 class LinkoutOfficialConnector(BaseConnector):
     """Official-source linkout connector for open resources without a compact stable API path."""
 
@@ -7183,6 +7317,7 @@ CONNECTOR_CLASSES = {
     "cpic": LinkoutOfficialConnector,
     "fda_pgx": LinkoutOfficialConnector,
     "dgidb": LinkoutOfficialConnector,
+    "string": StringConnector,
 }
 
 

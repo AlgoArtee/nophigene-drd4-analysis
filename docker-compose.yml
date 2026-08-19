@@ -16,11 +16,19 @@ services:
       NOPHIGENE_DANDELION_WORK_ROOT: /home/appuser/app/results/dandelion
       NOPHIGENE_DANDELION_RUNNER_KEY_FILE: /run/secrets/dandelion_runner_key
       NOPHIGENE_DANDELION_ARTIFACT_KEY_FILE: /run/secrets/dandelion_artifact_key
+      NOPHIGENE_MODEL_WORK_ROOT: /home/appuser/app/results/model-jobs
+      NOPHIGENE_MODEL_CREDENTIAL_ROOT: /home/appuser/app/results/model-credentials
+      NOPHIGENE_MODEL_ARTIFACT_ROOT: /home/appuser/app/results/model-artifacts
+      NOPHIGENE_MODEL_RUNNER_KEY_FILE: /run/secrets/model_runner_key
+      NOPHIGENE_MODEL_CREDENTIAL_KEY_FILE: /run/secrets/model_credential_key
+      NOPHIGENE_HG38_REFERENCE_FASTA: /home/appuser/app/data/reference/hg38/hg38.analysisSet.fa
     secrets:
       - nophigene_db_key
       - nophigene_session_token
       - dandelion_runner_key
       - dandelion_artifact_key
+      - model_runner_key
+      - model_credential_key
     volumes:
       - ./data:/home/appuser/app/data:ro
       - ./results:/home/appuser/app/results
@@ -35,6 +43,35 @@ services:
       - ALL
     # Deliberately no Docker socket mount. Model execution is isolated from
     # the browser-facing process and uses allowlisted runner manifests.
+
+  alphagenome-worker:
+    build:
+      context: ./docker/alphagenome
+      dockerfile: Dockerfile
+    image: nophigene/alphagenome-runner:0.8.0
+    restart: unless-stopped
+    read_only: true
+    environment:
+      NOPHIGENE_MODEL_WORK_ROOT: /work
+      NOPHIGENE_MODEL_CREDENTIAL_ROOT: /credentials
+      NOPHIGENE_MODEL_RUNNER_KEY_FILE: /run/secrets/model_runner_key
+      NOPHIGENE_MODEL_CREDENTIAL_KEY_FILE: /run/secrets/model_credential_key
+      NOPHIGENE_HG38_REFERENCE_FASTA: /reference/hg38.analysisSet.fa
+    secrets:
+      - model_runner_key
+      - model_credential_key
+    volumes:
+      - ./results/model-jobs:/work
+      - ./results/model-credentials:/credentials:ro
+      - ./data/reference/hg38:/reference:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The runner has no application database, VCF, IDAT, phenotype, or Docker
+    # socket mounts. Its adapter fixes egress to the official SDK endpoint.
 
   dandelion-worker:
     build:
@@ -87,3 +124,7 @@ secrets:
     file: ./.runtime-secrets/dandelion-runner-key
   dandelion_artifact_key:
     file: ./.runtime-secrets/dandelion-artifact-key
+  model_runner_key:
+    file: ./.runtime-secrets/model-runner-key
+  model_credential_key:
+    file: ./.runtime-secrets/model-credential-key

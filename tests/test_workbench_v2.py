@@ -10,6 +10,7 @@ import pandas as pd
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from src.analysis import load_gene_interpretation_database
 from src.workbench.audit import append_audit_event, verify_audit_chain
 from src.workbench.artifacts import ArtifactStore
 from src.workbench.database import DatabaseSecurityError, create_database_engine, ensure_schema
@@ -17,7 +18,14 @@ from src.workbench.evidence import deduplicate_literature, medical_gate, source_
 from src.workbench.interactions import build_interaction_graph
 from src.workbench.legacy_migration import import_legacy_reports, inventory_legacy_stores
 from src.workbench.model_registry import inspect_model_inputs, list_model_manifests
-from src.workbench.models import EvidenceRecord, MethylationMeasurement, Run, VariantCall
+from src.workbench.models import (
+    EvidenceRecord,
+    InteractionEdge,
+    MedicalAssertion,
+    MethylationMeasurement,
+    Run,
+    VariantCall,
+)
 from src.workbench.persistence import persist_canonical_report
 from src.workbench.pgx import resolve_pgx_diplotype
 from src.workbench.reporting import build_canonical_report, render_evidence_first_html
@@ -92,6 +100,351 @@ def test_literature_dedup_and_provider_states_are_explicit() -> None:
     assert coverage["not_assessed"][0]["source_key"] == "string"
 
 
+def test_bundled_drd4_literature_exposes_curated_findings_without_medical_promotion() -> None:
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+
+    report = build_canonical_report(
+        {"gene": "DRD4", "knowledge_base": knowledge_base, "variants": [], "methylation": []}
+    )
+    literature = report["sections"]["literature"]
+    findings = literature["findings"]
+    finding_text = " ".join(str(item.get("finding") or "") for item in findings).casefold()
+    identifiers = {(item.get("pmid"), item.get("pmcid")) for item in findings}
+
+    assert report["schema_version"] == "3.0"
+    assert literature["status"] == "assessed"
+    assert literature["coverage_scope"] == "all_available_gene_related_evidence"
+    assert literature["finding_count"] == len(findings) >= 14
+    assert literature["publication_count"] >= 10
+    assert ("10329380", None) in identifiers
+    assert any(pmcid == "PMC3538530" for _pmid, pmcid in identifiers)
+    assert all(term in finding_text for term in ("methylation", "schizophrenia", "addiction", "reporter"))
+    assert any(item["priority_tier"] == 1 for item in findings)
+    assert all(
+        item["priority_tier"] >= 6
+        for item in findings
+        if item["finding_status"] == "citation_metadata_only"
+    )
+    assert report["sections"]["medical"]["records"] == []
+
+
+def test_nested_literature_extraction_is_generic_across_bundled_genes() -> None:
+    for gene in ("SIRT6", "FAM170A", "HERC2"):
+        knowledge_base = load_gene_interpretation_database(gene)
+        assert knowledge_base is not None
+        literature = build_canonical_report(
+            {"gene": gene, "knowledge_base": knowledge_base}
+        )["sections"]["literature"]
+
+        assert literature["finding_count"] > 0
+        assert literature["publication_count"] > 0
+        assert all(item["gene"] == gene for item in literature["findings"])
+
+
+def test_nested_citations_bridge_publication_ids_and_preserve_distinct_variant_findings() -> None:
+    report = build_canonical_report(
+        {
+            "gene": "GENE1",
+            "knowledge_base": {
+                "gene_context": {
+                    "evidence": [
+                        {
+                            "label": "PMID 12345678 / PMCID PMC7654321: linked identifiers",
+                            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7654321/",
+                        }
+                    ]
+                },
+                "variant_records": [
+                    {
+                        "variant": "rs111",
+                        "gene_name": "GENE1",
+                        "evidence": [
+                            {"label": "PubMed 12345678", "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/"}
+                        ],
+                        "literature_findings": [
+                            {
+                                "paper": "Study one (PMID 12345678)",
+                                "finding": "A reporter assay changed promoter activity.",
+                                "phenotype": "Promoter activity",
+                            }
+                        ],
+                    },
+                    {
+                        "variant": "rs222",
+                        "gene_name": "GENE1",
+                        "literature_findings": [
+                            {
+                                "paper": "Study one (PMCID PMC7654321)",
+                                "finding": "Patients carrying the allele showed a treatment-response association.",
+                                "phenotype": "Treatment response",
+                            }
+                        ],
+                    },
+                ],
+            },
+        }
+    )
+    literature = report["sections"]["literature"]
+
+    assert literature["publication_count"] == 1
+    assert literature["finding_count"] == 2
+    assert {item["variant"] for item in literature["findings"]} == {"rs111", "rs222"}
+    assert len({item["finding_id"] for item in literature["findings"]}) == 2
+    assert literature["publications"][0]["pmid"] == "12345678"
+    assert literature["publications"][0]["pmcid"] == "PMC7654321"
+
+
+def test_dynamic_pubmed_label_and_source_id_are_normalized_as_literature() -> None:
+    report = build_canonical_report(
+        {
+            "gene": "GENE2",
+            "dynamic_knowledge_base": {
+                "source_records": [
+                    {
+                        "category": "literature",
+                        "source_key": "pubmed",
+                        "label": "GENE2 functional study",
+                        "summary": "A functional assay measured gene expression.",
+                        "source_id": "23456789",
+                        "url": "https://pubmed.ncbi.nlm.nih.gov/23456789/",
+                    }
+                ]
+            },
+        }
+    )
+    literature = report["sections"]["literature"]
+
+    assert literature["finding_count"] == 1
+    assert literature["findings"][0]["title"] == "GENE2 functional study"
+    assert literature["findings"][0]["pmid"] == "23456789"
+    assert literature["findings"][0]["priority_tier"] == 3
+
+
+def test_bundled_drd4_medical_context_lists_conditions_cohorts_and_mechanisms() -> None:
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+
+    report = build_canonical_report({"gene": "DRD4", "knowledge_base": knowledge_base})
+    medical = report["sections"]["medical"]
+    condition_text = " ".join(
+        item["condition_or_topic"] for item in medical["investigated_conditions"]
+    ).casefold()
+    cohorts = medical["cohort_studies"]
+    cohort_text = json.dumps(cohorts, ensure_ascii=False).casefold()
+
+    assert report["schema_version"] == "3.0"
+    assert medical["scope"] == "queried_gene"
+    assert medical["selection_policy"] == "all_gene_context_observed_matches_first"
+    assert medical["context_status"] == "available"
+    assert medical["status"] == "not_assessed"
+    assert medical["records"] == []
+    assert medical["established_evidence"]["records"] == []
+    assert medical["counts"]["cohort_study_count"] == len(cohorts) >= 14
+    assert medical["counts"]["variant_context_count"] == 5
+    assert medical["counts"]["pathology_context_count"] > 0
+    for term in (
+        "schizophrenia", "adhd", "addiction", "substance-use", "nocturnal enuresis",
+        "social-affect", "methylation", "treatment-response",
+    ):
+        assert term in condition_text
+    for term in (
+        "chinese heroin-use cohorts", "japanese adults", "1,735 cases", "1,724 controls",
+        "10 case-control datasets", "28 human postmortem brain samples", "neural cell line",
+        "resting-state neuroimaging",
+    ):
+        assert term in cohort_text
+    assert all(item["authority_status"] == "not_authoritative" for item in cohorts)
+    assert any(item["sample_size_mentions"] is None for item in cohorts)
+    assert all(
+        item["sample_size_mentions"] is not None
+        or item["unavailable_parameters"].get("sample_size_mentions")
+        for item in cohorts
+    )
+
+
+def test_observed_variant_and_methylation_matches_rank_medical_context_first() -> None:
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+    report = build_canonical_report(
+        {
+            "gene": "DRD4",
+            "knowledge_base": knowledge_base,
+            "variant_interpretations": {
+                "matched_records": [
+                    {"variant": "rs1800955", "rsid": "rs1800955", "observed_variant": "rs1800955"}
+                ]
+            },
+            "methylation_insights": {
+                "probe_ids": ["cg11335335"],
+                "whitelist_probe_statuses": [
+                    {"probe_id": "cg11335335", "observed_in_run": True}
+                ],
+            },
+        }
+    )
+    medical = report["sections"]["medical"]
+
+    assert medical["counts"]["observed_match_count"] > 0
+    assert medical["variant_context"][0]["observed_match"] is True
+    assert medical["variant_context"][0]["variant"] in {"rs1800955", "rs3758653", "rs747302"}
+    assert medical["investigated_conditions"][0]["observed_match"] is True
+    assert medical["cohort_studies"][0]["observed_match"] is True
+    assert any(not item["observed_match"] for item in medical["investigated_conditions"])
+    assert len(medical["cohort_studies"]) >= 14
+    assert any(item["variant"] != "rs1800955" for item in medical["cohort_studies"])
+
+
+def test_dynamic_clinical_sources_stay_context_unless_the_authority_gate_passes() -> None:
+    source_records = [
+        {
+            "source_key": "medgen",
+            "category": "clinical_condition",
+            "title": "Example neurologic condition",
+            "definition": "A MedGen definition linked to the queried gene.",
+            "modification_date": "2025-03-01",
+        },
+        {
+            "source_key": "panelapp",
+            "category": "gene_panel",
+            "relevant_disorders": ["Example panel disorder"],
+            "summary": "Gene-panel research context.",
+        },
+        {
+            "source_key": "civic",
+            "category": "cancer_variant",
+            "disease": "Example cancer",
+            "variant": "rs123",
+            "summary": "CIViC clinical database context.",
+        },
+        {
+            "source_key": "clinvar",
+            "category": "clinical_variant",
+            "phenotype": "Ordinary ClinVar condition",
+            "clinical_significance": "uncertain significance",
+            "review_status": "criteria provided, single submitter",
+            "last_evaluated": "2025-04-01",
+        },
+        {
+            "source_key": "clingen",
+            "category": "gene_disease_validity",
+            "disease": "Established ClinGen condition",
+            "classification": "Definitive",
+            "assertion": "Definitive gene-disease validity",
+            "date": "2025-05-01",
+        },
+        {
+            "source_key": "clinvar",
+            "category": "clinical_variant",
+            "phenotype": "Expert-reviewed condition",
+            "clinical_significance": "pathogenic",
+            "review_status": "reviewed by expert panel",
+            "last_evaluated": "2025-06-01",
+        },
+        {
+            "source_key": "cpic",
+            "category": "source_metadata",
+            "evidence_type": "professional_guideline",
+            "label": "CPIC linkout",
+            "effective_date": "2025-07-01",
+        },
+    ]
+    report = build_canonical_report(
+        {
+            "gene": "GENE4",
+            "source_records": source_records,
+            "provider_statuses": [
+                {"source_key": "clingen", "status": "ok", "record_count": 1},
+                {"source_key": "medgen", "status": "ok", "record_count": 1},
+                {"source_key": "gtex", "status": "failed", "record_count": 0},
+            ],
+        }
+    )
+    medical = report["sections"]["medical"]
+    labels = {item["condition_or_topic"] for item in medical["investigated_conditions"]}
+    established_sources = [item["medical_gate"]["canonical_source_key"] for item in medical["records"]]
+
+    assert {
+        "Example neurologic condition", "Example panel disorder", "Example cancer",
+        "Ordinary ClinVar condition", "Established ClinGen condition", "Expert-reviewed condition",
+    } <= labels
+    assert established_sources == ["clingen", "clinvar"]
+    assert all(item.get("category") != "source_metadata" for item in medical["records"])
+    assert medical["status"] == "assessed"
+    assert {item["source_key"] for item in medical["checked_sources"]} == {"clingen", "medgen"}
+    assert medical["failed_sources"] == []
+
+
+def test_medical_authority_status_ignores_unrelated_source_assessment() -> None:
+    medical = build_canonical_report(
+        {
+            "gene": "GENE5",
+            "provider_statuses": [{"source_key": "gtex", "status": "ok", "record_count": 0}],
+        }
+    )["sections"]["medical"]
+
+    assert medical["status"] == "not_assessed"
+    assert medical["checked_sources"] == []
+
+
+def test_layered_medical_content_is_complete_in_html_export() -> None:
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+    report = build_canonical_report({"gene": "DRD4", "knowledge_base": knowledge_base})
+    rendered = render_evidence_first_html(report)
+
+    for heading in (
+        "Gene-level medical and pathology overview", "Investigated conditions and phenotypes",
+        "Cohort and study parameters", "Variant and methylation context",
+        "Established medical evidence and source coverage",
+    ):
+        assert heading in rendered
+    assert "Chinese heroin-use cohorts" in rendered
+    assert "1,735 cases" in rendered
+    assert "No authoritative guideline" in rendered
+
+
+def test_literature_priority_order_and_complete_html_export_are_deterministic() -> None:
+    tier_records = [
+        ("Combined", "Patients with disease were tested in a luciferase reporter assay.", "pubmed"),
+        ("Clinical", "Patients showed a treatment-response risk association.", "pubmed"),
+        ("Experimental", "A luciferase reporter assay measured promoter activity.", "pubmed"),
+        ("Review", "A systematic review summarized the gene evidence.", "pubmed"),
+        ("Association", "A GWAS association was observed across the population.", "pubmed"),
+        ("Other", "The publication describes the gene locus.", "pubmed"),
+        ("Preprint", "Patients were tested in a functional assay.", "biorxiv"),
+    ]
+    records = [
+        {
+            "title": title,
+            "finding": finding,
+            "source_key": source,
+            "doi": f"10.1234/{index}",
+        }
+        for index, (title, finding, source) in enumerate(tier_records, start=1)
+    ]
+    records.extend(
+        {
+            "title": f"Complete export record {index:02d}",
+            "finding": f"Unique complete-export finding {index:02d}",
+            "source_key": "pubmed",
+            "pmid": str(30000000 + index),
+        }
+        for index in range(25)
+    )
+    report = build_canonical_report({"gene": "GENE3", "source_records": records})
+    literature = report["sections"]["literature"]
+    tiers_by_title = {item["title"]: item["priority_tier"] for item in literature["findings"]}
+    rendered = render_evidence_first_html(report)
+
+    assert [tiers_by_title[title] for title, _finding, _source in tier_records] == [1, 2, 3, 4, 5, 6, 7]
+    assert literature["finding_count"] == 32
+    assert "Unique complete-export finding 00" in rendered
+    assert "Unique complete-export finding 24" in rendered
+    assert "detailed review is capped" not in rendered.casefold()
+    assert "not an exhaustive internet-wide search" in rendered
+
+
 def test_numeric_description_reports_quantiles_population_std_and_invalid_values() -> None:
     summary = describe_numeric([0.0, 0.2, 0.8, 1.0, 1.2, None], valid_range=(0.0, 1.0))
 
@@ -113,6 +466,57 @@ def test_numeric_description_reports_quantiles_population_std_and_invalid_values
         "availability": "available",
         "explanation": None,
     }
+
+
+def test_bundled_drd4_interactions_return_versioned_direct_partners_without_literature_pollution() -> None:
+    knowledge_base = load_gene_interpretation_database("DRD4")
+    assert knowledge_base is not None
+
+    report = build_canonical_report(
+        {"gene": "DRD4", "knowledge_base": knowledge_base, "variants": [], "methylation": []}
+    )
+    interactions = report["sections"]["interactions"]
+    graph = interactions["initial_graph"]
+    partners = [edge["target_gene"] for edge in graph["edges"]]
+    rendered = render_evidence_first_html(report)
+
+    assert interactions["status"] == "assessed"
+    assert interactions["coverage_status"] == "available"
+    assert interactions["direct_partner_count"] == graph["edge_count"] == 10
+    assert graph["node_count"] == 11
+    assert partners == ["SLC6A4", "SLC6A3", "DRD3", "COMT", "MAOA", "GNB3", "KLHL12", "BDNF", "DRD2", "GNAI1"]
+    assert interactions["sources"] == ["string"]
+    assert interactions["source_statuses"] == [
+        {
+            "source_key": "string",
+            "status": "bundled_snapshot",
+            "record_count": 10,
+            "source_release": "12.0",
+            "snapshot_date": "2026-08-18",
+        }
+    ]
+    assert all(edge["edge_type"] == "functional_association" for edge in graph["edges"])
+    assert all(edge["evidence"]["source_release"] == "12.0" for edge in graph["edges"])
+    assert all("not necessarily direct physical binding" in edge["association_scope"] for edge in graph["edges"])
+    assert not any(item.get("source_key") == "string" for item in report["sections"]["literature"]["findings"])
+    assert "SLC6A4" in rendered and "GNAI1" in rendered
+    assert "do not necessarily represent direct physical binding" in rendered
+
+
+def test_interaction_source_can_be_assessed_with_no_returned_edges() -> None:
+    interactions = build_canonical_report(
+        {
+            "gene": "GENE_WITH_NO_STRING_EDGES",
+            "provider_statuses": [
+                {"source_key": "string", "status": "ok", "record_count": 0}
+            ],
+        }
+    )["sections"]["interactions"]
+
+    assert interactions["status"] == "assessed"
+    assert interactions["coverage_status"] == "no_data"
+    assert interactions["direct_partner_count"] == 0
+    assert interactions["source_statuses"][0]["source_key"] == "string"
 
 
 def test_interaction_graph_uses_gene_hops_and_hard_cap() -> None:
@@ -351,11 +755,54 @@ def test_canonical_report_persists_normalized_rows_idempotently() -> None:
         session.commit()
         second = persist_canonical_report(session, report)
         session.commit()
-        assert first["variants"] == first["methylation"] == first["evidence"] == 1
-        assert second["variants"] == second["methylation"] == second["evidence"] == 0
+        assert first["variants"] == first["methylation"] == 1
+        assert first["evidence"] == 11
+        assert first["interactions"] == 10
+        assert second["variants"] == second["methylation"] == second["evidence"] == second["interactions"] == 0
         assert session.scalar(select(func.count()).select_from(VariantCall)) == 1
         assert session.scalar(select(func.count()).select_from(MethylationMeasurement)) == 1
-        assert session.scalar(select(func.count()).select_from(EvidenceRecord)) == 1
+        assert session.scalar(select(func.count()).select_from(EvidenceRecord)) == 11
+        assert session.scalar(select(func.count()).select_from(InteractionEdge)) == 10
+
+
+def test_persistence_creates_medical_assertions_only_for_authoritative_records() -> None:
+    engine = create_database_engine(test_url="sqlite+pysqlite:///:memory:")
+    ensure_schema(engine)
+    with Session(engine) as session:
+        session.add(Run(id="medical-r1", status="succeeded", stage="complete", genes=["GENE6"]))
+        session.commit()
+        report = build_canonical_report(
+            {
+                "run_id": "medical-r1",
+                "gene": "GENE6",
+                "source_records": [
+                    {
+                        "source_key": "medgen",
+                        "category": "clinical_condition",
+                        "title": "Research-only condition",
+                        "definition": "Condition context from MedGen.",
+                    },
+                    {
+                        "source_key": "clingen",
+                        "category": "gene_disease_validity",
+                        "disease": "Authoritative condition",
+                        "classification": "Definitive",
+                        "assertion": "Definitive gene-disease validity",
+                        "date": "2025-08-01",
+                    },
+                ],
+            }
+        )
+        counts = persist_canonical_report(session, report)
+        session.commit()
+        assertion = session.scalar(select(MedicalAssertion))
+
+        assert len(report["sections"]["medical"]["investigated_conditions"]) == 2
+        assert counts["medical"] == 1
+        assert session.scalar(select(func.count()).select_from(MedicalAssertion)) == 1
+        assert assertion is not None
+        assert assertion.authority == "clingen"
+        assert assertion.effective_date == "2025-08-01"
 
 
 def test_legacy_import_archives_synthesis_and_marks_linkouts_not_assessed(tmp_path: Path) -> None:

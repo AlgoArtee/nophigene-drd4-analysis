@@ -16,6 +16,8 @@ $databaseSecretPath = Join-Path $secretRoot "database-key"
 $sessionSecretPath = Join-Path $secretRoot "session-token"
 $dandelionSecretPath = Join-Path $secretRoot "dandelion-runner-key"
 $dandelionArtifactSecretPath = Join-Path $secretRoot "dandelion-artifact-key"
+$modelRunnerSecretPath = Join-Path $secretRoot "model-runner-key"
+$modelCredentialSecretPath = Join-Path $secretRoot "model-credential-key"
 $stageCount = 5
 
 function Write-Stage {
@@ -126,6 +128,8 @@ else {
     Remove-SecretFile -Path $sessionSecretPath -Label "Browser-session runtime file"
     Remove-SecretFile -Path $dandelionSecretPath -Label "DANDELION runner-key runtime file"
     Remove-SecretFile -Path $dandelionArtifactSecretPath -Label "DANDELION managed-artifact runtime file"
+    Remove-SecretFile -Path $modelRunnerSecretPath -Label "Model-runner signing-key runtime file"
+    Remove-SecretFile -Path $modelCredentialSecretPath -Label "Model-credential encryption-key runtime file"
     if ((Test-Path -LiteralPath $secretRoot) -and -not (Get-ChildItem -LiteralPath $secretRoot -Force)) {
         if ($DryRun) {
             Write-Notice "Dry run: would remove the empty secret directory."

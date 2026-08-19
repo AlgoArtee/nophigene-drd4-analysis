@@ -42,7 +42,13 @@ def _section_csv(section: Any) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def create_export_bundle(report: dict[str, Any], output_path: Path, *, password: str = "") -> dict[str, Any]:
+def create_export_bundle(
+    report: dict[str, Any],
+    output_path: Path,
+    *,
+    password: str = "",
+    additional_files: dict[str, bytes] | None = None,
+) -> dict[str, Any]:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     files: dict[str, bytes] = {
@@ -55,6 +61,11 @@ def create_export_bundle(report: dict[str, Any], output_path: Path, *, password:
     }
     for key, section in report.get("sections", {}).items():
         files[f"sections/{key}.csv"] = _section_csv(section)
+    for name, content in (additional_files or {}).items():
+        safe = Path(name)
+        if safe.is_absolute() or ".." in safe.parts:
+            raise ValueError("Additional export paths must stay inside the bundle.")
+        files[safe.as_posix()] = bytes(content)
     encrypted = bool(password)
     if encrypted:
         try:

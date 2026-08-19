@@ -14,4 +14,11 @@
   </form>
   <div class="card settings-note"><h3>Security defaults</h3><ul><li>Production persistence requires SQLCipher.</li><li>Services bind to localhost.</li><li>Full-fidelity exports require an explicit sensitive-data confirmation.</li><li>Local model containers run offline after verified installation.</li></ul></div>
   <div class="card settings-note"><h3>DANDELION offline runner</h3><dl class="compact-list" data-dandelion-health><div><dt>Status</dt><dd>Checking…</dd></div></dl><p>R 4.6.1 · DANDELION 0.1.0 · GPL-3.0 · no network · one CPU job at a time. The app and worker share only signed job manifests and content-addressed artifacts.</p></div>
+  <div class="card settings-note" data-alphagenome-credential-settings>
+    <div class="section-heading compact-heading"><div><span class="eyebrow">External molecular model</span><h3>AlphaGenome API credential</h3></div><span class="status-pill" data-alphagenome-credential-status>Checking…</span></div>
+    <p>The key is encrypted server-side using a launcher-managed key retained in Windows Credential Manager. It is never stored in reports, manifests, database rows, audit payloads, or browser sessions.</p>
+    <label>API key<input type="password" autocomplete="new-password" data-alphagenome-api-key placeholder="Enter or replace the AlphaGenome API key"></label>
+    <div class="actions"><button type="button" data-alphagenome-credential-save>Save securely</button><button type="button" class="secondary" data-alphagenome-credential-verify>Verify metadata access</button><button type="button" class="quiet" data-alphagenome-credential-delete>Remove</button></div>
+    <div data-alphagenome-credential-message hidden></div>
+  </div>
 </section>

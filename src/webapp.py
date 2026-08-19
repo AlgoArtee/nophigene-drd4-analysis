@@ -141,6 +141,7 @@ SESSION_PREPROCESS_KEY = "preprocess_state"
 SESSION_EXTRACTION_KEY = "extraction_state"
 SESSION_KNOWLEDGE_SOURCES_KEY = "knowledge_sources_state"
 SESSION_KNOWLEDGE_CREDENTIAL_ID_KEY = "knowledge_sources_credential_id"
+SESSION_LATEST_STANDARD_RUN_KEY = "latest_standard_run_id"
 KNOWLEDGE_SOURCE_CREDENTIAL_STORE: dict[str, dict[str, str]] = {}
 VARIANT_RAW_PAGE_SIZE = 25
 GENERAL_ANALYSIS_DATABASE_FILENAME = "general_gene_analysis_database.csv"
@@ -3664,6 +3665,14 @@ def index() -> str:
                         selected_source_keys=list(knowledge_sources_state.get("selected_sources", [])),
                     )
                     result = analysis_result.canonical_report
+                    canonical_report_path = RESULTS_DIR / "runs" / run_id / "report.json"
+                    canonical_report_path.parent.mkdir(parents=True, exist_ok=True)
+                    temporary_report_path = canonical_report_path.with_name(f".{canonical_report_path.name}.tmp")
+                    temporary_report_path.write_text(
+                        json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False, default=str),
+                        encoding="utf-8",
+                    )
+                    temporary_report_path.replace(canonical_report_path)
                     finished_at = datetime.now(timezone.utc)
                     with session_scope(app.config["NOPHIGENE_DATABASE_ENGINE"]) as db_session:
                         db_session.add(
@@ -3680,6 +3689,7 @@ def index() -> str:
                                     "analysis_scope": form["analysis_scope"],
                                     "region": form["region"],
                                     "scope_regions": dict(preprocess_state.get("scope_regions") or {}),
+                                    "canonical_report_path": str(canonical_report_path.resolve()),
                                 },
                                 started_at=finished_at,
                                 finished_at=finished_at,
@@ -3687,6 +3697,7 @@ def index() -> str:
                         )
                         db_session.flush()
                         persist_canonical_report(db_session, result)
+                    session[SESSION_LATEST_STANDARD_RUN_KEY] = run_id
                 except AnalysisError as exc:
                     analysis_error = str(exc)
 
@@ -3716,6 +3727,17 @@ def index() -> str:
         "extraction": "run",
     }.get(initial_tab, "results" if result else "run")
 
+    prediction_run_id = str((result or {}).get("run", {}).get("id") or session.get(SESSION_LATEST_STANDARD_RUN_KEY) or "")
+    prediction_gene = str((result or {}).get("run", {}).get("gene") or "")
+    if prediction_run_id and not result:
+        with session_scope(app.config["NOPHIGENE_DATABASE_ENGINE"]) as db_session:
+            prediction_run = db_session.get(Run, prediction_run_id)
+            if prediction_run is None or prediction_run.status != "succeeded":
+                prediction_run_id = ""
+                session.pop(SESSION_LATEST_STANDARD_RUN_KEY, None)
+            else:
+                prediction_gene = str((prediction_run.genes or [""])[0])
+
     return render_template(
         "v2/index.html",
         form=form,
@@ -3738,6 +3760,8 @@ def index() -> str:
         extraction_tool_status=extraction_tool_status,
         extraction_reference_status=extraction_reference_status,
         analysis_unlocked=analysis_unlocked,
+        prediction_run_id=prediction_run_id,
+        prediction_gene=prediction_gene,
         result=result,
         initial_tab=task_initial,
         field_info=_build_field_info(
